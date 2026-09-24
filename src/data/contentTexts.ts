@@ -173,3 +173,170 @@ export const infoSectionTexts: Record<string, string[]> = {
     "Bu siteyi kullanarak aşağıdaki koşulları kabul etmiş sayılırsınız. Sitedeki ürün görselleri, açıklamaları ve fiyat bilgileri tanıtım amaçlıdır; olası yazım ve sistem hatalarından doğabilecek farklılıklar için sitedeki güncel bilgiler esas alınır. Hesabınızla gerçekleştirdiğiniz tüm işlemlerden ve hesap bilgilerinizin gizliliğinin korunmasından siz sorumlusunuz. Site içeriğinin (metin, görsel, tasarım) izinsiz kopyalanması veya çoğaltılması yasaktır.",
   ],
 }
+
+/* ======================================================================================
+ * İNGİLİZCE VARSAYILAN METİNLER (`/en` sitesi)
+ * Yukarıdaki Türkçe metinlerin karşılıkları; anahtarlar birebir aynıdır. content.ts EN sitede
+ * şu sırayla düşer: API `fieldsEn` > panel EN override'ı > buradaki metin > Türkçe zincir.
+ * Aynı kurallar geçerlidir: gerçek işletme bilgisi yok, [Company name] / [Address] / [E-mail]
+ * yer tutucuları marka bilgileri gelince doldurulur. Hukuki metinler (privacy notice, cookie policy,
+ * distance sales summary, terms of use) şablon niteliğindedir ve Türk mevzuatına (KVKK — Kanun
+ * No. 6698, Mesafeli Sözleşmeler Yönetmeliği) atıf yapar; yayına alınmadan önce hukuk danışmanı
+ * incelemesinden geçirilmelidir. NOT: Panelde Türkçe metin değiştirildiğinde buradaki İngilizce
+ * varsayılan kendiliğinden güncellenmez — panelde EN alanı ayrıca doldurulmalıdır.
+ * ====================================================================================== */
+
+const SIZE_TABLE_EN = [
+  'Measurements are in centimetres; small variations may occur between styles.',
+  'XS: Bust 80–84 cm · Waist 62–66 cm · Hips 86–90 cm',
+  'S: Bust 84–88 cm · Waist 66–70 cm · Hips 90–94 cm',
+  'M: Bust 88–92 cm · Waist 70–74 cm · Hips 94–98 cm',
+  'L: Bust 92–98 cm · Waist 74–80 cm · Hips 98–104 cm',
+  'XL: Bust 98–104 cm · Waist 80–86 cm · Hips 104–110 cm',
+].join('\n')
+
+const SIZE_NOTE_EN = [
+  'To find your size, we recommend measuring yourself with a soft tape measure while wearing light clothing.',
+  'Measure your bust at its fullest point, your waist at its narrowest point and your hips at their fullest point.',
+  'Compare your measurements with the table above to find the size that suits you best.',
+  'If you are between two sizes, we recommend choosing the larger size, depending on the cut of the garment.',
+].join(' ')
+
+const SHIPPING_FEE_TEXT_EN =
+  'The shipping fee is shown at checkout. Free shipping terms that apply during specific campaign periods are announced separately on the site for the duration of the campaign.'
+
+const DELIVERY_TIME_TEXT_EN =
+  'Orders are handed over to the carrier within 1–3 business days of confirmation. Once shipped, orders usually reach you within 1–4 business days, depending on the carrier and the delivery region. These times may be briefly extended during busy campaign periods.'
+
+export const contentTextsEn: Record<string, string> = {
+  // --- Brand ---
+  'brand.collectionTitle': 'Autumn / Winter 2026 Collection',
+  'brand.collectionIntro':
+    'This autumn-winter season, Teshvikiye brings together understated, timeless pieces made to accompany every moment of the day. Soft textures, balanced cuts and a neutral palette are designed for those who prepare for the cold without compromising on elegance. Every piece in the collection is conceived to hold its place in your wardrobe for a long time.',
+  'brand.workingHours': 'We are here for you on weekdays from 09:00 to 18:00.',
+  // brand.companyName / address / phone / email: real business details — intentionally not defined (same as Turkish).
+
+  // --- Cookies ---
+  'cookie.bannerText':
+    'This website uses cookies to improve your experience. Cookies other than those strictly necessary are only activated with your consent, and you can change your preferences at any time.',
+  'cookie.necessary': 'Required to keep the core functions of the site, your session and your cart working; they therefore cannot be turned off.',
+  'cookie.analytics': 'Help us improve the experience by analysing site usage anonymously; only activated with your consent.',
+  'cookie.marketing': 'Used to offer you content and campaigns that may interest you; only activated with your consent.',
+
+  // --- Production ---
+  'production.intro':
+    'Every piece goes through a carefully monitored process, from design to quality control. The care taken in choosing the fabric, cutting and sewing is reflected directly in the finished garment, so you can be confident in both the drape and the feel of every piece you receive.',
+  'production.kesim.title': 'Careful Cutting',
+  'production.kesim.text':
+    'Fabrics are laid out to suit the pattern as closely as possible and cut with care. The attention given at this stage directly shapes the final fit and quality of the piece.',
+  'production.dikim.title': 'Meticulous Sewing',
+  'production.dikim.text':
+    'The cut pieces are assembled step by step by experienced hands. Stitch quality is one of the most important factors in both the look and the durability of a garment.',
+  'production.kalite.title': 'Quality Control',
+  'production.kalite.text':
+    'Before dispatch, every garment is checked individually against our stitching, fabric and measurement standards. Pieces that do not meet expectations are not included in the collection.',
+
+  // --- Size guide ---
+  'sizeGuide.table': SIZE_TABLE_EN,
+  'sizeGuide.note': SIZE_NOTE_EN,
+}
+
+export const infoSectionTextsEn: Record<string, string[]> = {
+  hakkimizda: [
+    'Teshvikiye takes its name from Teşvikiye, the Istanbul neighbourhood long associated with fashion and elegance. The name is a point of reference that inspires the brand’s simple, refined stance. Teshvikiye offers womenswear that keeps pace with everyday life while being made with careful craftsmanship. Our collections favour designs that can be worn for years over short-lived trends. Our aim is to offer a wardrobe in which every woman can comfortably express her own style.',
+    'Clean lines and balanced cuts come first in our design process. We choose quality fabrics with both comfort and durability in mind. Our colour palette is made up of timeless tones that are easy to combine with one another. Thanks to this approach, our pieces keep their place in your wardrobe even as the seasons change.',
+  ],
+
+  teslimat: [
+    DELIVERY_TIME_TEXT_EN,
+    SHIPPING_FEE_TEXT_EN,
+    'We deliver to all addresses within Türkiye. For international delivery requests, please get in touch with us through our contact channels.',
+  ],
+
+  'iade-degisim': [
+    'Under the Turkish Distance Contracts Regulation, you may exercise your right of withdrawal without giving any reason within 14 days of receiving your order. Items to be returned must be unused, unwashed and sent with their original tags attached. Returns that do not meet these conditions may not be accepted.',
+    'If you would like a different size or colour, an exchange can be arranged provided the item meets the return conditions. Exchange requests are subject to stock availability; if the requested alternative is out of stock, you will be directed to the return process instead.',
+    [
+      '1. Go to My orders in your Account, select the order and create a return or exchange request.',
+      '2. Pack the item with its original packaging and tags.',
+      '3. Send the item using the shipping details provided to you.',
+      '4. Once the item reaches us and passes inspection, the refund is issued to your original payment method.',
+    ].join('\n'),
+  ],
+
+  'beden-rehberi': [SIZE_TABLE_EN, SIZE_NOTE_EN],
+
+  sss: [
+    [
+      'Q: How can I track my order?',
+      'A: You can follow the status of your order from My orders in your Account.',
+      'Q: Can I change an item or size after placing my order?',
+      'A: Before your order is shipped, you can contact our support team with your change request.',
+      'Q: Can I cancel my order?',
+      'A: For orders that have not yet been shipped, you can submit a cancellation request from My orders in your Account.',
+    ].join('\n'),
+    [
+      'Q: When will my order arrive?',
+      'A: Orders are shipped within 1–3 business days of confirmation; delivery usually takes 1–4 business days, depending on the carrier and region.',
+      'Q: How much is shipping?',
+      'A: The shipping fee is shown at checkout; free shipping terms are announced during campaign periods.',
+      'Q: Do you deliver internationally?',
+      'A: For international delivery requests, please reach us through our contact channels.',
+    ].join('\n'),
+    [
+      'Q: How many days do I have to return an item?',
+      'A: You can return an item by exercising your right of withdrawal within 14 days of receiving it.',
+      'Q: When will I receive my refund?',
+      'A: Once the item reaches us and passes inspection, the refund is issued to your original payment method.',
+      'Q: Can I return an item whose tag has been removed?',
+      'A: To be eligible for a return, the item must be unused and have its original tags attached.',
+    ].join('\n'),
+    [
+      'Q: How is the member discount applied?',
+      'A: When you create an account, the 10% member discount is applied to your cart automatically.',
+      'Q: Are there any conditions for the member discount?',
+      'A: Campaign terms may be updated from time to time; the current terms are stated on the site.',
+      'Q: Can I shop without an account?',
+      'A: Yes, you can also order as a guest; to benefit from the member discount, you need to create an account.',
+    ].join('\n'),
+  ],
+
+  gizlilik: [
+    'At [Company name], we care about the security of your personal data. This privacy policy explains for which purposes the personal data obtained while you use our site is processed, how it is stored and what your rights are. During ordering, membership and communication, data such as your name, address, telephone number, e-mail address and order details is processed in order to fulfil your orders, provide customer service and meet our legal obligations. Your data is kept for as long as the purpose of processing requires and within the retention periods set out in the applicable legislation. Under the Turkish Personal Data Protection Law No. 6698 (KVKK), you have the right to access your data, request its correction or deletion and object to its processing. To exercise these rights, you can contact us at [E-mail].',
+    [
+      'Identity of the Data Controller',
+      'Pursuant to the Turkish Personal Data Protection Law No. 6698, [Company name], located at [Address], acts as the data controller.',
+      '',
+      'Personal Data Processed and Purposes of Processing',
+      'Your name, contact details, delivery address and order details are processed to create your orders, arrange delivery, provide customer service and fulfil our legal obligations.',
+      '',
+      'Transfer of Personal Data',
+      'Your personal data may be shared, to a limited extent and with the necessary security measures in place, with the business partners we work with for legitimate purposes such as carrying out shipping and payment processes and meeting legal obligations.',
+      '',
+      'Method and Legal Basis of Collection',
+      'Your data is collected electronically during the transactions you carry out on our site, on the legal grounds of the establishment and performance of a contract and compliance with a legal obligation.',
+      '',
+      'Your Rights',
+      'Under Article 11 of the Law, you have the right to learn whether your personal data is processed, to request information about such processing, and to request its correction or deletion. You can send your requests to [E-mail].',
+    ].join('\n'),
+  ],
+
+  'cerez-politikasi': [
+    [
+      'Cookies are small text files saved to your browser by the websites you visit. They are used to make the site work properly, remember your preferences and improve your experience.',
+      '',
+      'We use three categories of cookies on our site. Necessary cookies are required to keep your session, your cart and your cookie choice, and cannot be turned off. Analytics cookies help us improve the experience by measuring site usage anonymously and are only activated with your consent. Marketing cookies are used to offer you content and campaigns that may interest you and are only activated with your consent.',
+      '',
+      'You can change your cookie preferences at any time using the "Cookie preferences" link at the bottom of the page. You can also manage or delete cookies in your browser settings. If you disable cookies entirely in your browser, some parts of the site may not work as expected.',
+      '',
+      'Cookies are kept for different periods depending on their type: session cookies are deleted when you close your browser, while persistent cookies remain on your device for a predefined period or until you delete them.',
+      '',
+      'For any questions about our cookie policy, you can contact us at [E-mail].',
+    ].join('\n'),
+  ],
+
+  'alisveris-kosullari': [
+    'This text summarises the general principles of the distance sales contract concluded between [Company name] ("Seller") and the customer shopping on our site ("Buyer"). The subject of the contract is the sale and delivery of the product the Buyer orders electronically through our site. The Buyer may exercise the right of withdrawal within 14 days without giving any reason; details of the right of withdrawal can be found on our Returns & Exchanges page. Disputes arising from the performance of the contract fall under the jurisdiction of the Consumer Arbitration Committees within the monetary limits announced by the Turkish Ministry of Trade, and of the Consumer Courts for disputes above those limits.',
+    'By using this site, you are deemed to have accepted the following terms. Product images, descriptions and prices on the site are provided for promotional purposes; in the event of any discrepancies caused by typing or system errors, the current information on the site prevails. You are responsible for all transactions carried out with your account and for keeping your account details confidential. Copying or reproducing the site content (text, images, design) without permission is prohibited.',
+  ],
+}

@@ -295,6 +295,23 @@ export async function updateOrderStatus(id, status) {
   return getOrderById(id)
 }
 
+/** Müşterinin siparişleri (yeniden eskiye), kalemleriyle; sipariş sayısından bağımsız iki sorgu. */
+export async function listOrdersByCustomer(customerId, limit = 50) {
+  const [orderRows] = await pool.query('SELECT * FROM orders WHERE customer_id = ? ORDER BY created_at DESC, id DESC LIMIT ?', [customerId, limit])
+  if (!orderRows.length) return []
+  const ids = orderRows.map((r) => r.id)
+  const [itemRows] = await pool.query(
+    `SELECT order_id, product_id, product_name, color_id, color_label, size, qty, unit_price FROM order_items WHERE order_id IN (${ids.map(() => '?').join(',')}) ORDER BY id ASC`,
+    ids,
+  )
+  const byOrder = new Map()
+  for (const item of itemRows) {
+    if (!byOrder.has(item.order_id)) byOrder.set(item.order_id, [])
+    byOrder.get(item.order_id).push(item)
+  }
+  return orderRows.map((row) => formatOrder(row, byOrder.get(row.id) ?? []))
+}
+
 function formatOrder(row, itemRows) {
   return {
     id: row.id,

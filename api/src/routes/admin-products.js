@@ -11,12 +11,15 @@ router.use(requireAdmin)
 /** Ürün id biçimi: `urun-NN` (bkz. services/products.js createProduct). */
 const PRODUCT_ID_RE = /^urun-\d{2,4}$/
 
-const colorSchema = z.object({ id: z.string().min(1), label: z.string().min(1) })
+// İngilizce alanlar opsiyoneldir; null ya da boş metin EN değerini temizler (mağaza Türkçeye düşer).
+// Uzunluk sınırları TR karşılıklarıyla / DB sütunlarıyla aynıdır (bkz. migrations/005_content_locale.sql).
+const colorSchema = z.object({ id: z.string().min(1), label: z.string().min(1), labelEn: z.string().max(64).nullable().optional() })
 const stockSchema = z.record(z.string(), z.record(z.string(), z.number().int().min(0)))
 const mediaSchema = z.record(z.enum(productsService.MEDIA_KINDS), z.string().min(1))
 
 const updateSchema = z.object({
   name: z.string().min(1).max(200).optional(),
+  nameEn: z.string().max(200).nullable().optional(),
   price: z.number().min(0).optional(),
   category: z.enum(productsService.CATEGORIES).optional(),
   isNew: z.boolean().optional(),
@@ -24,7 +27,9 @@ const updateSchema = z.object({
   colors: z.array(colorSchema).min(1).optional(),
   stock: stockSchema.optional(),
   description: z.string().nullable().optional(),
+  descriptionEn: z.string().nullable().optional(),
   fabricCare: z.string().nullable().optional(),
+  fabricCareEn: z.string().nullable().optional(),
   deliveryReturns: z.string().nullable().optional(),
   similarProductIds: z.array(z.string()).optional(),
   completeLookProductIds: z.array(z.string()).optional(),
@@ -33,6 +38,7 @@ const updateSchema = z.object({
 
 const createSchema = z.object({
   name: z.string().min(1).max(200).optional(),
+  nameEn: z.string().max(200).nullable().optional(),
   category: z.enum(productsService.CATEGORIES),
   price: z.number().min(0),
   isNew: z.boolean().optional(),
@@ -40,7 +46,9 @@ const createSchema = z.object({
   colors: z.array(colorSchema).optional(),
   stock: stockSchema.optional(),
   description: z.string().optional(),
+  descriptionEn: z.string().nullable().optional(),
   fabricCare: z.string().optional(),
+  fabricCareEn: z.string().nullable().optional(),
   deliveryReturns: z.string().optional(),
 })
 

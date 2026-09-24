@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AccordionItem } from '../../components/ui/Accordion'
 import { TextareaField } from '../../components/ui/Field'
-import { brandContent, brandContentKeys, cookieContent, infoPages, productionContent, sizeGuideContent, type BrandContentKey } from '../../data/content'
+import { brandContent, brandContentKeys, contentDefaultsEn, cookieContent, infoPages, productionContent, sizeGuideContent, type BrandContentKey } from '../../data/content'
 import { contentTexts, infoSectionTexts } from '../../data/contentTexts'
 import { apiErrorMessage } from '../../i18n/apiMessages'
 import { getAdminContent, updateAdminContentFields, useApiMode, type AdminContent } from '../adminApi'
@@ -98,6 +98,32 @@ function buildFieldsPatch(form: ContentForm, baseline: ContentForm): Record<stri
 
 const clean = (v: string | null | undefined): string | null => (v && v.trim() ? v : null)
 
+/* ---------------- İngilizce (EN) alanlar ---------------- */
+
+/** EN formu: API alan anahtarı → metin (TR formuyla aynı anahtar kümesi, bkz. flattenForm). */
+type EnForm = Record<string, string>
+
+const contentKeys = Object.keys(flattenForm(buildInitialForm()))
+
+/** EN değeri: API `fieldsEn` (taze) > yönetici paneli localStorage EN override'ı > hazır İngilizce metin > boş. */
+function buildEnForm(fieldsEn: Record<string, string>): EnForm {
+  const local = readAdminData().content.en ?? {}
+  return Object.fromEntries(contentKeys.map((key) => [key, clean(fieldsEn[key]) ?? clean(local[key]) ?? contentDefaultsEn[key] ?? '']))
+}
+
+/** EN için buildFieldsPatch'in aynısı: yalnızca değişen anahtarlar; boş → null (EN değerini temizler). */
+function buildEnPatch(en: EnForm, baseline: EnForm): Record<string, string | null> {
+  const patch: Record<string, string | null> = {}
+  for (const key of contentKeys) {
+    const trimmed = (en[key] ?? '').trim()
+    if (trimmed === (baseline[key] ?? '').trim()) continue
+    patch[key] = trimmed ? trimmed : null
+  }
+  return patch
+}
+
+const initialEnForm = (): EnForm => buildEnForm({})
+
 /** Tek bir alan için değer çözümler: API (taze) > yönetici paneli localStorage override'ı > contentTexts.ts metni > boş. */
 function resolveField(fresh: string | null | undefined, local: string | null | undefined, fallback: string | undefined): string {
   return clean(fresh) ?? clean(local) ?? fallback ?? ''
@@ -164,9 +190,30 @@ export function ContentPage() {
   const [form, setForm] = useState<ContentForm>(buildInitialForm)
   // Kaydetme anında yalnızca gerçekten DEĞİŞEN alanları göndermek için taban — bkz. buildFieldsPatch.
   const [baseline, setBaseline] = useState<ContentForm>(buildInitialForm)
+  const [enForm, setEnForm] = useState<EnForm>(initialEnForm)
+  const [enBaseline, setEnBaseline] = useState<EnForm>(initialEnForm)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+
+  /** TR alanının hemen altında gösterilen İngilizce alan (`key`: API alan anahtarı). */
+  function enField(key: string, label: string, rows: number) {
+    return (
+      <TextareaField
+        key={`${key}-en`}
+        label={AS.content.enLabel(label)}
+        lang="en"
+        rows={rows}
+        placeholder={AS.content.enPlaceholder}
+        value={enForm[key] ?? ''}
+        onChange={(e) => {
+          const value = e.target.value
+          setEnForm((f) => ({ ...f, [key]: value }))
+          setMessage(null)
+        }}
+      />
+    )
+  }
 
   // `data/content.ts`'in modül yüklenirken aldığı anlık görüntü, sayfa yeniden monte edildiğinde
   // (başka panel sayfasına gidip geri dönünce) artık güncel olmayabilir — API modunda her montajda
@@ -180,6 +227,9 @@ export function ContentPage() {
         const fresh = buildFormFromFields(content.fields)
         setForm(fresh)
         setBaseline(fresh)
+        const freshEn = buildEnForm(content.fieldsEn)
+        setEnForm(freshEn)
+        setEnBaseline(freshEn)
       })
       .catch((e) => {
         if (!cancelled) setError(apiErrorMessage(e))
@@ -192,15 +242,17 @@ export function ContentPage() {
   async function handleSave() {
     if (useApiMode) {
       const patch = buildFieldsPatch(form, baseline)
-      if (Object.keys(patch).length === 0) {
+      const patchEn = buildEnPatch(enForm, enBaseline)
+      if (Object.keys(patch).length === 0 && Object.keys(patchEn).length === 0) {
         setMessage(AS.apiNotice.saved)
         return
       }
       setPending(true)
       setError(null)
       try {
-        await updateAdminContentFields(patch)
+        await updateAdminContentFields(patch, patchEn)
         setBaseline(form)
+        setEnBaseline(enForm)
         setMessage(AS.apiNotice.saved)
       } catch (e) {
         setError(apiErrorMessage(e))
@@ -225,6 +277,10 @@ export function ContentPage() {
           },
         },
         sizeGuide: { ...form.sizeGuide },
+        // Yalnızca hazır İngilizce metinden FARKLI dolu EN değerleri saklanır (varsayılanı dondurmamak için).
+        en: Object.fromEntries(
+          contentKeys.map((key) => [key, (enForm[key] ?? '').trim()] as const).filter(([key, value]) => value && value !== (contentDefaultsEn[key] ?? '').trim()),
+        ),
       },
     }))
     setMessage(AS.save.saved)
@@ -236,6 +292,9 @@ export function ContentPage() {
         <h1 className={styles.pageTitle}>{AS.content.title}</h1>
       </div>
       {useApiMode ? null : <p className={styles.demoNotice}>{AS.demoNotice}</p>}
+      <p className="text-soft text-sm" style={{ marginBottom: 'var(--sp-4)' }}>
+        {AS.content.enNote}
+      </p>
       {error ? (
         <p className={styles.empty} role="alert">
           {error}
@@ -245,7 +304,7 @@ export function ContentPage() {
       <div className={styles.accordionGroup}>
         <AccordionItem title={AS.content.brandTitle} defaultOpen>
           <div className={styles.fieldStack}>
-            {brandContentKeys.map((key) => (
+            {brandContentKeys.map((key) => [
               <TextareaField
                 key={key}
                 label={brandContent[key].label}
@@ -255,8 +314,9 @@ export function ContentPage() {
                   setForm((f) => ({ ...f, brand: { ...f.brand, [key]: e.target.value } }))
                   setMessage(null)
                 }}
-              />
-            ))}
+              />,
+              enField(`brand.${key}`, brandContent[key].label, 2),
+            ])}
           </div>
         </AccordionItem>
 
@@ -268,7 +328,7 @@ export function ContentPage() {
             {editableInfoPages.map((page) => (
               <AccordionItem key={page.slug} title={page.title}>
                 <div className={styles.fieldStack}>
-                  {page.sections.map((section, i) => (
+                  {page.sections.map((section, i) => [
                     <TextareaField
                       key={`${page.slug}-${i}`}
                       label={section.label}
@@ -282,8 +342,9 @@ export function ContentPage() {
                         })
                         setMessage(null)
                       }}
-                    />
-                  ))}
+                    />,
+                    enField(`info.${page.slug}.${i}`, section.label, 3),
+                  ])}
                 </div>
               </AccordionItem>
             ))}
@@ -301,8 +362,9 @@ export function ContentPage() {
                 setMessage(null)
               }}
             />
+            {enField('cookie.bannerText', cookieContent.bannerText.label, 3)}
             <div className={styles.subCardTitle}>{AS.content.cookieCategoriesTitle}</div>
-            {cookieContent.categories.map((c) => (
+            {cookieContent.categories.map((c) => [
               <TextareaField
                 key={c.id}
                 label={c.description.label}
@@ -313,8 +375,9 @@ export function ContentPage() {
                   setForm((f) => ({ ...f, cookieCategories: { ...f.cookieCategories, [c.id]: value } }))
                   setMessage(null)
                 }}
-              />
-            ))}
+              />,
+              enField(`cookie.${c.id}`, c.description.label, 2),
+            ])}
           </div>
         </AccordionItem>
 
@@ -330,6 +393,7 @@ export function ContentPage() {
                 setMessage(null)
               }}
             />
+            {enField('production.intro', AS.content.productionIntroLabel, 3)}
             <div className={styles.subCardTitle}>{AS.content.productionStepsTitle}</div>
             {productionContent.steps.map((step) => (
               <div key={step.id} className={styles.subCard}>
@@ -345,6 +409,7 @@ export function ContentPage() {
                       setMessage(null)
                     }}
                   />
+                  {enField(`production.${step.id}.title`, step.title.label, 1)}
                   <TextareaField
                     label={step.text.label}
                     rows={3}
@@ -356,6 +421,7 @@ export function ContentPage() {
                       setMessage(null)
                     }}
                   />
+                  {enField(`production.${step.id}.text`, step.text.label, 3)}
                 </div>
               </div>
             ))}
@@ -374,6 +440,7 @@ export function ContentPage() {
                 setMessage(null)
               }}
             />
+            {enField('sizeGuide.table', sizeGuideContent.table.label, 4)}
             <TextareaField
               label={sizeGuideContent.note.label}
               rows={2}
@@ -384,6 +451,7 @@ export function ContentPage() {
                 setMessage(null)
               }}
             />
+            {enField('sizeGuide.note', sizeGuideContent.note.label, 2)}
           </div>
         </AccordionItem>
       </div>

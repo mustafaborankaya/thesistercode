@@ -13,18 +13,30 @@ const brandMediaSchema = z.record(z.string().min(1).max(64), z.string().nullable
 
 router.get('/content', async (req, res, next) => {
   try {
-    const [fields, brandMedia] = await Promise.all([contentService.getFields(), contentService.getBrandMedia()])
-    res.json({ fields, brandMedia })
+    const [fields, fieldsEn, brandMedia] = await Promise.all([
+      contentService.getFields(),
+      contentService.getFieldsEn(),
+      contentService.getBrandMedia(),
+    ])
+    res.json({ fields, fieldsEn, brandMedia })
   } catch (err) {
     next(err)
   }
 })
 
+/**
+ * Gövde geriye uyumludur: düz `anahtar → metin|null` sözlüğü TR değerleridir (eski istemciler
+ * aynen çalışır). İsteğe bağlı `fieldsEn` anahtarı (aynı biçimde sözlük) İngilizce değerleri yazar;
+ * null ya da boş metin EN değerini temizler. `fieldsEn` bir içerik anahtarı olarak yorumlanmaz.
+ */
 router.put('/content', async (req, res, next) => {
   try {
-    const patch = parseBody(fieldsSchema, req.body)
-    const fields = await contentService.updateFields(patch)
-    res.json({ fields })
+    const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {}
+    const { fieldsEn: rawEn, ...rawTr } = body
+    const patch = parseBody(fieldsSchema, rawTr)
+    const patchEn = rawEn === undefined ? {} : parseBody(fieldsSchema, rawEn)
+    const { fields, fieldsEn } = await contentService.updateFields(patch, patchEn)
+    res.json({ fields, fieldsEn })
   } catch (err) {
     next(err)
   }

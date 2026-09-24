@@ -99,7 +99,7 @@ export function CheckoutForm({ values, errors, onChange }: CheckoutFormProps) {
             id="checkout-postalCode"
             label={
               <>
-                {S.checkout.postalCode} <span className="text-faint text-xs">({S.common.optional})</span>
+                {S.checkout.postalCode}
               </>
             }
             autoComplete="postal-code"

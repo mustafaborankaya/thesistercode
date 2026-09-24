@@ -8,9 +8,9 @@
  */
 
 import { readAdminData, type ProductOverride } from '../admin/adminStore'
-import { S } from '../i18n'
+import { locale, S } from '../i18n'
 import { mediaByName, resolveProductMedia } from './media'
-import { remote } from './remote'
+import { remote, type RemoteProduct } from './remote'
 import type { Category, ColorOption, MediaKind, MediaSlotData, Product, SizeId } from './types'
 
 /** Yönetici panelinden gelen ürün override'ları (localStorage) — yalnızca remote yokken uygulanır. */
@@ -50,6 +50,15 @@ const COLOR_LABEL_PLACEHOLDER_RE = /^Renk (\d+)$/
 const DESCRIPTION_PLACEHOLDER_RE = /^Ürün (\d+) — Ürün açıklaması alanı$/
 const FABRIC_CARE_PLACEHOLDER_RE = /^Ürün (\d+) — Kumaş ve bakım bilgisi alanı$/
 const DELIVERY_RETURNS_PLACEHOLDER = 'Teslimat ve iade bilgisi alanı'
+
+/**
+ * İngilizce sitede panelden girilmiş EN değeri (API `nameEn`/`descriptionEn`/`fabricCareEn`/`labelEn` ya
+ * da yerel override) doluysa onu döndürür; Türkçe sitede ya da EN boşsa null → mevcut davranış
+ * (yer tutucu desen → S.data ile yerelleştirme, gerçek TR metin → olduğu gibi).
+ */
+function pickEn(value: string | null | undefined): string | null {
+  return locale === 'en' && value && value.trim() ? value.trim() : null
+}
 
 function localizeProductName(name: string, number: string): string {
   return PRODUCT_NAME_PLACEHOLDER_RE.test(name) ? S.data.productName(number) : name
@@ -105,7 +114,7 @@ function buildProduct(seed: ProductSeed): Product {
     id,
     number,
     slug: id,
-    name: o.name?.trim() || S.data.productName(number),
+    name: pickEn(o.nameEn) ?? (o.name?.trim() || S.data.productName(number)),
     category: o.category ?? seed.category,
     isNew: o.isNew ?? seed.isNew ?? false,
     price: typeof o.price === 'number' && o.price >= 0 ? o.price : seed.price,
@@ -119,8 +128,8 @@ function buildProduct(seed: ProductSeed): Product {
       src: o.media?.[kind] ? (mediaByName(o.media[kind]!) ?? o.media[kind]!) : resolveProductMedia(number, kind),
     })),
     content: {
-      description: o.description?.trim() || S.data.productContent.description(number),
-      fabricCare: o.fabricCare?.trim() || S.data.productContent.fabricCare(number),
+      description: pickEn(o.descriptionEn) ?? (o.description?.trim() || S.data.productContent.description(number)),
+      fabricCare: pickEn(o.fabricCareEn) ?? (o.fabricCare?.trim() || S.data.productContent.fabricCare(number)),
       deliveryReturns: o.deliveryReturns?.trim() || S.data.productContent.deliveryReturns,
     },
     colorNote: colorCount > 1 ? S.data.colorNote(colorCount) : undefined,
@@ -130,9 +139,13 @@ function buildProduct(seed: ProductSeed): Product {
   }
 }
 
-/** API'den gelen ürünü mağaza şekline dönüştürür: yer tutucu desenleri yerelleştirir, görselleri tamamlar. */
-function buildProductFromRemote(row: Product): Product {
-  const colors = row.colors.map((c) => ({ id: c.id, label: localizeColorLabel(c.label) }))
+/**
+ * API'den gelen ürünü mağaza şekline dönüştürür: EN sitede dolu EN alanlarını seçer, aksi halde yer
+ * tutucu desenleri yerelleştirir; görselleri tamamlar. EN alanları çıktı `Product`'a taşınmaz.
+ */
+function buildProductFromRemote(remoteRow: RemoteProduct): Product {
+  const { nameEn, colors: remoteColors, content: remoteContent, ...row } = remoteRow
+  const colors = remoteColors.map((c) => ({ id: c.id, label: pickEn(c.labelEn) ?? localizeColorLabel(c.label) }))
   const media: MediaSlotData[] = row.media.map((m) => ({
     kind: m.kind,
     // API etiketleri her zaman Türkçe üretilir (bkz. api/src/services/products.js) — burada yeniden üretilir.
@@ -141,13 +154,13 @@ function buildProductFromRemote(row: Product): Product {
   }))
   return {
     ...row,
-    name: localizeProductName(row.name, row.number),
+    name: pickEn(nameEn) ?? localizeProductName(row.name, row.number),
     colors,
     media,
     content: {
-      description: localizeDescription(row.content.description, row.number),
-      fabricCare: localizeFabricCare(row.content.fabricCare, row.number),
-      deliveryReturns: localizeDeliveryReturns(row.content.deliveryReturns),
+      description: pickEn(remoteContent.descriptionEn) ?? localizeDescription(remoteContent.description, row.number),
+      fabricCare: pickEn(remoteContent.fabricCareEn) ?? localizeFabricCare(remoteContent.fabricCare, row.number),
+      deliveryReturns: localizeDeliveryReturns(remoteContent.deliveryReturns),
     },
     colorNote: colors.length > 1 ? S.data.colorNote(colors.length) : undefined,
   }

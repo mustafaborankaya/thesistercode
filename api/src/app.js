@@ -15,6 +15,7 @@ import { originCheck } from './auth.js'
 import publicRoutes from './routes/public.js'
 import authRoutes from './routes/auth.js'
 import accountRoutes from './routes/account.js'
+import accountAddressesRoutes from './routes/account-addresses.js'
 import ordersRoutes from './routes/orders.js'
 import adminProductsRoutes from './routes/admin-products.js'
 import adminContentRoutes from './routes/admin-content.js'
@@ -75,6 +76,7 @@ export function createApp() {
   })
 
   router.use('/auth', authRoutes)
+  router.use('/account/addresses', accountAddressesRoutes) // /account router'ından ÖNCE
   router.use('/account', accountRoutes)
   router.use('/orders', ordersRoutes)
   router.use('/admin/products', adminProductsRoutes)

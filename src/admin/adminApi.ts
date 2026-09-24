@@ -5,8 +5,8 @@
  * sayfalar `adminStore.ts`'teki localStorage tabanlı eski davranışa düşer — bkz. her sayfadaki
  * `remote ? ... : ...` dallanması.
  */
-import { isApiMode } from '../data/remote'
-import type { CategoryId, MediaKind, Product, SizeId } from '../data/types'
+import { isApiMode, type RemoteProduct } from '../data/remote'
+import type { CategoryId, MediaKind, SizeId } from '../data/types'
 import { api } from '../services/api'
 import type { ApiOrder } from '../services/ordersApi'
 
@@ -19,13 +19,23 @@ export const useApiMode: boolean = isApiMode()
 
 /* ---------------- Ürünler ---------------- */
 
+/** Panelin gördüğü ürün: API ham şekli (TR alanlar + `nameEn`, `content.descriptionEn/fabricCareEn`, `colors[].labelEn`). */
+export type AdminProduct = RemoteProduct
+
+/** Renk yazımı: `labelEn` verilmezse sunucu o rengin mevcut EN etiketini korur; null temizler. */
+export type AdminColorInput = { id: string; label: string; labelEn?: string | null }
+
 export type AdminProductPatch = Partial<{
   name: string
+  /** İngilizce alanlar: null ya da boş metin temizler (mağaza `/en` sitesinde Türkçeye düşer). */
+  nameEn: string | null
+  descriptionEn: string | null
+  fabricCareEn: string | null
   price: number
   category: Exclude<CategoryId, 'tum-urunler' | 'yeni-gelenler'>
   isNew: boolean
   hidden: boolean
-  colors: { id: string; label: string }[]
+  colors: AdminColorInput[]
   stock: Record<string, Partial<Record<SizeId, number>>>
   description: string | null
   fabricCare: string | null
@@ -35,31 +45,34 @@ export type AdminProductPatch = Partial<{
   media: Partial<Record<MediaKind, string>>
 }>
 
-export async function listAdminProducts(): Promise<Product[]> {
-  const res = await api<{ products: Product[] }>('/admin/products')
+export async function listAdminProducts(): Promise<AdminProduct[]> {
+  const res = await api<{ products: AdminProduct[] }>('/admin/products')
   return res.products
 }
 
-export async function updateAdminProduct(id: string, patch: AdminProductPatch): Promise<Product> {
-  const res = await api<{ product: Product }>(`/admin/products/${encodeURIComponent(id)}`, { method: 'PUT', body: patch })
+export async function updateAdminProduct(id: string, patch: AdminProductPatch): Promise<AdminProduct> {
+  const res = await api<{ product: AdminProduct }>(`/admin/products/${encodeURIComponent(id)}`, { method: 'PUT', body: patch })
   return res.product
 }
 
 export interface AdminProductCreateInput {
   name?: string
+  nameEn?: string | null
+  descriptionEn?: string | null
+  fabricCareEn?: string | null
   category: Exclude<CategoryId, 'tum-urunler' | 'yeni-gelenler'>
   price: number
   isNew?: boolean
   hidden?: boolean
-  colors?: { id: string; label: string }[]
+  colors?: AdminColorInput[]
   stock?: Record<string, Partial<Record<SizeId, number>>>
   description?: string
   fabricCare?: string
   deliveryReturns?: string
 }
 
-export async function createAdminProduct(data: AdminProductCreateInput): Promise<Product> {
-  const res = await api<{ product: Product }>('/admin/products', { method: 'POST', body: data })
+export async function createAdminProduct(data: AdminProductCreateInput): Promise<AdminProduct> {
+  const res = await api<{ product: AdminProduct }>('/admin/products', { method: 'POST', body: data })
   return res.product
 }
 
@@ -67,16 +80,27 @@ export async function createAdminProduct(data: AdminProductCreateInput): Promise
 
 export interface AdminContent {
   fields: Record<string, string | null>
+  /** Yalnızca DOLU İngilizce değerler (content_fields.value_en). Eski API sürümünde boş nesne. */
+  fieldsEn: Record<string, string>
   brandMedia: Record<string, string | null>
 }
 
 export async function getAdminContent(): Promise<AdminContent> {
-  return api<AdminContent>('/admin/content')
+  const res = await api<Omit<AdminContent, 'fieldsEn'> & { fieldsEn?: Record<string, string> }>('/admin/content')
+  return { ...res, fieldsEn: res.fieldsEn ?? {} }
 }
 
-export async function updateAdminContentFields(patch: Record<string, string | null>): Promise<Record<string, string | null>> {
-  const res = await api<{ fields: Record<string, string | null> }>('/admin/content', { method: 'PUT', body: patch })
-  return res.fields
+/**
+ * TR (`patch`) ve isteğe bağlı EN (`patchEn`) alanlarını yazar. Gövde geriye uyumludur: TR anahtarları
+ * düz sözlük, EN değerleri `fieldsEn` anahtarı altında (null → EN değerini temizler).
+ */
+export async function updateAdminContentFields(
+  patch: Record<string, string | null>,
+  patchEn: Record<string, string | null> = {},
+): Promise<{ fields: Record<string, string | null>; fieldsEn: Record<string, string> }> {
+  const body = Object.keys(patchEn).length ? { ...patch, fieldsEn: patchEn } : patch
+  const res = await api<{ fields: Record<string, string | null>; fieldsEn?: Record<string, string> }>('/admin/content', { method: 'PUT', body })
+  return { fields: res.fields, fieldsEn: res.fieldsEn ?? {} }
 }
 
 export async function updateAdminBrandMedia(patch: Record<string, string | null>): Promise<Record<string, string | null>> {
@@ -168,8 +192,8 @@ export interface AdminExportPayload {
   version: 1
   exportedAt: string
   data: {
-    products: Product[]
-    content: { fields: Record<string, string | null>; brandMedia: Record<string, string | null> }
+    products: AdminProduct[]
+    content: { fields: Record<string, string | null>; fieldsEn?: Record<string, string>; brandMedia: Record<string, string | null> }
     settings: Record<string, unknown>
   }
 }

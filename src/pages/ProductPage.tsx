@@ -23,6 +23,11 @@ import { usePanels } from '../state/PanelContext'
 import { NotFoundPage } from './NotFoundPage'
 import styles from './ProductPage.module.css'
 
+/** Yer tutucu metinlere "içerik eklenecek" eki gelir; panelden/DB'den gelen gerçek metin olduğu gibi gösterilir. */
+function withPending(text: string, placeholder: string): string {
+  return text === placeholder ? S.info.pendingField(text) : text
+}
+
 /** Bilgi sütununun içeriği, üst boşluk (header + demo bar + 24px) çıkarılmış ekrana sığıyor mu? */
 function useInfoFits(isDesktop: boolean): [React.RefObject<HTMLDivElement | null>, boolean] {
   const ref = useRef<HTMLDivElement>(null)
@@ -147,13 +152,13 @@ export function ProductPage() {
 
           <div className={styles.accordions}>
             <AccordionItem title={S.product.description} defaultOpen>
-              <p className="text-soft">{S.info.pendingField(product.content.description)}</p>
+              <p className="text-soft">{withPending(product.content.description, S.data.productContent.description(product.number))}</p>
             </AccordionItem>
             <AccordionItem title={S.product.fabricCare}>
-              <p className="text-soft">{S.info.pendingField(product.content.fabricCare)}</p>
+              <p className="text-soft">{withPending(product.content.fabricCare, S.data.productContent.fabricCare(product.number))}</p>
             </AccordionItem>
             <AccordionItem title={S.product.deliveryReturns}>
-              <p className="text-soft">{S.info.pendingField(product.content.deliveryReturns)}</p>
+              <p className="text-soft">{withPending(product.content.deliveryReturns, S.data.productContent.deliveryReturns)}</p>
             </AccordionItem>
           </div>
 

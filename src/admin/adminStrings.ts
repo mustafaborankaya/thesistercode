@@ -114,6 +114,13 @@ export const AS = {
     backLabel: 'Arka görünüş',
     modelLabel: 'Model üzerinde',
     fabricLabel: 'Kumaş detay',
+    nameEnLabel: 'Ad — EN',
+    descriptionEnLabel: 'Açıklama — EN',
+    fabricCareEnLabel: 'Kumaş ve bakım — EN',
+    colorLabelsEnTitle: 'Renk adları — EN',
+    colorLabelEn: (label: string) => `${label} — EN`,
+    enPlaceholder: 'Boşsa Türkçe gösterilir',
+    enNote: '"EN" alanları İngilizce siteyi (/en) besler; boş bırakılırsa Türkçe metin gösterilir. Teslimat ve iade metninin EN karşılığı yoktur.',
     resetToDefault: 'Varsayılana dön',
     resetDone: 'Varsayılana döndürüldü — mağazada görmek için yenileyin',
   },
@@ -130,6 +137,10 @@ export const AS = {
     productionIntroLabel: 'Giriş metni',
     productionStepsTitle: 'Aşamalar',
     sizeGuideTitle: 'Beden rehberi',
+    enLabel: (label: string) => `${label} — EN`,
+    enPlaceholder: 'Boşsa Türkçe gösterilir',
+    enNote:
+      'Her alanın altındaki "EN" alanı İngilizce siteyi (/en) besler. Hazır İngilizce metni olan alanlar dolu gelir; boş bırakılan alanda varsa hazır İngilizce metin, yoksa Türkçe metin gösterilir. Türkçe metni değiştirdiğinizde EN alanını da güncelleyin.',
   },
 
   settings: {

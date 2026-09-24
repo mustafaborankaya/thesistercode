@@ -6,12 +6,12 @@ import { allProducts, allSizes, baseSeeds, categories, colorOptions } from '../.
 import { productMediaName } from '../../data/media'
 import type { Product, SizeId } from '../../data/types'
 import { apiErrorMessage } from '../../i18n/apiMessages'
-import { listAdminProducts, updateAdminProduct, useApiMode, type AdminProductPatch } from '../adminApi'
+import { listAdminProducts, updateAdminProduct, useApiMode, type AdminProduct, type AdminProductPatch } from '../adminApi'
 import { AS } from '../adminStrings'
 import { ApiMediaField } from '../components/ApiMediaField'
 import { MediaField } from '../components/MediaField'
 import { SaveBar } from '../components/SaveBar'
-import { updateAdminData, type ProductOverride } from '../adminStore'
+import { readAdminData, updateAdminData, type ProductOverride } from '../adminStore'
 import styles from '../admin.module.css'
 
 type Seed = (typeof baseSeeds)[number]
@@ -32,6 +32,23 @@ interface FormState {
   deliveryReturns: string
   similarProductIds: string[]
   completeLookProductIds: string[]
+  /** İngilizce alanlar (`/en` sitesi) — boş → mağaza Türkçeye düşer. */
+  nameEn: string
+  descriptionEn: string
+  fabricCareEn: string
+  /** Renk id → İngilizce renk adı (yalnızca API modunda düzenlenir). */
+  colorLabelsEn: Record<string, string>
+}
+
+/** EN alanlarını ürün nesnesinden okur: API ürünü (AdminProduct) EN alanları taşır, yerel demo ürünü taşımaz. */
+function enFieldsOf(product: Product | AdminProduct): Pick<FormState, 'nameEn' | 'descriptionEn' | 'fabricCareEn' | 'colorLabelsEn'> {
+  const p = product as Partial<AdminProduct>
+  return {
+    nameEn: p.nameEn ?? '',
+    descriptionEn: p.content?.descriptionEn ?? '',
+    fabricCareEn: p.content?.fabricCareEn ?? '',
+    colorLabelsEn: Object.fromEntries((p.colors ?? []).map((c) => [c.id, c.labelEn ?? ''])),
+  }
 }
 
 function seedStockDefault(seed: Seed, colorId: string, size: SizeId): number {
@@ -47,7 +64,7 @@ function defaultTexts(number: string) {
   }
 }
 
-function buildFormFromProduct(product: Product): FormState {
+function buildFormFromProduct(product: Product | AdminProduct): FormState {
   const stock: FormState['stock'] = {}
   for (const color of product.colors) {
     const row = {} as Record<SizeId, string>
@@ -67,6 +84,7 @@ function buildFormFromProduct(product: Product): FormState {
     deliveryReturns: product.content.deliveryReturns,
     similarProductIds: product.similarProductIds ?? [],
     completeLookProductIds: product.completeLookProductIds ?? [],
+    ...enFieldsOf(product),
   }
 }
 
@@ -92,7 +110,18 @@ function buildFormFromSeed(seed: Seed, number: string): FormState {
     deliveryReturns: texts.deliveryReturns,
     similarProductIds: seed.similarProductIds ?? [],
     completeLookProductIds: seed.completeLookProductIds ?? [],
+    nameEn: '',
+    descriptionEn: '',
+    fabricCareEn: '',
+    colorLabelsEn: {},
   }
+}
+
+/** EN değeri karşılaştırması: boş → null (sunucuda EN temizlenir). Değişmediyse undefined. */
+function enDiff(value: string, original: string | null | undefined): string | null | undefined {
+  const trimmed = value.trim()
+  if (trimmed === (original ?? '').trim()) return undefined
+  return trimmed ? trimmed : null
 }
 
 function sameSet(a: string[], b: string[]): boolean {
@@ -111,7 +140,7 @@ export function ProductEditPage() {
 /* ==================== API modu ==================== */
 
 function ApiProductEditPage({ id }: { id: string }) {
-  const [products, setProducts] = useState<Product[] | null>(null)
+  const [products, setProducts] = useState<AdminProduct[] | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [form, setForm] = useState<FormState | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -224,9 +253,23 @@ function ApiProductEditPage({ id }: { id: string }) {
     if (form.isNew !== product.isNew) patch.isNew = form.isNew
     if (form.hidden !== (product.hidden ?? false)) patch.hidden = form.hidden
 
+    const nameEn = enDiff(form.nameEn, product.nameEn)
+    if (nameEn !== undefined) patch.nameEn = nameEn
+    const descriptionEn = enDiff(form.descriptionEn, product.content.descriptionEn)
+    if (descriptionEn !== undefined) patch.descriptionEn = descriptionEn
+    const fabricCareEn = enDiff(form.fabricCareEn, product.content.fabricCareEn)
+    if (fabricCareEn !== undefined) patch.fabricCareEn = fabricCareEn
+
+    // Renkler: set değiştiyse YA DA yalnızca bir EN renk adı değiştiyse tam liste gönderilir (sunucu
+    // renkleri sil-yeniden-ekle ile yazar). Mevcut TR etiketi korunur; yeni eklenen renkte demo etiket.
     const currentColorIds = product.colors.map((c) => c.id)
-    if (!sameSet(form.colors, currentColorIds)) {
-      patch.colors = form.colors.map((cid) => colorOptions.find((c) => c.id === cid)).filter((c): c is { id: string; label: string } => !!c)
+    const colorEnChanged = form.colors.some((cid) => enDiff(form.colorLabelsEn[cid] ?? '', product.colors.find((c) => c.id === cid)?.labelEn) !== undefined)
+    if (!sameSet(form.colors, currentColorIds) || colorEnChanged) {
+      patch.colors = form.colors.flatMap((cid) => {
+        const label = product.colors.find((c) => c.id === cid)?.label ?? colorOptions.find((c) => c.id === cid)?.label
+        if (!label) return []
+        return [{ id: cid, label, labelEn: (form.colorLabelsEn[cid] ?? '').trim() || null }]
+      })
     }
 
     const stockPatch: Record<string, Partial<Record<SizeId, number>>> = {}
@@ -292,6 +335,7 @@ function ApiProductEditPage({ id }: { id: string }) {
       <div className={styles.section}>
         <div className={styles.grid}>
           <Field label={AS.productEdit.nameLabel} value={form.name} onChange={(e) => update('name', e.target.value)} />
+          <Field label={AS.productEdit.nameEnLabel} lang="en" maxLength={200} placeholder={AS.productEdit.enPlaceholder} value={form.nameEn} onChange={(e) => update('nameEn', e.target.value)} />
           <Field label={AS.productEdit.priceLabel} type="number" min={0} value={form.price} onChange={(e) => update('price', e.target.value)} />
           <SelectField label={AS.productEdit.categoryLabel} value={form.category} onChange={(e) => update('category', e.target.value as CategoryValue)}>
             {editableCategories.map((c) => (
@@ -317,6 +361,25 @@ function ApiProductEditPage({ id }: { id: string }) {
         <p className="text-soft text-xs" style={{ marginTop: 'var(--sp-2)' }}>
           {AS.productEdit.colorsHint}
         </p>
+        <div className={styles.subCardTitle} style={{ marginTop: 'var(--sp-4)' }}>
+          {AS.productEdit.colorLabelsEnTitle}
+        </div>
+        <div className={styles.grid}>
+          {form.colors.map((colorId) => {
+            const label = product.colors.find((c) => c.id === colorId)?.label ?? colorOptions.find((c) => c.id === colorId)?.label ?? colorId
+            return (
+              <Field
+                key={colorId}
+                label={AS.productEdit.colorLabelEn(label)}
+                lang="en"
+                maxLength={64}
+                placeholder={AS.productEdit.enPlaceholder}
+                value={form.colorLabelsEn[colorId] ?? ''}
+                onChange={(e) => update('colorLabelsEn', { ...form.colorLabelsEn, [colorId]: e.target.value })}
+              />
+            )
+          })}
+        </div>
       </div>
 
       <div className={styles.section}>
@@ -364,8 +427,25 @@ function ApiProductEditPage({ id }: { id: string }) {
       <div className={styles.section}>
         <div className={styles.sectionTitle}>{AS.productEdit.contentTitle}</div>
         <div className={styles.fieldStack}>
+          <p className="text-soft text-xs">{AS.productEdit.enNote}</p>
           <TextareaField label={AS.productEdit.descriptionLabel} rows={4} value={form.description} onChange={(e) => update('description', e.target.value)} />
+          <TextareaField
+            label={AS.productEdit.descriptionEnLabel}
+            lang="en"
+            rows={4}
+            placeholder={AS.productEdit.enPlaceholder}
+            value={form.descriptionEn}
+            onChange={(e) => update('descriptionEn', e.target.value)}
+          />
           <TextareaField label={AS.productEdit.fabricCareLabel} rows={3} value={form.fabricCare} onChange={(e) => update('fabricCare', e.target.value)} />
+          <TextareaField
+            label={AS.productEdit.fabricCareEnLabel}
+            lang="en"
+            rows={3}
+            placeholder={AS.productEdit.enPlaceholder}
+            value={form.fabricCareEn}
+            onChange={(e) => update('fabricCareEn', e.target.value)}
+          />
           <TextareaField label={AS.productEdit.deliveryReturnsLabel} rows={3} value={form.deliveryReturns} onChange={(e) => update('deliveryReturns', e.target.value)} />
         </div>
       </div>
@@ -433,7 +513,11 @@ function LocalProductEditPage({ id }: { id: string }) {
   const product = allProducts.find((p) => p.id === id)
   const seed = baseSeeds.find((s) => s.id === id)
 
-  const [form, setForm] = useState<FormState | null>(() => (product ? buildFormFromProduct(product) : null))
+  const [form, setForm] = useState<FormState | null>(() => {
+    if (!product) return null
+    const o = readAdminData().products[product.id] ?? {}
+    return { ...buildFormFromProduct(product), nameEn: o.nameEn ?? '', descriptionEn: o.descriptionEn ?? '', fabricCareEn: o.fabricCareEn ?? '' }
+  })
   const [message, setMessage] = useState<string | null>(null)
 
   if (!product || !seed || !form) {
@@ -536,6 +620,10 @@ function LocalProductEditPage({ id }: { id: string }) {
     const trimmedDeliveryReturns = f.deliveryReturns.trim()
     if (trimmedDeliveryReturns && trimmedDeliveryReturns !== texts.deliveryReturns) override.deliveryReturns = trimmedDeliveryReturns
 
+    if (f.nameEn.trim()) override.nameEn = f.nameEn.trim()
+    if (f.descriptionEn.trim()) override.descriptionEn = f.descriptionEn.trim()
+    if (f.fabricCareEn.trim()) override.fabricCareEn = f.fabricCareEn.trim()
+
     const defaultSimilar = sd.similarProductIds ?? []
     if (!sameSet(f.similarProductIds, defaultSimilar)) override.similarProductIds = f.similarProductIds
 
@@ -577,6 +665,7 @@ function LocalProductEditPage({ id }: { id: string }) {
       <div className={styles.section}>
         <div className={styles.grid}>
           <Field label={AS.productEdit.nameLabel} value={form.name} onChange={(e) => update('name', e.target.value)} />
+          <Field label={AS.productEdit.nameEnLabel} lang="en" maxLength={200} placeholder={AS.productEdit.enPlaceholder} value={form.nameEn} onChange={(e) => update('nameEn', e.target.value)} />
           <Field label={AS.productEdit.priceLabel} type="number" min={0} value={form.price} onChange={(e) => update('price', e.target.value)} />
           <SelectField label={AS.productEdit.categoryLabel} value={form.category} onChange={(e) => update('category', e.target.value as CategoryValue)}>
             {editableCategories.map((c) => (
@@ -649,8 +738,25 @@ function LocalProductEditPage({ id }: { id: string }) {
       <div className={styles.section}>
         <div className={styles.sectionTitle}>{AS.productEdit.contentTitle}</div>
         <div className={styles.fieldStack}>
+          <p className="text-soft text-xs">{AS.productEdit.enNote}</p>
           <TextareaField label={AS.productEdit.descriptionLabel} rows={4} value={form.description} onChange={(e) => update('description', e.target.value)} />
+          <TextareaField
+            label={AS.productEdit.descriptionEnLabel}
+            lang="en"
+            rows={4}
+            placeholder={AS.productEdit.enPlaceholder}
+            value={form.descriptionEn}
+            onChange={(e) => update('descriptionEn', e.target.value)}
+          />
           <TextareaField label={AS.productEdit.fabricCareLabel} rows={3} value={form.fabricCare} onChange={(e) => update('fabricCare', e.target.value)} />
+          <TextareaField
+            label={AS.productEdit.fabricCareEnLabel}
+            lang="en"
+            rows={3}
+            placeholder={AS.productEdit.enPlaceholder}
+            value={form.fabricCareEn}
+            onChange={(e) => update('fabricCareEn', e.target.value)}
+          />
           <TextareaField label={AS.productEdit.deliveryReturnsLabel} rows={3} value={form.deliveryReturns} onChange={(e) => update('deliveryReturns', e.target.value)} />
         </div>
       </div>

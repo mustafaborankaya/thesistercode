@@ -21,6 +21,7 @@ export function AccountPage() {
   }
 
   const registered = (location.state as { registered?: boolean } | null)?.registered
+  const apiMode = isApiMode()
 
   function handleLogout() {
     logout()
@@ -37,24 +38,24 @@ export function AccountPage() {
         </p>
       ) : null}
 
-      <p className={authStyles.demoNote}>{isApiMode() ? S.api.accountPageNote : 'Siparişleriniz, adresleriniz ve talepleriniz bu tarayıcıda saklanır. Bildirimlerinizi hesabınızdan takip edebilirsiniz.'}</p>
+      {/* API modunda siparişler (GET /account/orders) ve adresler (/account/addresses) sunucudan gelir;
+          yerel demo notu ve yalnızca-demo bildirim/talep akışı yalnızca API kapalıyken gösterilir. */}
+      {apiMode ? null : <p className={authStyles.demoNote}>Siparişleriniz, adresleriniz ve talepleriniz bu tarayıcıda saklanır. Bildirimlerinizi hesabınızdan takip edebilirsiniz.</p>}
       <div key={account.email} className={authStyles.accordionGroup}>
         <AccordionItem title={S.account.discountStatus} defaultOpen>
           <p>{discountEligible ? S.account.discountActive(siteSettings.memberDiscount.percent) : S.account.discountInactive}</p>
         </AccordionItem>
         <AccordionItem title={S.account.orders}>
-          {/* API'de müşteri sipariş listesi uç noktası henüz yok; bu liste yalnızca bu tarayıcıda (yerel geliştirme
-              demo modunda) oluşturulmuş siparişleri gösterir. Sipariş sonucu sayfası (checkout dönüşü) gerçek
-              siparişi API'den okur (bkz. src/pages/CheckoutResultPage.tsx). */}
-          {isApiMode() ? <p className={authStyles.demoNote}>{S.api.ordersListNote}</p> : null}
           <CustomerOrders email={account.email} />
         </AccordionItem>
         <AccordionItem title={S.account.addresses}>
           <AddressBook email={account.email} />
         </AccordionItem>
-        <AccordionItem title="Bildirimler">
-          <CustomerNotifications email={account.email} />
-        </AccordionItem>
+        {apiMode ? null : (
+          <AccordionItem title={S.account.notifications}>
+            <CustomerNotifications email={account.email} />
+          </AccordionItem>
+        )}
         <AccordionItem title={S.account.favoritesLink}>
           <Link to="/favoriler" className="link">
             {S.account.favoritesLink}

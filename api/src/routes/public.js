@@ -57,8 +57,13 @@ router.get('/products/:slug', async (req, res, next) => {
 
 router.get('/content', async (req, res, next) => {
   try {
-    const [fields, brandMedia] = await Promise.all([contentService.getFields(), contentService.getBrandMedia()])
-    res.json({ fields, brandMedia })
+    // `fieldsEn` yalnızca DOLU İngilizce değerleri içerir (geriye uyumlu ek alan; bkz. 005_content_locale.sql).
+    const [fields, fieldsEn, brandMedia] = await Promise.all([
+      contentService.getFields(),
+      contentService.getFieldsEn(),
+      contentService.getBrandMedia(),
+    ])
+    res.json({ fields, fieldsEn, brandMedia })
   } catch (err) {
     next(err)
   }

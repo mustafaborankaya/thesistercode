@@ -24,9 +24,10 @@ router.use(requireAdmin)
 // bile tüm katalog/içerik/ayarları tek istekte dışa aktaramaz.
 router.get('/export', requireOwner, async (req, res, next) => {
   try {
-    const [products, fields, brandMedia, settings] = await Promise.all([
+    const [products, fields, fieldsEn, brandMedia, settings] = await Promise.all([
       productsService.listProducts({ includeHidden: true }),
       contentService.getFields(),
+      contentService.getFieldsEn(),
       contentService.getBrandMedia(),
       settingsService.getSettings(),
     ])
@@ -34,7 +35,8 @@ router.get('/export', requireOwner, async (req, res, next) => {
       format: 'teshvikiye-api-export',
       version: 1,
       exportedAt: new Date().toISOString(),
-      data: { products, content: { fields, brandMedia }, settings },
+      // Ürünlerin EN alanları (nameEn, content.descriptionEn/fabricCareEn, colors[].labelEn) listProducts'tan gelir.
+      data: { products, content: { fields, fieldsEn, brandMedia }, settings },
     })
   } catch (err) {
     next(err)
@@ -49,6 +51,7 @@ const productImportSchema = z.object({
   number: z.string().min(1).max(8),
   slug: z.string().min(1).max(80).optional(),
   name: z.string().min(1).max(200),
+  nameEn: z.string().max(200).nullable().optional(),
   category: z.enum(productsService.CATEGORIES),
   isNew: z.boolean().optional(),
   price: z.number().min(0),
@@ -56,11 +59,16 @@ const productImportSchema = z.object({
   content: z
     .object({
       description: z.string().nullable().optional(),
+      descriptionEn: z.string().nullable().optional(),
       fabricCare: z.string().nullable().optional(),
+      fabricCareEn: z.string().nullable().optional(),
       deliveryReturns: z.string().nullable().optional(),
     })
     .optional(),
-  colors: z.array(z.object({ id: z.string().min(1).max(32), label: z.string().min(1).max(64) })).max(20).optional(),
+  colors: z
+    .array(z.object({ id: z.string().min(1).max(32), label: z.string().min(1).max(64), labelEn: z.string().max(64).nullable().optional() }))
+    .max(20)
+    .optional(),
   stock: z.record(z.string(), z.record(z.string(), z.number().int().min(0).max(100000))).optional(),
   media: z
     .array(z.object({ kind: z.enum(productsService.MEDIA_KINDS), src: z.string().max(500).nullable().optional() }))
@@ -79,6 +87,8 @@ const importSchema = z.object({
     content: z
       .object({
         fields: z.record(z.string().max(120), z.string().nullable()).optional(),
+        // İngilizce içerik değerleri (value_en); yoksa mevcut EN değerlerine dokunulmaz.
+        fieldsEn: z.record(z.string().max(120), z.string().nullable()).optional(),
         brandMedia: z.record(z.string().max(64), z.string().nullable()).optional(),
       })
       .optional(),
@@ -103,18 +113,21 @@ router.post('/import', requireOwner, async (req, res, next) => {
         let sortOrder = 0
         for (const p of data.products) {
           await conn.query(
-            `INSERT INTO products (id, number, slug, name, category, is_new, price, description, fabric_care, delivery_returns, hidden, sort_order)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO products (id, number, slug, name, name_en, category, is_new, price, description, description_en, fabric_care, fabric_care_en, delivery_returns, hidden, sort_order)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               p.id,
               p.number,
               p.slug ?? p.id,
               p.name,
+              productsService.enOrNull(p.nameEn),
               p.category,
               p.isNew ? 1 : 0,
               p.price,
               p.content?.description ?? null,
+              productsService.enOrNull(p.content?.descriptionEn),
               p.content?.fabricCare ?? null,
+              productsService.enOrNull(p.content?.fabricCareEn),
               p.content?.deliveryReturns ?? null,
               p.hidden ? 1 : 0,
               sortOrder++,
@@ -122,12 +135,10 @@ router.post('/import', requireOwner, async (req, res, next) => {
           )
           let i = 0
           for (const c of p.colors ?? []) {
-            await conn.query('INSERT INTO product_colors (product_id, color_id, label, sort_order) VALUES (?, ?, ?, ?)', [
-              p.id,
-              c.id,
-              c.label,
-              i++,
-            ])
+            await conn.query(
+              'INSERT INTO product_colors (product_id, color_id, label, label_en, sort_order) VALUES (?, ?, ?, ?, ?)',
+              [p.id, c.id, c.label, productsService.enOrNull(c.labelEn), i++],
+            )
           }
           for (const [colorId, bySize] of Object.entries(p.stock ?? {})) {
             for (const [size, qty] of Object.entries(bySize)) {
@@ -166,6 +177,14 @@ router.post('/import', requireOwner, async (req, res, next) => {
           await conn.query(
             'INSERT INTO content_fields (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)',
             [key, value],
+          )
+        }
+      }
+      if (data.content?.fieldsEn) {
+        for (const [key, value] of Object.entries(data.content.fieldsEn)) {
+          await conn.query(
+            'INSERT INTO content_fields (`key`, value, value_en) VALUES (?, NULL, ?) ON DUPLICATE KEY UPDATE value_en = VALUES(value_en)',
+            [key, contentService.blankToNull(value)],
           )
         }
       }

@@ -1,6 +1,10 @@
 import { useEffect, useReducer, useState, type FormEvent } from 'react'
-import { availableRequests, createServiceRequest, listCustomerOrders, listNotifications, markNotificationsRead, orderStatusLabels, requestKindLabels, requestStatusLabels, subscribeCustomer } from '../../services/customer'
+import { Link } from 'react-router-dom'
+import { availableRequests, createServiceRequest, listAccountOrders, listCustomerOrders, listNotifications, markNotificationsRead, orderStatusLabels, requestKindLabels, requestStatusLabels, subscribeCustomer } from '../../services/customer'
 import type { DemoOrder, RequestKind } from '../../services/checkout'
+import type { ApiOrder } from '../../services/ordersApi'
+import { isApiMode } from '../../data/remote'
+import { locale, localeMeta, S } from '../../i18n'
 import { formatPrice } from '../../lib/format'
 import { Button } from '../ui/Button'
 import { TextareaField } from '../ui/Field'
@@ -72,11 +76,57 @@ function CustomerOrder({ email, order }: { email: string; order: DemoOrder }) {
   </article>
 }
 
-export function CustomerOrders({ email }: { email: string }) {
+/** API tarih biçimi `YYYY-MM-DD HH:MM:SS` (mysql2 dateStrings) — Safari boşluklu biçimi ayrıştıramadığı için T ile birleştirilir. */
+function formatApiDate(value: string): string {
+  const parsed = new Date(value.includes('T') ? value : value.replace(' ', 'T'))
+  if (Number.isNaN(parsed.getTime())) return value
+  return parsed.toLocaleString(localeMeta[locale].intlLocale, { dateStyle: 'medium', timeStyle: 'short' })
+}
+
+type ApiOrdersState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; orders: ApiOrder[] }
+
+/** API modu: `GET /account/orders` — sunucudaki gerçek sipariş geçmişi (yeniden eskiye, en fazla 50). */
+function ApiCustomerOrders() {
+  const [state, setState] = useState<ApiOrdersState>({ status: 'loading' })
+  useEffect(() => {
+    let cancelled = false
+    listAccountOrders().then(
+      (orders) => { if (!cancelled) setState({ status: 'ready', orders }) },
+      () => { if (!cancelled) setState({ status: 'error' }) },
+    )
+    return () => { cancelled = true }
+  }, [])
+  function retry() {
+    setState({ status: 'loading' })
+    listAccountOrders().then((orders) => setState({ status: 'ready', orders }), () => setState({ status: 'error' }))
+  }
+  if (state.status === 'loading') return <p className="text-soft text-sm" role="status">{S.account.ordersLoading}</p>
+  if (state.status === 'error') return <div className={styles.head} role="alert"><p className="text-sm">{S.account.ordersError}</p><Button small variant="secondary" onClick={retry}>{S.account.retry}</Button></div>
+  if (!state.orders.length) return <p className="text-soft text-sm">{S.account.ordersEmpty}</p>
+  return <div className={styles.list}>{state.orders.map((order) => {
+    const itemCount = (order.items ?? []).reduce((n, item) => n + item.qty, 0)
+    return <article key={order.id} className={styles.card} aria-label={order.id}>
+      <div className={styles.head}>
+        <div><strong>{order.id}</strong><p className={styles.meta}>{formatApiDate(order.createdAt)}</p></div>
+        <span className={styles.status}>{S.account.orderStatus[order.status] ?? order.status}</span>
+      </div>
+      <div className={styles.head}>
+        <p>{S.account.orderItemCount(itemCount)} · <strong>{formatPrice(order.totals.total)}</strong></p>
+        <Link to={`/odeme/sonuc/${encodeURIComponent(order.id)}`} state={{ view: true }} className="link text-sm" aria-label={S.account.orderViewAria(order.id)}>{S.account.orderView}</Link>
+      </div>
+    </article>
+  })}</div>
+}
+
+function DemoCustomerOrders({ email }: { email: string }) {
   useCustomerUpdates()
   const orders = listCustomerOrders(email)
-  if (!orders.length) return <p className="text-soft text-sm">Hesabınızla verdiğiniz bir sipariş henüz bulunmuyor.</p>
+  if (!orders.length) return <p className="text-soft text-sm">{S.account.ordersEmpty}</p>
   return <div className={styles.list}>{orders.map((order) => <CustomerOrder key={order.id} email={email} order={order} />)}</div>
+}
+
+export function CustomerOrders({ email }: { email: string }) {
+  return isApiMode() ? <ApiCustomerOrders key={email} /> : <DemoCustomerOrders email={email} />
 }
 
 export function CustomerNotifications({ email }: { email: string }) {

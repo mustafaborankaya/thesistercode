@@ -1,21 +1,45 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useReducer, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CheckoutForm } from '../components/checkout/CheckoutForm'
 import { OrderSummary } from '../components/checkout/OrderSummary'
 import { focusFirstCheckoutError, initialCheckoutValues, validateCheckout, type CheckoutErrors, type CheckoutFormValues } from '../components/checkout/validation'
 import { AccordionItem } from '../components/ui/Accordion'
 import { Button } from '../components/ui/Button'
+import { Checkbox } from '../components/ui/Field'
 import { Icon } from '../components/ui/Icon'
 import { isApiMode } from '../data/remote'
 import { S } from '../i18n'
 import { apiErrorMessage } from '../i18n/apiMessages'
 import { formatPrice } from '../lib/format'
 import { paymentProvider } from '../services/checkout'
+import { listAddresses, loadAddresses, sameAddress, saveAddress, subscribeCustomer, type SavedAddress } from '../services/customer'
 import { createApiOrder } from '../services/ordersApi'
 import { useAccount } from '../state/AccountContext'
 import { useCart } from '../state/CartContext'
 import styles from './CheckoutPage.module.css'
 import pageStyles from './Page.module.css'
+
+const DELIVERY_FIELDS = ['firstName', 'lastName', 'address', 'district', 'city', 'postalCode'] as const
+
+/**
+ * Teslimat alanlarının HİÇBİRİ henüz doldurulmamışsa varsayılan (yoksa ilk) kayıtlı adresle doldurur;
+ * kullanıcı yazmaya başladıysa dokunmaz (değişiklik yoksa aynı nesneyi döndürür). Telefon yalnızca boşsa doldurulur.
+ */
+function withDefaultAddress(values: CheckoutFormValues, addresses: SavedAddress[]): CheckoutFormValues {
+  const preferred = addresses.find((a) => a.isDefault) ?? addresses[0]
+  if (!preferred || DELIVERY_FIELDS.some((k) => values[k].trim())) return values
+  return {
+    ...values,
+    firstName: preferred.firstName,
+    lastName: preferred.lastName,
+    address: preferred.address,
+    district: preferred.district,
+    city: preferred.city,
+    postalCode: preferred.postalCode,
+    country: preferred.country || values.country,
+    phone: values.phone.trim() ? values.phone : preferred.phone,
+  }
+}
 
 export function CheckoutPage() {
   const { lines, totals, clear } = useCart()
@@ -25,10 +49,44 @@ export function CheckoutPage() {
   // yönlendirmeden önce bir an için yanıp sönmesini engeller.
   const placedRef = useRef(false)
 
-  const [values, setValues] = useState<CheckoutFormValues>(() => initialCheckoutValues(isLoggedIn && account ? account.email : null))
+  const accountEmail = isLoggedIn && account ? account.email : null
+  const [values, setValues] = useState<CheckoutFormValues>(() =>
+    withDefaultAddress(initialCheckoutValues(accountEmail), accountEmail ? listAddresses(accountEmail) : []),
+  )
   const [errors, setErrors] = useState<CheckoutErrors>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const [saveNewAddress, setSaveNewAddress] = useState(false)
+  const [, refreshAddresses] = useReducer((n: number) => n + 1, 0)
+
+  // Kayıtlı adresler (API modunda sunucudan) yüklenir; teslimat alanları hâlâ boşsa varsayılan adresle
+  // doldurulur. Seçici checkout/SavedAddressPicker aynı önbelleği okur (CUSTOMER_CHANGED ile tazelenir).
+  useEffect(() => subscribeCustomer(refreshAddresses), [])
+  useEffect(() => {
+    if (!accountEmail) return
+    let cancelled = false
+    loadAddresses(accountEmail).then(
+      (list) => {
+        if (!cancelled) setValues((v) => withDefaultAddress(v, list))
+      },
+      () => undefined, // adresler yüklenemezse form elle doldurulur; sipariş akışı etkilenmez
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [accountEmail])
+
+  const deliveryInput = {
+    firstName: values.firstName,
+    lastName: values.lastName,
+    phone: values.phone,
+    address: values.address,
+    district: values.district,
+    city: values.city,
+    postalCode: values.postalCode,
+    country: values.country,
+  }
+  const alreadySaved = accountEmail ? listAddresses(accountEmail).some((a) => sameAddress(a, deliveryInput)) : true
 
   if (lines.length === 0 && !placedRef.current) {
     return (
@@ -71,6 +129,23 @@ export function CheckoutPage() {
       note: values.note.trim() || undefined,
     }
     const contact = { email: values.email.trim(), phone: values.phone.trim() }
+    const shouldSaveAddress = !!accountEmail && saveNewAddress && !alreadySaved
+    // Sipariş başarılı olduktan sonra çağrılır; kayıt hatası (örn. 10 adres sınırı) siparişi/yönlendirmeyi etkilemez.
+    const saveDeliveryAddress = () => {
+      if (!shouldSaveAddress || !accountEmail) return
+      void saveAddress(accountEmail, {
+        label: `${delivery.district} / ${delivery.city}`.slice(0, 60),
+        firstName: delivery.firstName,
+        lastName: delivery.lastName,
+        phone: contact.phone,
+        address: delivery.address,
+        district: delivery.district,
+        city: delivery.city,
+        postalCode: delivery.postalCode,
+        country: delivery.country,
+        isDefault: false,
+      }).catch(() => undefined)
+    }
 
     // API modundaysak (bkz. src/data/remote.ts → isApiMode) gerçek sipariş oluşturulur (fiyat/stok/
     // toplamlar sunucuda doğrulanır); yalnızca yerel geliştirmede API gerçekten kapalıyken demo
@@ -80,6 +155,7 @@ export function CheckoutPage() {
       setPending(false)
       if (result.ok) {
         placedRef.current = true
+        saveDeliveryAddress()
         clear()
         navigate(`/odeme/sonuc/${result.order.id}`, { replace: true })
         return
@@ -98,6 +174,7 @@ export function CheckoutPage() {
     setPending(false)
     if (result.ok) {
       placedRef.current = true
+      saveDeliveryAddress()
       clear()
       navigate(`/odeme/sonuc/${result.order.id}`, { replace: true })
       return
@@ -123,6 +200,14 @@ export function CheckoutPage() {
       <div className={styles.layout}>
         <form className={styles.form} onSubmit={handleSubmit} noValidate>
           <CheckoutForm values={values} errors={errors} onChange={handleChange} />
+          {accountEmail && !alreadySaved ? (
+            <Checkbox
+              id="checkout-saveAddress"
+              label={S.checkout.saveAddress}
+              checked={saveNewAddress}
+              onChange={(e) => setSaveNewAddress(e.target.checked)}
+            />
+          ) : null}
           {submitError ? (
             <div role="alert" className={styles.formError}>
               <Icon name="info" size={14} />

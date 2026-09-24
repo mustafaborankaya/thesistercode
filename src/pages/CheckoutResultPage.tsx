@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useLocation, useParams } from 'react-router-dom'
 import { OrderSummary, type OrderSummaryItem } from '../components/checkout/OrderSummary'
 import { Button } from '../components/ui/Button'
 import { Icon } from '../components/ui/Icon'
@@ -47,6 +47,9 @@ function totalsFromApiOrder(order: ApiOrder): CartTotals {
 type LoadState = { status: 'loading' } | { status: 'not-found' } | { status: 'api'; order: ApiOrder } | { status: 'demo'; order: DemoOrder }
 
 export function CheckoutResultPage() {
+  // Hesaptaki sipariş geçmişinden açıldığında "oluşturuldu" mesajı yerine sipariş detayı gösterilir.
+  const location = useLocation()
+  const viewOnly = Boolean((location.state as { view?: boolean } | null)?.view)
   const { orderId } = useParams()
   const [state, setState] = useState<LoadState>({ status: 'loading' })
 
@@ -105,12 +108,12 @@ export function CheckoutResultPage() {
   return (
     <div className={[pageStyles.page, pageStyles.narrow].join(' ')}>
       <div className={styles.resultHeader}>
-        <Icon name="check" size={28} />
+        {viewOnly ? null : <Icon name="check" size={28} />}
         <h1 className={pageStyles.title} style={{ marginBottom: 0 }}>
-          {S.checkout.resultTitle}
+          {viewOnly ? S.account.orderDetailTitle : S.checkout.resultTitle}
         </h1>
       </div>
-      <p>{state.status === 'api' ? S.api.resultText : S.checkout.resultText}</p>
+      {viewOnly ? null : <p>{state.status === 'api' ? S.api.resultText : S.checkout.resultText}</p>}
       <p className={styles.orderNumber}>
         {S.checkout.orderNumber}: <strong>{orderNumber}</strong>
       </p>

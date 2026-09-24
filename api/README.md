@@ -85,6 +85,17 @@ Tüm hatalar `{ error: { code, message } }` biçiminde, mesajlar Türkçedir.
 - `POST /account/password/forgot` `{ email, locale? }` — hesap var/yok sızdırılmaz, her zaman
   `{ ok: true }`; 60 dk geçerli tek kullanımlık bağlantı `SITE_URL/sifre-sifirla?token=…`
 - `POST /account/password/reset` `{ token, password }` — token tek kullanımlık; çerez temizlenir.
+- `GET /account/orders` (oturum gerekli) → `{ orders }` — oturumdaki müşterinin siparişleri, yeniden
+  eskiye, en fazla 50, `GET /orders/:id` ile aynı biçimde (`items` dahil). Misafir siparişleri
+  (customer_id NULL) hesaba bağlanmaz.
+- Adres defteri (oturum gerekli, tablo `customer_addresses`, migration `004`):
+  `GET /account/addresses` → `{ addresses }` (varsayılan önce);
+  `POST /account/addresses` → `201 { address }`; `PUT /account/addresses/:id` → `{ address }`;
+  `DELETE /account/addresses/:id` → `{ ok }`; `POST /account/addresses/:id/default` → `{ address }`.
+  Gövde: `{ label?, firstName, lastName, phone, address, district, city, postalCode, country?, isDefault? }`
+  (kurallar `POST /orders` → `delivery` ile aynı; telefon 5–32 karakter). Müşteri başına en fazla
+  10 adres → `409 address_limit`. İlk adres otomatik varsayılan olur; varsayılan silinirse en eski
+  kalan adres varsayılan olur. Başkasına ait / olmayan / sayısal olmayan id → ayırt edilemez `404`.
 
 ### Yönetici (`requireAdmin`, cookie `tsc_admin`)
 
@@ -99,6 +110,29 @@ Tüm hatalar `{ error: { code, message } }` biçiminde, mesajlar Türkçedir.
 - `GET /admin/users`
 - `POST /admin/users`, `PATCH /admin/users/:id` — **yalnızca owner** (`requireOwner`)
 - `GET /admin/export`, `POST /admin/import` (yalnızca owner) — bkz. "Bilinen sınırlar"
+
+## Çok dilli içerik
+
+Panelden girilen içerik Türkçe (varsayılan) + isteğe bağlı İngilizce saklanır
+(`migrations/005_content_locale.sql`): `content_fields.value_en`, `products.name_en` /
+`description_en` / `fabric_care_en`, `product_colors.label_en`. EN değeri NULL ya da boşsa mağaza
+`/en` sitesinde yerleşik İngilizce varsayılan metne (`src/data/contentTexts.ts → contentTextsEn`),
+o da yoksa Türkçe değere düşer. Sunucu boş EN metni her zaman `null` olarak saklar.
+
+- `GET /content`, `GET /admin/content` → `{ fields, fieldsEn, brandMedia }`; `fieldsEn` yalnızca DOLU
+  EN değerleri içerir (geriye uyumlu ek alan).
+- `PUT /admin/content` gövdesi eskisi gibi düz `anahtar → metin|null` (TR) sözlüğüdür; ek olarak
+  `fieldsEn: { anahtar: metin|null }` kabul eder (null EN değerini temizler). Yanıt `{ fields, fieldsEn }`.
+  Bir dilin yazılması diğer dile dokunmaz.
+- Ürün nesnesi (`GET /products`, `/products/:slug`, `/admin/products`): `nameEn`,
+  `content.descriptionEn`, `content.fabricCareEn`, `colors[].labelEn` (her biri `string | null`).
+- `PUT/POST /admin/products`: `nameEn`, `descriptionEn`, `fabricCareEn`, `colors[].labelEn`
+  (opsiyonel; null/boş temizler). `colors` gönderilip bir rengin `labelEn`'i verilmezse o rengin
+  mevcut EN etiketi korunur.
+- `GET /admin/export` / `POST /admin/import`: `data.content.fieldsEn` ve ürün EN alanları taşınır
+  (export → import → export birebir aynı; MariaDB 10.11 ile doğrulandı).
+- Sınır: `delivery_returns` için EN sütunu yoktur; sipariş kalemleri (`order_items`) ve e-postalar
+  ürün/renk adını Türkçe saklar.
 
 ## Bilinen sınırlar / bilinçli tasarım kararları
 

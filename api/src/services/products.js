@@ -6,6 +6,9 @@ export const SIZES = ['XS', 'S', 'M', 'L', 'XL']
 export const CATEGORIES = ['elbiseler', 'ust-giyim', 'alt-giyim', 'takimlar', 'dis-giyim']
 export const MEDIA_KINDS = ['front', 'back', 'model', 'fabric']
 
+/** Boş/boşluk EN metni → null: EN alanı "yok" demektir, mağaza Türkçe değere düşer. */
+export const enOrNull = (v) => (typeof v === 'string' && v.trim() ? v : null)
+
 const MEDIA_LABELS = {
   front: 'Ön görünüş fotoğrafı',
   back: 'Arka görünüş fotoğrafı',
@@ -30,7 +33,7 @@ async function fetchRelated(productIds) {
   }
   const placeholders = productIds.map(() => '?').join(',')
   const [colorRows] = await pool.query(
-    `SELECT product_id, color_id, label, sort_order FROM product_colors WHERE product_id IN (${placeholders}) ORDER BY product_id, sort_order, color_id`,
+    `SELECT product_id, color_id, label, label_en, sort_order FROM product_colors WHERE product_id IN (${placeholders}) ORDER BY product_id, sort_order, color_id`,
     productIds,
   )
   const [stockRows] = await pool.query(
@@ -56,7 +59,7 @@ async function fetchRelated(productIds) {
 /** DB satırlarını mağazanın `Product` tipiyle aynı şekle çevirir (bkz. src/data/types.ts). */
 function toProduct(row, related) {
   const colorRows = related.colors.get(row.id) ?? []
-  const colors = colorRows.map((c) => ({ id: c.color_id, label: c.label }))
+  const colors = colorRows.map((c) => ({ id: c.color_id, label: c.label, labelEn: enOrNull(c.label_en) }))
 
   const stockRows = related.stock.get(row.id) ?? []
   const stock = {}
@@ -83,6 +86,7 @@ function toProduct(row, related) {
     number: row.number,
     slug: row.slug,
     name: row.name,
+    nameEn: enOrNull(row.name_en),
     category: row.category,
     isNew: !!row.is_new,
     price: Number(row.price),
@@ -94,6 +98,8 @@ function toProduct(row, related) {
       description: row.description ?? '',
       fabricCare: row.fabric_care ?? '',
       deliveryReturns: row.delivery_returns ?? '',
+      descriptionEn: enOrNull(row.description_en),
+      fabricCareEn: enOrNull(row.fabric_care_en),
     },
     hidden: !!row.hidden,
   }
@@ -169,20 +175,31 @@ export async function updateProduct(id, patch) {
       fields.push(`${column} = ?`)
       values.push(typeof patch[key] === 'boolean' ? (patch[key] ? 1 : 0) : patch[key])
     }
+    // İngilizce alanlar: null ya da boş metin temizler (mağaza Türkçeye düşer).
+    const mapEn = { nameEn: 'name_en', descriptionEn: 'description_en', fabricCareEn: 'fabric_care_en' }
+    for (const [key, column] of Object.entries(mapEn)) {
+      if (patch[key] === undefined) continue
+      fields.push(`${column} = ?`)
+      values.push(enOrNull(patch[key]))
+    }
     if (fields.length) {
       await conn.query(`UPDATE products SET ${fields.join(', ')} WHERE id = ?`, [...values, id])
     }
 
     if (Array.isArray(patch.colors)) {
+      // Renkler sil-yeniden-ekle ile yazılır; `labelEn` gönderilmeyen (undefined) renkte önceki EN etiketi
+      // korunur, null/boş gönderilirse temizlenir — aksi halde yalnızca TR renk listesini gönderen eski
+      // istemciler EN etiketlerini sessizce silerdi.
+      const [prevRows] = await conn.query('SELECT color_id, label_en FROM product_colors WHERE product_id = ?', [id])
+      const prevEn = new Map(prevRows.map((r) => [r.color_id, r.label_en]))
       await conn.query('DELETE FROM product_colors WHERE product_id = ?', [id])
       let i = 0
       for (const c of patch.colors) {
-        await conn.query('INSERT INTO product_colors (product_id, color_id, label, sort_order) VALUES (?, ?, ?, ?)', [
-          id,
-          c.id,
-          c.label,
-          i++,
-        ])
+        const labelEn = c.labelEn === undefined ? (prevEn.get(c.id) ?? null) : enOrNull(c.labelEn)
+        await conn.query(
+          'INSERT INTO product_colors (product_id, color_id, label, label_en, sort_order) VALUES (?, ?, ?, ?, ?)',
+          [id, c.id, c.label, labelEn, i++],
+        )
       }
     }
 
@@ -265,18 +282,21 @@ export async function createProduct(data) {
     const sortOrder = (maxSort[0]?.maxSort ?? -1) + 1
 
     await conn.query(
-      `INSERT INTO products (id, number, slug, name, category, is_new, price, description, fabric_care, delivery_returns, hidden, sort_order)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO products (id, number, slug, name, name_en, category, is_new, price, description, description_en, fabric_care, fabric_care_en, delivery_returns, hidden, sort_order)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         number,
         slug,
         data.name?.trim() || `Ürün ${number} — Ürün adı`,
+        enOrNull(data.nameEn),
         data.category,
         data.isNew ? 1 : 0,
         data.price,
         data.description ?? null,
+        enOrNull(data.descriptionEn),
         data.fabricCare ?? null,
+        enOrNull(data.fabricCareEn),
         data.deliveryReturns ?? null,
         data.hidden ? 1 : 0,
         sortOrder,
@@ -286,12 +306,10 @@ export async function createProduct(data) {
     const colors = Array.isArray(data.colors) && data.colors.length ? data.colors : [{ id: 'renk-1', label: 'Renk 1' }]
     let i = 0
     for (const c of colors) {
-      await conn.query('INSERT INTO product_colors (product_id, color_id, label, sort_order) VALUES (?, ?, ?, ?)', [
-        id,
-        c.id,
-        c.label,
-        i++,
-      ])
+      await conn.query(
+        'INSERT INTO product_colors (product_id, color_id, label, label_en, sort_order) VALUES (?, ?, ?, ?, ?)',
+        [id, c.id, c.label, enOrNull(c.labelEn), i++],
+      )
       for (const size of SIZES) {
         const qty = data.stock?.[c.id]?.[size]
         await conn.query('INSERT INTO product_stock (product_id, color_id, size, qty) VALUES (?, ?, ?, ?)', [

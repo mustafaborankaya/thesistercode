@@ -1,7 +1,23 @@
+/**
+ * Müşteri hesabı verileri: adres defteri ve sipariş geçmişi.
+ *
+ * Tek arayüz, iki sağlayıcı (bkz. services/auth.ts deseni):
+ *  - API modu (`isApiMode()` — src/data/remote.ts): adresler `GET/POST/PUT/DELETE /account/addresses`,
+ *    siparişler `GET /account/orders` (oturum çerezi `tsc_customer`). Adres listesi, eşzamanlı okuyan
+ *    bileşenler (AddressBook, checkout/SavedAddressPicker) için bellekte önbelleğe alınır; her yükleme ve
+ *    değişiklikten sonra `CUSTOMER_CHANGED` olayı yayınlanır. Bu olay ASLA yeni bir istek tetiklemez
+ *    (AccountContext her yazımda aynı olayı yayar — döngü olmasın).
+ *  - Demo modu (yalnızca yerel geliştirmede API kapalıyken): mevcut localStorage davranışı.
+ * Mod kararı her çağrıda tembel verilir (modül üst seviyesinde sabitlenmez), çünkü bu modül yönetici
+ * ağacından da içe aktarılır ve `remote` açılışta asenkron dolar.
+ */
 import { isAdminSession } from '../admin/adminStore'
-import { persistCustomerData } from '../lib/customerStorage'
+import { isApiMode } from '../data/remote'
+import { CUSTOMER_CHANGED, persistCustomerData } from '../lib/customerStorage'
 import { readJSON, storageKeys } from '../lib/storage'
+import { api } from './api'
 import { listDemoOrders, type DemoOrder, type OrderStatus, type RequestKind, type RequestStatus } from './checkout'
+import type { ApiOrder } from './ordersApi'
 export { subscribeCustomer } from '../lib/customerStorage'
 
 export interface SavedAddress {
@@ -22,6 +38,9 @@ const ADDRESS_KEY = 'tsc.customer-addresses.v1'
 const READ_KEY = 'tsc.customer-read.v1'
 const normalizeEmail = (email: string) => email.trim().toLowerCase()
 
+/** Hesap başına sunucu sınırı (api/src/services/customers.js → MAX_ADDRESSES). */
+export const MAX_ADDRESSES = 10
+
 // This is account separation within the existing demo, not server authorization.
 function ownsSession(email: string): boolean {
   const account = readJSON<{ current?: { email?: string } }>(storageKeys.account, {})
@@ -31,13 +50,42 @@ function requireSession(email: string): string {
   if (!ownsSession(email)) throw new Error('Bu işlem için hesabınıza giriş yapın.')
   return normalizeEmail(email)
 }
+
+/** Adreslerin sunucuda mı (API modu) yoksa yalnızca bu tarayıcıda mı tutulduğu. */
+export function addressesOnServer(): boolean {
+  return isApiMode()
+}
+
+/** Adres başlığı boşsa (API'de isteğe bağlı) kartlarda/seçicilerde gösterilecek ad. */
+export function addressDisplayLabel(address: SavedAddress): string {
+  return address.label.trim() || `${address.district} / ${address.city}`
+}
+
+/** Aynı teslimat adresi mi (başlık/varsayılan hariç, boşluk ve büyük/küçük harf duyarsız). */
+export function sameAddress(a: Omit<AddressInput, 'label' | 'isDefault'>, b: Omit<AddressInput, 'label' | 'isDefault'>): boolean {
+  const keys = ['firstName', 'lastName', 'phone', 'address', 'district', 'city', 'postalCode', 'country'] as const
+  return keys.every((k) => a[k].trim().toLocaleLowerCase('tr') === b[k].trim().toLocaleLowerCase('tr'))
+}
+
+interface AddressProvider {
+  /** Eşzamanlı okuma (API modunda son yüklenen önbellek). */
+  list(email: string): SavedAddress[]
+  /** Kaynaktan tazeler; API modunda önbelleği günceller ve CUSTOMER_CHANGED yayınlar. */
+  load(email: string): Promise<SavedAddress[]>
+  save(email: string, input: AddressInput, id?: string): Promise<void>
+  remove(email: string, id: string): Promise<void>
+  setDefault(email: string, id: string): Promise<void>
+}
+
+/* ---------------- Demo sağlayıcı (localStorage) ---------------- */
+
 function addressStore(): Record<string, SavedAddress[]> {
   return readJSON(ADDRESS_KEY, {})
 }
-export function listAddresses(email: string): SavedAddress[] {
+function demoList(email: string): SavedAddress[] {
   return ownsSession(email) ? addressStore()[normalizeEmail(email)] ?? [] : []
 }
-export function saveAddress(email: string, input: AddressInput, id?: string): void {
+function demoSave(email: string, input: AddressInput, id?: string): void {
   const owner = requireSession(email)
   const store = addressStore()
   const list = store[owner] ?? []
@@ -54,12 +102,146 @@ export function saveAddress(email: string, input: AddressInput, id?: string): vo
   if (!next.some((item) => item.isDefault)) next[0] = { ...next[0], isDefault: true }
   persistCustomerData(ADDRESS_KEY, { ...store, [owner]: next })
 }
-export function removeAddress(email: string, id: string): void {
+function demoRemove(email: string, id: string): void {
   const owner = requireSession(email)
   const store = addressStore()
   const next = (store[owner] ?? []).filter((item) => item.id !== id)
   if (next.length && !next.some((item) => item.isDefault)) next[0] = { ...next[0], isDefault: true }
   persistCustomerData(ADDRESS_KEY, { ...store, [owner]: next })
+}
+
+const demoAddressProvider: AddressProvider = {
+  list: demoList,
+  async load(email) {
+    return demoList(email)
+  },
+  async save(email, input, id) {
+    demoSave(email, input, id)
+  },
+  async remove(email, id) {
+    demoRemove(email, id)
+  },
+  async setDefault(email, id) {
+    const address = demoList(email).find((item) => item.id === id)
+    if (!address) throw new Error('Adres bulunamadı. Listeyi yenileyin.')
+    const { id: addressId, ...input } = address
+    demoSave(email, { ...input, isDefault: true }, addressId)
+  },
+}
+
+/* ---------------- API sağlayıcı (/account/addresses) ---------------- */
+
+interface ApiAddress {
+  id: number
+  label: string | null
+  firstName: string
+  lastName: string
+  phone: string
+  address: string
+  district: string
+  city: string
+  postalCode: string
+  country: string
+  isDefault: boolean
+}
+
+function fromApiAddress(a: ApiAddress): SavedAddress {
+  return {
+    id: String(a.id),
+    label: a.label ?? '',
+    firstName: a.firstName,
+    lastName: a.lastName,
+    phone: a.phone,
+    address: a.address,
+    district: a.district,
+    city: a.city,
+    postalCode: a.postalCode,
+    country: a.country,
+    isDefault: a.isDefault,
+  }
+}
+
+function toApiBody(input: AddressInput) {
+  return {
+    label: input.label.trim() || null,
+    firstName: input.firstName.trim(),
+    lastName: input.lastName.trim(),
+    phone: input.phone.trim(),
+    address: input.address.trim(),
+    district: input.district.trim(),
+    city: input.city.trim(),
+    postalCode: input.postalCode.trim(),
+    country: input.country.trim() || 'Türkiye',
+    isDefault: input.isDefault,
+  }
+}
+
+/** Oturum sahibinin son yüklenen adresleri; farklı e-posta için boş liste döner. */
+let addressCache: { owner: string; list: SavedAddress[] } | null = null
+
+const apiAddressProvider: AddressProvider = {
+  list(email) {
+    if (!ownsSession(email) || addressCache?.owner !== normalizeEmail(email)) return []
+    return addressCache.list
+  },
+  async load(email) {
+    const owner = normalizeEmail(email)
+    const res = await api<{ addresses: ApiAddress[] }>('/account/addresses')
+    addressCache = { owner, list: res.addresses.map(fromApiAddress) }
+    window.dispatchEvent(new Event(CUSTOMER_CHANGED))
+    return addressCache.list
+  },
+  async save(email, input, id) {
+    try {
+      if (id) await api(`/account/addresses/${encodeURIComponent(id)}`, { method: 'PUT', body: toApiBody(input) })
+      else await api('/account/addresses', { method: 'POST', body: toApiBody(input) })
+    } finally {
+      await apiAddressProvider.load(email).catch(() => undefined)
+    }
+  },
+  async remove(email, id) {
+    try {
+      await api(`/account/addresses/${encodeURIComponent(id)}`, { method: 'DELETE' })
+    } finally {
+      await apiAddressProvider.load(email).catch(() => undefined)
+    }
+  },
+  async setDefault(email, id) {
+    try {
+      await api(`/account/addresses/${encodeURIComponent(id)}/default`, { method: 'POST' })
+    } finally {
+      await apiAddressProvider.load(email).catch(() => undefined)
+    }
+  },
+}
+
+function addressProvider(): AddressProvider {
+  return isApiMode() ? apiAddressProvider : demoAddressProvider
+}
+
+/** Eşzamanlı liste — demo: localStorage; API: son `loadAddresses` sonucu (önce onu çağırın). */
+export function listAddresses(email: string): SavedAddress[] {
+  return addressProvider().list(email)
+}
+/** Kaynaktan tazeler (API modunda ağ isteği). Hata ApiError olarak fırlar. */
+export function loadAddresses(email: string): Promise<SavedAddress[]> {
+  return addressProvider().load(email)
+}
+/** Yeni adres (id yok) ya da güncelleme. API hataları `ApiError` (örn. `address_limit`, `not_found`) olarak fırlar. */
+export function saveAddress(email: string, input: AddressInput, id?: string): Promise<void> {
+  return addressProvider().save(email, input, id)
+}
+export function removeAddress(email: string, id: string): Promise<void> {
+  return addressProvider().remove(email, id)
+}
+export function setDefaultAddress(email: string, id: string): Promise<void> {
+  return addressProvider().setDefault(email, id)
+}
+
+/** API modu: oturumdaki müşterinin siparişleri (`GET /account/orders`, yeniden eskiye, en fazla 50). */
+export async function listAccountOrders(): Promise<ApiOrder[]> {
+  const res = await api<{ orders: ApiOrder[] }>('/account/orders')
+  return res.orders
 }
 
 export const orderStatusLabels: Record<OrderStatus, string> = { placed: 'Sipariş alındı', preparing: 'Hazırlanıyor', shipped: 'Kargoya verildi', delivered: 'Teslim edildi', cancelled: 'İptal edildi' }

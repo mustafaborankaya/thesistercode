@@ -6,26 +6,52 @@ export async function getFields() {
   return Object.fromEntries(rows.map((r) => [r.key, r.value]))
 }
 
-export async function updateFields(patch) {
+/**
+ * İngilizce değerler (value_en). Yalnızca DOLU (boş/boşluk olmayan) EN değerleri döner — boş olan
+ * anahtarlar yanıtta hiç yer almaz; mağaza bu durumda Türkçe zincire düşer.
+ */
+export async function getFieldsEn() {
+  const [rows] = await pool.query('SELECT `key`, value_en FROM content_fields WHERE value_en IS NOT NULL')
+  return Object.fromEntries(rows.filter((r) => String(r.value_en).trim()).map((r) => [r.key, r.value_en]))
+}
+
+/** Boş/boşluk metin → null (EN değeri "yok" demektir; mağaza Türkçeye düşer). */
+export const blankToNull = (v) => (typeof v === 'string' && v.trim() ? v : null)
+
+/**
+ * TR (`patch` → value) ve EN (`patchEn` → value_en) alanlarını tek transaction'da yazar. İkisi de
+ * kısmidir: yalnızca verilen anahtarlar değişir; bir dilin yazılması diğer dildeki değeri ASLA ezmez
+ * (yeni anahtar oluşturulurken karşı dil NULL kalır). Dönüş: `{ fields, fieldsEn }`.
+ */
+export async function updateFields(patch, patchEn) {
   const entries = Object.entries(patch ?? {})
-  if (!entries.length) return getFields()
-  const conn = await pool.getConnection()
-  try {
-    await conn.beginTransaction()
-    for (const [key, value] of entries) {
-      await conn.query(
-        'INSERT INTO content_fields (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)',
-        [key, value === undefined ? null : value],
-      )
+  const entriesEn = Object.entries(patchEn ?? {})
+  if (entries.length || entriesEn.length) {
+    const conn = await pool.getConnection()
+    try {
+      await conn.beginTransaction()
+      for (const [key, value] of entries) {
+        await conn.query(
+          'INSERT INTO content_fields (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)',
+          [key, value === undefined ? null : value],
+        )
+      }
+      for (const [key, value] of entriesEn) {
+        await conn.query(
+          'INSERT INTO content_fields (`key`, value, value_en) VALUES (?, NULL, ?) ON DUPLICATE KEY UPDATE value_en = VALUES(value_en)',
+          [key, blankToNull(value)],
+        )
+      }
+      await conn.commit()
+    } catch (err) {
+      await conn.rollback()
+      throw err
+    } finally {
+      conn.release()
     }
-    await conn.commit()
-  } catch (err) {
-    await conn.rollback()
-    throw err
-  } finally {
-    conn.release()
   }
-  return getFields()
+  const [fields, fieldsEn] = await Promise.all([getFields(), getFieldsEn()])
+  return { fields, fieldsEn }
 }
 
 export async function getBrandMedia() {

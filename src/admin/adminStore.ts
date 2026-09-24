@@ -20,6 +20,10 @@ const DB_STORE = 'blobs'
 /** Ürün bazlı override; tanımsız alanlar demo katalogdaki değeri korur. */
 export interface ProductOverride {
   name?: string
+  /** İngilizce ad/açıklama/kumaş-bakım — yalnızca `/en` sitesinde kullanılır; boşsa Türkçeye düşülür. */
+  nameEn?: string
+  descriptionEn?: string
+  fabricCareEn?: string
   price?: number
   category?: Exclude<CategoryId, 'tum-urunler' | 'yeni-gelenler'>
   isNew?: boolean
@@ -47,6 +51,11 @@ export interface ContentOverrides {
   cookieCategories?: Record<string, string>
   production?: { intro?: string; steps?: Record<string, { title?: string; text?: string }> }
   sizeGuide?: { table?: string; note?: string }
+  /**
+   * İngilizce değerler — API alan anahtarlarıyla düz sözlük (örn. "cookie.bannerText", "info.sss.0").
+   * Yalnızca `/en` sitesinde kullanılır; boşsa İngilizce varsayılan metne, o da yoksa Türkçeye düşülür.
+   */
+  en?: Record<string, string>
 }
 
 export interface SettingsOverrides {

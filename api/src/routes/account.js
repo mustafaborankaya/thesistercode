@@ -9,6 +9,7 @@ import { signCustomerToken, setCustomerCookie, clearCustomerCookie, requireCusto
 import { parseBody, unauthorized, conflict, badRequest } from '../errors.js'
 import { sendMail } from '../services/mail.js'
 import { siteUrl } from '../env.js'
+import { listOrdersForCustomer } from '../services/customers.js'
 
 const router = Router()
 
@@ -128,6 +129,15 @@ router.get('/me', requireCustomer, async (req, res, next) => {
     const user = rows[0]
     if (!user) return next(unauthorized('Oturum geçersiz'))
     res.json({ customer: { id: user.id, email: user.email, name: user.name, discountEligible: !!user.discount_eligible } })
+  } catch (err) {
+    next(err)
+  }
+})
+
+/** Oturumdaki müşterinin sipariş geçmişi — yeniden eskiye, en fazla 50, formatOrder biçiminde (items dahil). */
+router.get('/orders', requireCustomer, async (req, res, next) => {
+  try {
+    res.json({ orders: await listOrdersForCustomer(req.customer.id) })
   } catch (err) {
     next(err)
   }

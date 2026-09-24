@@ -46,6 +46,7 @@ export const CHECKOUT_FIELD_ORDER: (keyof CheckoutFormValues)[] = [
   'address',
   'district',
   'city',
+  'postalCode',
   'country',
   'paymentMethod',
   'agree',
@@ -69,6 +70,7 @@ export function validateCheckout(values: CheckoutFormValues): CheckoutErrors {
   if (!values.address.trim()) errors.address = S.checkout.requiredField
   if (!values.district.trim()) errors.district = S.checkout.requiredField
   if (!values.city.trim()) errors.city = S.checkout.requiredField
+  if (!values.postalCode.trim()) errors.postalCode = S.checkout.requiredField
   if (!values.country.trim()) errors.country = S.checkout.requiredField
 
   if (!values.paymentMethod) errors.paymentMethod = S.checkout.requiredField
