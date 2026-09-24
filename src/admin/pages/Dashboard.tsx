@@ -58,9 +58,9 @@ export function Dashboard() {
               <Icon name="check" size={14} /> {AS.dashboard.allMediaPresent}
             </p>
           ) : (
-            <ul className="stack">
+            <ul style={{ listStyle: 'none', margin: '0 0 12px', padding: 0, display: 'grid', gap: 6 }}>
               {missing.map((name) => (
-                <li key={name} className={styles.statusMuted}>
+                <li key={name} className={styles.statusMuted} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Icon name="info" size={14} /> {name}
                 </li>
               ))}

@@ -44,6 +44,10 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   // iyimser bir tahmindir (bkz. src/admin/AdminApp.tsx aynı desen).
   useEffect(() => {
     if (!isApiMode()) return
+    // Oturum çerezi httpOnly olduğundan JS'ten okunamaz; yerel önbellekte bir oturum izi yoksa
+    // `/account/me` hiç çağrılmaz — aksi hâlde her ziyaretçide her sayfada gereksiz bir 401 ve
+    // konsol hatası oluşur. Giriş/kayıt sonrası önbellek dolar, çıkışta boşalır.
+    if (!readJSON<AccountStore>(storageKeys.account, emptyStore).current) return
     let cancelled = false
     authProvider.me().then((info) => {
       if (cancelled) return
