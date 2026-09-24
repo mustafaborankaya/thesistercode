@@ -1,0 +1,131 @@
+.lines {
+  display: grid;
+}
+
+.line {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: var(--sp-4);
+  padding-block: var(--sp-4);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.line:first-child {
+  padding-top: 0;
+}
+
+.lineWide {
+  grid-template-columns: 96px 1fr;
+}
+
+.lineBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.lineTop {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  align-items: flex-start;
+}
+
+.name {
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  line-height: 1.4;
+}
+
+.variant {
+  font-size: var(--fs-xs);
+  color: var(--color-ink-soft);
+}
+
+.unit {
+  font-size: var(--fs-xs);
+}
+
+.lineBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+
+.lineTotal {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+
+.remove {
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  min-height: 32px;
+}
+
+.stockNote {
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  color: var(--color-ink-soft);
+}
+
+.empty {
+  display: grid;
+  gap: var(--sp-3);
+  padding-block: var(--sp-6);
+}
+
+.emptyTitle {
+  font-size: var(--fs-md);
+}
+
+.summary {
+  display: grid;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.rowSoft {
+  color: var(--color-ink-soft);
+  font-size: var(--fs-xs);
+}
+
+.rowTotal {
+  font-weight: var(--fw-medium);
+  font-size: var(--fs-md);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--color-line);
+  margin-top: var(--sp-1);
+}
+
+.hint {
+  font-size: var(--fs-xs);
+  color: var(--color-ink-soft);
+  line-height: 1.5;
+}
+
+.actions {
+  display: grid;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+}
+
+.headerCount {
+  margin-left: auto;
+  font-size: var(--fs-xs);
+  color: var(--color-ink-soft);
+}

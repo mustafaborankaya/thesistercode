@@ -1,0 +1,87 @@
+:root {
+  /* Renkler — yalnızca siyah, beyaz ve çok açık gri. Başka vurgu rengi yok. */
+  --color-bg: #ffffff;
+  --color-ink: #000000;
+  --color-surface: #f5f5f5;
+  --color-line: #eeeeee;
+  --color-ink-soft: rgba(0, 0, 0, 0.62);
+  --color-ink-faint: rgba(0, 0, 0, 0.38);
+  --color-scrim: rgba(0, 0, 0, 0.32);
+  --color-on-ink: #ffffff;
+
+  /* Tipografi — tümü Gill Sans Nova (bkz. fonts.css) */
+  --font-family: "Gill Sans Nova", "TR Glyph Fix", "Gill Sans", "Gill Sans MT", sans-serif;
+  --fw-light: 300;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+
+  --fs-2xs: 0.6875rem; /* 11px */
+  --fs-xs: 0.75rem;    /* 12px */
+  --fs-sm: 0.8125rem;  /* 13px */
+  --fs-md: 0.9375rem;  /* 15px */
+  --fs-lg: 1.125rem;   /* 18px */
+  --fs-xl: 1.5rem;     /* 24px */
+  --fs-2xl: 2rem;      /* 32px */
+
+  --ls-caps: 0.1em;
+  --ls-wide: 0.06em;
+  --lh-tight: 1.2;
+  --lh-normal: 1.5;
+
+  /* Boşluk */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+  --sp-20: 80px;
+
+  --page-x: 48px;
+  --grid-gap: 24px;
+  --radius: 2px;
+
+  /* Yerleşim ölçüleri */
+  --header-h: 64px;
+  --demo-bar-h: 32px;
+  --drawer-w: 440px;
+  --mobile-cta-h: 72px;
+  --tap: 44px;
+
+  --z-header: 40;
+  --z-dropdown: 45;
+  --z-sticky-cta: 50;
+  --z-float: 55;
+  --z-banner: 60;
+  --z-drawer: 70;
+  --z-modal: 80;
+
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur: 220ms;
+}
+
+@media (max-width: 1023px) {
+  :root {
+    --page-x: 20px;
+    --grid-gap: 16px;
+    --header-h: 56px;
+  }
+}
+
+@media (max-width: 639px) {
+  :root {
+    --page-x: 16px;
+    --grid-gap: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur: 0ms;
+  }
+}

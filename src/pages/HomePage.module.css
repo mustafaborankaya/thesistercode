@@ -1,0 +1,175 @@
+/* ---- Açılış (hero) ---- */
+.hero {
+  position: relative;
+  height: clamp(480px, 58vh, 560px);
+  background: var(--color-surface);
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+}
+
+.heroImg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 30%;
+}
+
+.hero[data-photo='true']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.42) 0%, rgba(0, 0, 0, 0) 55%);
+  pointer-events: none;
+}
+
+.heroContent {
+  position: relative;
+  z-index: 1;
+  padding: var(--sp-10) var(--page-x);
+  display: grid;
+  gap: var(--sp-3);
+  max-width: 640px;
+}
+
+.hero[data-photo='true'] .heroContent {
+  color: var(--color-on-ink);
+}
+
+.heroEyebrow {
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.heroTitle {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: var(--fw-light);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.05;
+}
+
+.heroCta {
+  margin-top: var(--sp-2);
+  justify-self: start;
+}
+
+.hero[data-photo='true'] .heroCta {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  border-color: var(--color-bg);
+}
+
+.hero[data-photo='true'] .heroCta:hover {
+  background: transparent;
+  color: var(--color-on-ink);
+  border-color: var(--color-on-ink);
+}
+
+/* Fotoğraf gelene kadar: bekleyen varlık bilgisi küçük ve kenarda */
+.heroPending {
+  position: absolute;
+  top: var(--sp-4);
+  right: var(--page-x);
+  z-index: 1;
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  color: var(--color-ink-soft);
+  text-align: right;
+  line-height: 1.5;
+}
+
+.heroPending code {
+  font-family: inherit;
+  color: var(--color-ink);
+}
+
+/* ---- Öne çıkanlar ---- */
+.featured {
+  padding: var(--sp-10) var(--page-x) var(--sp-12);
+}
+
+.stripRow {
+  margin-bottom: var(--sp-6);
+}
+
+.featuredHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-6);
+}
+
+.featuredTitle {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-regular);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+}
+
+.featuredLink {
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  white-space: nowrap;
+}
+
+.featuredFooter {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--sp-10);
+}
+
+/* ---- Koleksiyon tanıtımı (ikincil) ---- */
+.intro {
+  padding: var(--sp-12) var(--page-x);
+  border-top: 1px solid var(--color-line);
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: var(--sp-12);
+  align-items: center;
+}
+
+.introText {
+  display: grid;
+  gap: var(--sp-4);
+  max-width: 44ch;
+}
+
+.introTitle {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-light);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  line-height: 1.15;
+}
+
+@media (max-width: 1023px) {
+  .hero {
+    height: clamp(320px, 52vh, 420px);
+  }
+  .heroContent {
+    padding: var(--sp-6) var(--page-x);
+  }
+  .heroTitle {
+    font-size: 1.75rem;
+  }
+  .heroPending {
+    top: var(--sp-3);
+    max-width: 60%;
+  }
+  .featured {
+    padding: var(--sp-6) var(--page-x) var(--sp-10);
+  }
+  .intro {
+    grid-template-columns: 1fr;
+    gap: var(--sp-6);
+    padding-block: var(--sp-10);
+  }
+}

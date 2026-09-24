@@ -1,0 +1,27 @@
+/* Doubled selector: Drawer'ın .center genişlik sınırını (min(560px, 100vw - 32px))
+   stylesheet ekleme sırasından bağımsız, güvenilir biçimde geçersiz kılmak için. */
+.drawer.drawer {
+  width: min(960px, calc(100vw - 32px));
+}
+
+.stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40dvh;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-4);
+  margin-top: var(--sp-4);
+}
+
+.counter {
+  min-width: 64px;
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-wide);
+  text-align: center;
+}

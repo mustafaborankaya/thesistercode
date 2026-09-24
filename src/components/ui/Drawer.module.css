@@ -1,0 +1,142 @@
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-drawer);
+  display: flex;
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--color-scrim);
+  animation: fade var(--dur) var(--ease);
+}
+
+.panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  max-height: 100dvh;
+  outline: none;
+  animation-duration: var(--dur);
+  animation-timing-function: var(--ease);
+  animation-fill-mode: both;
+}
+
+.right {
+  margin-left: auto;
+  width: min(var(--drawer-w), 100vw - 24px);
+  height: 100dvh;
+  border-left: 1px solid var(--color-line);
+  animation-name: fromRight;
+}
+
+.left {
+  margin-right: auto;
+  width: min(360px, 100vw - 24px);
+  height: 100dvh;
+  border-right: 1px solid var(--color-line);
+  animation-name: fromLeft;
+}
+
+.top {
+  width: 100%;
+  border-bottom: 1px solid var(--color-line);
+  animation-name: fromTop;
+  align-self: flex-start;
+}
+
+.bottom {
+  width: 100%;
+  margin-top: auto;
+  max-height: min(88dvh, 720px);
+  border-top: 1px solid var(--color-line);
+  animation-name: fromBottom;
+}
+
+.center {
+  margin: auto;
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  border: 1px solid var(--color-line);
+  animation-name: fade;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-5);
+  border-bottom: 1px solid var(--color-line);
+  flex: none;
+}
+
+.title {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--sp-5);
+}
+
+.footer {
+  flex: none;
+  border-top: 1px solid var(--color-line);
+  padding: var(--sp-4) var(--sp-5);
+  padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
+}
+
+@keyframes fromRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes fromLeft {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes fromTop {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes fromBottom {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

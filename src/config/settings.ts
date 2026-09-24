@@ -1,0 +1,109 @@
+/**
+ * Merkezi site ayarları.
+ * Dil, para birimi, kampanya, kargo ve destek ayarları buradan yönetilir. Yönetici panelinden yapılan
+ * değişiklikler (src/admin/adminStore.ts) modül yüklenirken bu varsayılanların üzerine uygulanır.
+ * Gerçek servis bilgileri (WhatsApp numarası, kargo ücreti vb.) tanımlanmadıkça
+ * uygulama bunları "tanımlanacak" olarak gösterir; uydurma değer kullanmaz.
+ */
+
+import { readAdminData } from '../admin/adminStore'
+
+export const defaultSettings = {
+  brand: {
+    name: 'Teshvikiye',
+    shortName: 'Teshvikiye',
+    /** Logo dosyası sağlanınca yolu buraya yazılır; boşken metin wordmark gösterilir. */
+    logoSrc: null as string | null,
+  },
+
+  locale: {
+    /** Arayüz dili — metinler src/i18n altından gelir. */
+    language: 'tr' as const,
+    /** Intl biçimlendirme yereli. */
+    intlLocale: 'tr-TR',
+  },
+
+  currency: {
+    code: 'TRY',
+    /** Fiyat yanında gösterilecek işaret; referans mağazalarda "TL" son eki kullanılıyor. */
+    symbol: 'TL',
+    position: 'suffix' as 'prefix' | 'suffix',
+    decimals: 2,
+  },
+
+  /** Kargo ücreti henüz tanımlanmadı; null iken ücretsiz gibi hesaplanmaz, "tanımlanacak" gösterilir. */
+  shipping: {
+    amount: null as number | null,
+  },
+
+  /**
+   * Hesap oluşturana %10 indirim kampanyası.
+   * Demo varsayımı: kampanya sepet ara toplamına otomatik uygulanır; minimum sepet, son kullanım
+   * tarihi ve kullanım sınırı tanımlı değildir (null). Bu değerler marka tarafından kesinleşince
+   * burada veya yönetici panelinden güncellenir.
+   */
+  memberDiscount: {
+    enabled: true,
+    percent: 10,
+    /** 'automatic' → hesap açınca sepete kendiliğinden uygulanır; 'code' → kullanıcı kodu girer. */
+    mode: 'automatic' as 'automatic' | 'code',
+    code: null as string | null,
+    minSubtotal: null as number | null,
+    usageLimit: null as number | null,
+    expiresAt: null as string | null,
+  },
+
+  support: {
+    /** Gerçek numara tanımlanınca uluslararası biçimde yazılır (örn. "9053..."); null iken "eklenecek" gösterilir. */
+    whatsappNumber: null as string | null,
+    email: null as string | null,
+  },
+
+  /** İndirim teklifi paneli zamanlaması (ms). Çerez kararı verildikten sonra bekleme süresi. */
+  offerPanel: {
+    delayAfterConsentMs: 6000,
+    /** Kullanıcı bir form alanındayken erteleme süresi. */
+    retryMs: 8000,
+  },
+
+  catalog: {
+    /** Listeleme başına gösterilecek ürün sayısı ("Daha Fazla Göster" adımı). */
+    pageSize: 12,
+    /** Ürün görsel alanı başlangıç oranı. */
+    mediaRatio: '3 / 4',
+  },
+
+  /** Sosyal hesaplar henüz yok; null iken alan adıyla yer tutucu gösterilir. */
+  social: {
+    instagram: null as string | null,
+    tiktok: null as string | null,
+    pinterest: null as string | null,
+  },
+
+  /** Kurulacak gerçek servisler bağlanana kadar demo modu açık kalır. */
+  demo: {
+    enabled: true,
+  },
+
+} as const
+
+type Widen<T> = T extends string ? string : T extends number ? number : T extends boolean ? boolean : T extends null ? null : { -readonly [K in keyof T]: Widen<T[K]> }
+
+export type SiteSettings = Widen<typeof defaultSettings>
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v)
+}
+
+/** Yalnızca tanımlı (undefined olmayan) override alanlarını derinlemesine uygular. */
+export function mergeSettings<T>(base: T, patch: unknown): T {
+  if (!isPlainObject(base) || !isPlainObject(patch)) return (patch === undefined ? base : (patch as T))
+  const out: Record<string, unknown> = { ...base }
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === undefined) continue
+    out[key] = isPlainObject(value) && isPlainObject(out[key]) ? mergeSettings(out[key], value) : value
+  }
+  return out as T
+}
+
+export const siteSettings: SiteSettings = mergeSettings(defaultSettings as unknown as SiteSettings, readAdminData().settings)

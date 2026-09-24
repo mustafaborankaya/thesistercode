@@ -1,0 +1,122 @@
+/* "Kombini Tamamla" — bilgi sütununun altında kompakt satırlar. */
+
+.section {
+  margin-top: var(--sp-8);
+  padding-top: var(--sp-6);
+  border-top: 1px solid var(--color-line);
+}
+
+.title {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  margin-bottom: var(--sp-5);
+}
+
+.list {
+  display: grid;
+}
+
+.list > * + * {
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--color-line);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: var(--sp-3);
+}
+
+.rowMedia {
+  display: block;
+  width: 72px;
+}
+
+.rowMedia:hover {
+  text-decoration: none;
+}
+
+.rowBody {
+  min-width: 0;
+  display: grid;
+  gap: var(--sp-2);
+  align-content: start;
+}
+
+.rowName {
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  line-height: 1.4;
+}
+
+.rowPrice {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.02em;
+}
+
+.colorLabel {
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+
+.colorRow,
+.sizeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 36px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--color-ink);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+}
+
+.sizeChip {
+  min-width: 36px;
+  padding: 0 var(--sp-2);
+  text-align: center;
+}
+
+.chip:hover:not(.chipActive):not(:disabled) {
+  background: var(--color-surface);
+}
+
+.chipActive {
+  background: var(--color-ink);
+  color: var(--color-on-ink);
+}
+
+.chipSoldOut {
+  border-color: var(--color-line);
+  color: var(--color-ink-faint);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.rowError {
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-medium);
+  color: var(--color-ink);
+}
+
+.rowOk {
+  font-size: var(--fs-2xs);
+  color: var(--color-ink-soft);
+}

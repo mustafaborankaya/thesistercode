@@ -1,0 +1,44 @@
+.gallery {
+  display: flex;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+.thumbs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  width: 92px;
+  flex: none;
+}
+
+.thumb {
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.thumb:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+.thumbActive {
+  border-color: var(--color-ink);
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  cursor: zoom-in;
+}
+
+.main:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 4px;
+}
+
+@media (max-width: 1279px) {
+  .thumbs {
+    width: 72px;
+  }
+}

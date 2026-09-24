@@ -1,0 +1,60 @@
+.wrap {
+  position: relative;
+}
+
+/* Tablette tam genişlik 3:4 galeri ekranı aşıyor; ortalanmış sınırlı genişlik kullan. */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .wrap {
+    max-width: 560px;
+    margin-inline: auto;
+  }
+}
+
+.track {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.track::-webkit-scrollbar {
+  display: none;
+}
+
+.slide {
+  flex: 0 0 100%;
+  min-width: 0;
+  scroll-snap-align: start;
+}
+
+.status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+
+.dots {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius);
+  background: var(--color-line);
+}
+
+.dotActive {
+  background: var(--color-ink);
+}
+
+.counter {
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  color: var(--color-ink-soft);
+}

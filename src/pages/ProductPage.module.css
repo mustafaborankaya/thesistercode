@@ -1,0 +1,111 @@
+.page {
+  padding: var(--sp-8) var(--page-x) var(--sp-16);
+}
+
+@media (max-width: 1023px) {
+  .page {
+    padding-top: var(--sp-4);
+    padding-bottom: calc(var(--mobile-cta-h) + env(safe-area-inset-bottom) + 16px);
+  }
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: var(--sp-10);
+  align-items: start;
+}
+
+@media (max-width: 1023px) {
+  .layout {
+    display: block;
+  }
+  .layout > * + * {
+    margin-top: var(--sp-8);
+  }
+}
+
+.galleryCol {
+  min-width: 0;
+}
+
+.info {
+  min-width: 0;
+  display: grid;
+  gap: var(--sp-6);
+  align-content: start;
+}
+
+.sticky {
+  position: sticky;
+  /* Demo şeridi sticky değil; kaydırınca yalnızca header üstte kalır. */
+  top: calc(var(--header-h) + 24px);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.header > div:first-child {
+  min-width: 0;
+}
+
+.eyebrow {
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+  margin-bottom: 4px;
+}
+
+.name {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-light);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  line-height: var(--lh-tight);
+}
+
+.favButton {
+  flex: none;
+  width: var(--tap);
+  height: var(--tap);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-ink);
+}
+
+.price {
+  font-size: var(--fs-lg);
+}
+
+.purchase {
+  display: grid;
+  gap: var(--sp-5);
+  padding-top: var(--sp-6);
+  border-top: 1px solid var(--color-line);
+}
+
+.statusError {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--color-ink);
+}
+
+.statusOk {
+  font-size: var(--fs-xs);
+  color: var(--color-ink-soft);
+}
+
+.lowStock {
+  font-size: var(--fs-xs);
+  color: var(--color-ink-soft);
+}
+
+.accordions {
+  margin-top: var(--sp-2);
+}

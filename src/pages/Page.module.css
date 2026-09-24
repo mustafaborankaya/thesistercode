@@ -1,0 +1,37 @@
+/* Sayfalar için ortak sınıflar. Sayfaya özel stiller kendi modülünde tutulur. */
+
+.page {
+  padding: var(--sp-10) var(--page-x) var(--sp-16);
+}
+
+.narrow {
+  max-width: 720px;
+}
+
+.title {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-light);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  line-height: var(--lh-tight);
+  margin-bottom: var(--sp-8);
+}
+
+.titleCenter {
+  text-align: center;
+}
+
+.lead {
+  color: var(--color-ink-soft);
+  max-width: 60ch;
+}
+
+@media (max-width: 1023px) {
+  .page {
+    padding-block: var(--sp-6) var(--sp-12);
+  }
+  .title {
+    font-size: var(--fs-lg);
+    margin-bottom: var(--sp-5);
+  }
+}

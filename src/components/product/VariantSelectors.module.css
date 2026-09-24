@@ -1,0 +1,113 @@
+/* ColorSelector ve SizeSelector için paylaşılan stiller. */
+
+.fieldset {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.legendRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.legend {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.sizeGuideLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding-inline: var(--sp-2);
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-wide);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.optionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.colorOption {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: var(--tap);
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--color-ink);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+}
+
+.colorOption:hover:not(.optionActive) {
+  background: var(--color-surface);
+}
+
+.optionActive {
+  background: var(--color-ink);
+  color: var(--color-on-ink);
+}
+
+.sizeGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: var(--sp-2);
+  max-width: 320px;
+}
+
+.sizeOption {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--sp-2);
+  border: 1px solid var(--color-ink);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-size: var(--fs-sm);
+  letter-spacing: var(--ls-wide);
+}
+
+.sizeOption:hover:not(.optionActive):not(:disabled) {
+  background: var(--color-surface);
+}
+
+.sizeSoldOut {
+  border-color: var(--color-line);
+  color: var(--color-ink-faint);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.legendNote {
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  color: var(--color-ink-soft);
+}
+
+.lowStock {
+  font-size: var(--fs-xs);
+  color: var(--color-ink-soft);
+}
+
+.error {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--color-ink);
+}

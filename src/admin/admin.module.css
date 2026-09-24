@@ -1,0 +1,303 @@
+/* Yönetici paneli — ortak tablo/form stilleri. Yalnızca tokens.css değişkenleri kullanılır. */
+
+.pageHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-3);
+}
+
+.pageTitle {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-light);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  line-height: var(--lh-tight);
+}
+
+.pageActions {
+  display: flex;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.demoNotice {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--color-ink-soft);
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: var(--sp-2) var(--sp-3);
+  margin-bottom: var(--sp-6);
+}
+
+.section {
+  margin-bottom: var(--sp-10);
+}
+
+.sectionTitle {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-caps);
+  margin-bottom: var(--sp-3);
+}
+
+.card {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  margin-bottom: var(--sp-6);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+  min-width: 680px;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--color-line);
+  vertical-align: middle;
+}
+
+.table th {
+  font-weight: var(--fw-medium);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-caps);
+  font-size: var(--fs-2xs);
+  color: var(--color-ink-soft);
+  white-space: nowrap;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table tbody tr:hover {
+  background: var(--color-surface);
+}
+
+.rowLink {
+  cursor: pointer;
+}
+
+.rowLink:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: -2px;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.statusMuted {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-ink-faint);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
+  align-items: flex-end;
+}
+
+.filterField {
+  min-width: 220px;
+  flex: 1;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-4);
+}
+
+.gridFull {
+  grid-column: 1 / -1;
+}
+
+.stockTableWrap {
+  overflow-x: auto;
+}
+
+.stockTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+  min-width: 480px;
+}
+
+.stockTable th,
+.stockTable td {
+  padding: var(--sp-2);
+  border: 1px solid var(--color-line);
+  text-align: center;
+}
+
+.stockTable input {
+  width: 100%;
+  min-height: 36px;
+  text-align: center;
+  padding: 0 var(--sp-1);
+}
+
+.checkList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--sp-3);
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.mediaGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--sp-5);
+}
+
+.mediaField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.mediaActions {
+  display: flex;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.mediaNotice {
+  font-size: var(--fs-2xs);
+  color: var(--color-ink-soft);
+}
+
+.saveBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-4);
+  margin-top: var(--sp-6);
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--color-line);
+}
+
+.saveMessage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--fs-sm);
+}
+
+.empty {
+  padding: var(--sp-10) var(--sp-4);
+  text-align: center;
+  color: var(--color-ink-soft);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+}
+
+.loginShell {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-6);
+}
+
+.loginCard {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--sp-8);
+}
+
+.loginTitle {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-light);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.loginHint {
+  font-size: var(--fs-xs);
+  color: var(--color-ink-faint);
+  text-align: center;
+}
+
+.twoStepConfirm {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.accordionGroup > * + * {
+  border-top: 1px solid var(--color-line);
+}
+
+.fieldStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.subCard {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+
+.subCardTitle {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-caps);
+  color: var(--color-ink-soft);
+  margin-bottom: var(--sp-3);
+}
+
+@media (max-width: 639px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  .pageHead {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

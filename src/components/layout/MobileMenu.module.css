@@ -1,0 +1,66 @@
+.list {
+  display: grid;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  min-height: 52px;
+  padding-block: var(--sp-2);
+  font-size: var(--fs-sm);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--color-line);
+  width: 100%;
+  text-align: left;
+}
+
+.item:hover {
+  text-decoration: none;
+}
+
+.sub {
+  display: grid;
+  padding: var(--sp-2) 0 var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.subLink {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  font-size: var(--fs-sm);
+  letter-spacing: var(--ls-wide);
+}
+
+.subLinkActive {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.group {
+  margin-top: var(--sp-6);
+}
+
+.groupTitle {
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+  margin-bottom: var(--sp-2);
+}
+
+.meta {
+  margin-top: var(--sp-8);
+  font-size: var(--fs-xs);
+  color: var(--color-ink-soft);
+}
+
+.badge {
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  color: var(--color-ink-soft);
+  text-transform: none;
+}

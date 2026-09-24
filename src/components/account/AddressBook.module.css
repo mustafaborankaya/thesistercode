@@ -1,0 +1,121 @@
+.book {
+  display: grid;
+  gap: var(--sp-5);
+  min-width: 0;
+  color: var(--color-ink);
+}
+
+.header,
+.cardHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.title {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-light);
+  line-height: var(--lh-tight);
+}
+
+.title:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: var(--sp-1);
+}
+
+.subtitle {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-medium);
+  overflow-wrap: anywhere;
+}
+
+.note {
+  margin-top: var(--sp-2);
+  font-size: var(--fs-sm);
+  color: var(--color-ink-soft);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-4);
+}
+
+.fullWidth { grid-column: 1 / -1; }
+
+.card,
+.editor,
+.empty {
+  min-width: 0;
+  padding: var(--sp-6);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+}
+
+.card,
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.editor > .note { margin-top: calc(-1 * var(--sp-2)); }
+
+.badge {
+  background: var(--color-surface);
+  padding: var(--sp-1) var(--sp-2);
+  font-size: var(--fs-xs);
+}
+
+.address {
+  display: grid;
+  gap: var(--sp-1);
+  font-size: var(--fs-md);
+  font-style: normal;
+  line-height: var(--lh-normal);
+  overflow-wrap: anywhere;
+}
+
+.street { white-space: pre-wrap; }
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.card > .actions { margin-top: auto; }
+
+.confirmation,
+.failure {
+  padding: var(--sp-4);
+  background: var(--color-surface);
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+}
+
+.confirmation {
+  display: grid;
+  gap: var(--sp-3);
+  border-left: 2px solid var(--color-ink);
+}
+
+.notice { font-size: var(--fs-sm); }
+.notice:empty { display: none; }
+
+.empty {
+  display: grid;
+  gap: var(--sp-2);
+  background: var(--color-surface);
+  font-size: var(--fs-md);
+}
+
+@media (max-width: 639px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .card,
+  .editor,
+  .empty { padding: var(--sp-4); }
+  .header { align-items: flex-start; }
+}

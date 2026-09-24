@@ -1,0 +1,125 @@
+.page {
+  min-height: calc(100dvh - var(--header-h) - var(--demo-bar-h));
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+/* Giriş görseli (src/assets/media/giris.jpg) sağlanınca iki sütun */
+.page[data-photo='true'] {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.visual {
+  position: relative;
+  background: var(--color-surface);
+  min-height: 520px;
+}
+
+.visual img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-12) var(--page-x) var(--sp-16);
+}
+
+.inner {
+  width: 100%;
+  max-width: 440px;
+  display: grid;
+  gap: var(--sp-5);
+}
+
+.brand {
+  text-align: center;
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+  padding-left: 0.32em;
+}
+
+.tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap);
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+
+.tab:hover {
+  text-decoration: none;
+  color: var(--color-ink);
+}
+
+.tabActive {
+  color: var(--color-ink);
+  border-bottom-color: var(--color-ink);
+}
+
+.title {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-light);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  line-height: var(--lh-tight);
+}
+
+.lead {
+  font-size: var(--fs-sm);
+  color: var(--color-ink-soft);
+  margin-top: calc(-1 * var(--sp-3));
+}
+
+.benefit {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--color-line);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+
+.benefit svg {
+  flex: none;
+  margin-top: 3px;
+}
+
+.switch {
+  font-size: var(--fs-sm);
+  text-align: center;
+}
+
+@media (max-width: 1023px) {
+  .page,
+  .page[data-photo='true'] {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+  .visual {
+    display: none; /* mobilde form öne alınır */
+  }
+  .panel {
+    padding: var(--sp-6) var(--page-x) var(--sp-10);
+    align-items: flex-start;
+  }
+}

@@ -1,0 +1,72 @@
+/*
+  Gill Sans Nova — marka fontu.
+
+  Font dosyaları henüz sağlanmadı. Dosyalar geldiğinde:
+    1. public/fonts/ klasörüne koy (örn. GillSansNova-Light.woff2, -Book.woff2, -Medium.woff2, -SemiBold.woff2)
+    2. Aşağıdaki @font-face bloklarının yorumunu kaldır.
+  tokens.css içindeki --font-family zinciri "Gill Sans Nova" ile başlar; dosya yüklenince
+  otomatik olarak devreye girer. Dosya yokken sistemdeki "Gill Sans" ve ardından sans-serif kullanılır.
+  Başka bir font Gill Sans Nova adıyla tanıtılmaz.
+*/
+
+/*
+@font-face {
+  font-family: "Gill Sans Nova";
+  src: url("/fonts/GillSansNova-Light.woff2") format("woff2");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Gill Sans Nova";
+  src: url("/fonts/GillSansNova-Book.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Gill Sans Nova";
+  src: url("/fonts/GillSansNova-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Gill Sans Nova";
+  src: url("/fonts/GillSansNova-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+*/
+
+/*
+  Türkçe büyük İ (U+0130) düzeltmesi.
+  Sistemdeki Gill Sans'ın İ glifi bozuk çiziliyor; yalnızca bu karakterler için Cabin (SIL OFL) alt kümesi
+  kullanılır (unicode-range). Diğer tüm karakterler font zincirinin geri kalanından gelir; gerçek
+  Gill Sans Nova dosyaları yüklendiğinde bu yedek devreye girmez (zincirde ondan sonra gelir).
+*/
+@font-face {
+  font-family: "TR Glyph Fix";
+  src: url("/fonts/cabin-tr-400.woff2") format("woff2");
+  font-weight: 300 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0130, U+0131;
+}
+@font-face {
+  font-family: "TR Glyph Fix";
+  src: url("/fonts/cabin-tr-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0130, U+0131;
+}
+@font-face {
+  font-family: "TR Glyph Fix";
+  src: url("/fonts/cabin-tr-600.woff2") format("woff2");
+  font-weight: 600 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0130, U+0131;
+}

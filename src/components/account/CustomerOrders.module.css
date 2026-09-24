@@ -1,0 +1,18 @@
+.list { display: grid; gap: var(--sp-5); }
+.card { border: 1px solid var(--color-line); padding: var(--sp-4); display: grid; gap: var(--sp-4); min-width: 0; }
+.head { display: flex; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
+.meta { font-size: var(--fs-xs); color: var(--color-ink-soft); }
+.actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.form { display: grid; gap: var(--sp-4); }
+.text { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--fs-sm); }
+.status { font-size: var(--fs-xs); border: 1px solid var(--color-line); padding: var(--sp-2); align-self: start; }
+.items { display: grid; gap: var(--sp-3); font-size: var(--fs-sm); }
+.item { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--sp-2); }
+.request { border-top: 1px solid var(--color-line); padding-top: var(--sp-4); display: grid; gap: var(--sp-2); }
+.error { font-size: var(--fs-sm); border-left: 2px solid var(--color-ink); padding-left: var(--sp-3); }
+.unread { font-weight: var(--fw-medium); }
+
+@media (max-width: 480px) {
+  .card { padding: var(--sp-3); }
+  .actions > * { flex: 1 1 auto; }
+}

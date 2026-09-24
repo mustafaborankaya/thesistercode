@@ -1,0 +1,45 @@
+.form {
+  display: grid;
+  gap: var(--sp-5);
+}
+
+.offerText {
+  max-width: 60ch;
+  color: var(--color-ink-soft);
+  margin-bottom: var(--sp-6);
+}
+
+.demoNote {
+  font-size: var(--fs-xs);
+  color: var(--color-ink-soft);
+  line-height: 1.5;
+}
+
+.formError {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-xs);
+}
+
+.switchLine {
+  font-size: var(--fs-sm);
+}
+
+.successNote {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--color-line);
+  margin-bottom: var(--sp-6);
+}
+
+.logoutRow {
+  margin-top: var(--sp-8);
+}
+
+.accordionGroup {
+  margin-bottom: var(--sp-8);
+}

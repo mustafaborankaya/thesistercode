@@ -1,0 +1,8 @@
+User-agent: *
+Disallow: /admin
+Disallow: /api
+Disallow: /odeme
+Disallow: /sepet
+Disallow: /hesap
+Allow: /
+Sitemap: https://teshvikiye.com/sitemap.xml

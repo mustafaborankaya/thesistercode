@@ -1,0 +1,21 @@
+.skip {
+  position: absolute;
+  left: var(--sp-4);
+  top: -100px;
+  z-index: 100;
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--color-ink);
+  color: var(--color-on-ink);
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.skip:focus {
+  top: var(--sp-4);
+}
+
+.main {
+  flex: 1 0 auto;
+  outline: none;
+}

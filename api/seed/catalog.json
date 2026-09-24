@@ -1,0 +1,1063 @@
+[
+  {
+    "id": "urun-01",
+    "number": "01",
+    "slug": "urun-01",
+    "name": "Ürün 01 — Ürün adı",
+    "category": "elbiseler",
+    "isNew": true,
+    "price": 4250,
+    "colors": [
+      {
+        "id": "renk-1",
+        "label": "Renk 1"
+      },
+      {
+        "id": "renk-2",
+        "label": "Renk 2"
+      }
+    ],
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": {
+      "renk-1": {
+        "XS": 0,
+        "S": 4,
+        "M": 4,
+        "L": 4,
+        "XL": 4
+      },
+      "renk-2": {
+        "XS": 0,
+        "S": 4,
+        "M": 4,
+        "L": 4,
+        "XL": 4
+      }
+    },
+    "content": {
+      "description": "Ürün 01 — Ürün açıklaması alanı",
+      "fabricCare": "Ürün 01 — Kumaş ve bakım bilgisi alanı",
+      "deliveryReturns": "Teslimat ve iade bilgisi alanı"
+    },
+    "hidden": false,
+    "similarProductIds": [
+      "urun-09",
+      "urun-13",
+      "urun-16"
+    ],
+    "completeLookProductIds": [
+      "urun-05"
+    ]
+  },
+  {
+    "id": "urun-02",
+    "number": "02",
+    "slug": "urun-02",
+    "name": "Ürün 02 — Ürün adı",
+    "category": "ust-giyim",
+    "isNew": true,
+    "price": 1890,
+    "colors": [
+      {
+        "id": "renk-1",
+        "label": "Renk 1"
+      }
+    ],
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": {
+      "renk-1": {
+        "XS": 4,
+        "S": 4,
+        "M": 4,
+        "L": 4,
+        "XL": 4
+      }
+    },
+    "content": {
+      "description": "Ürün 02 — Ürün açıklaması alanı",
+      "fabricCare": "Ürün 02 — Kumaş ve bakım bilgisi alanı",
+      "deliveryReturns": "Teslimat ve iade bilgisi alanı"
+    },
+    "hidden": false,
+    "similarProductIds": [
+      "urun-07",
+      "urun-12",
+      "urun-20"
+    ],
+    "completeLookProductIds": [
+      "urun-08",
+      "urun-10"
+    ]
+  },
+  {
+    "id": "urun-03",
+    "number": "03",
+    "slug": "urun-03",
+    "name": "Ürün 03 — Ürün adı",
+    "category": "alt-giyim",
+    "isNew": true,
+    "price": 2650,
+    "colors": [
+      {
+        "id": "renk-2",
+        "label": "Renk 2"
+      },
+      {
+        "id": "renk-3",
+        "label": "Renk 3"
+      }
+    ],
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": {
+      "renk-2": {
+        "XS": 4,
+        "S": 4,
+        "M": 4,
+        "L": 4,
+        "XL": 0
+      },
+      "renk-3": {
+        "XS": 4,
+        "S": 4,
+        "M": 4,
+        "L": 4,
+        "XL": 0
+      }
+    },
+    "content": {
+      "description": "Ürün 03 — Ürün açıklaması alanı",
+      "fabricCare": "Ürün 03 — Kumaş ve bakım bilgisi alanı",
+      "deliveryReturns": "Teslimat ve iade bilgisi alanı"
+    },
+    "hidden": false,
+    "similarProductIds": [
+      "urun-08",
+      "urun-14",
+      "urun-19"
+    ],
+    "completeLookProductIds": [
+      "urun-02"
+    ]
+  },
+  {
+    "id": "urun-04",
+    "number": "04",
+    "slug": "urun-04",
+    "name": "Ürün 04 — Ürün adı",
+    "category": "takimlar",
+    "isNew": true,
+    "price": 6900,
+    "colors": [
+      {
+        "id": "renk-1",
+        "label": "Renk 1"
+      }
+    ],
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": {
+      "renk-1": {
+        "XS": 4,
+        "S": 1,
+        "M": 2,
+        "L": 4,
+        "XL": 4
+      }
+    },
+    "content": {
+      "description": "Ürün 04 — Ürün açıklaması alanı",
+      "fabricCare": "Ürün 04 — Kumaş ve bakım bilgisi alanı",
+      "deliveryReturns": "Teslimat ve iade bilgisi alanı"
+    },
+    "hidden": false,
+    "completeLookProductIds": [
+      "urun-11"
+    ]
+  },
+  {
+    "id": "urun-05",
+    "number": "05",
+    "slug": "urun-05",
+    "name": "Ürün 05 — Ürün adı",
+    "category": "dis-giyim",
+    "isNew": true,
+    "price": 8750,
+    "colors": [
+      {
+        "id": "renk-1",
+        "label": "Renk 1"
+      },
+      {
+        "id": "renk-3",
+        "label": "Renk 3"
+      }
+    ],
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": {
+      "renk-1": {
+        "XS": 4,
+        "S": 4,
+        "M": 4,
+        "L": 4,
+        "XL": 4
+      },
+      "renk-3": {
+        "XS": 4,
+        "S": 4,
+        "M": 4,
+        "L": 4,
+        "XL": 4
+      }
+    },
+    "content": {
+      "description": "Ürün 05 — Ürün açıklaması alanı",
+      "fabricCare": "Ürün 05 — Kumaş ve bakım bilgisi alanı",
+      "deliveryReturns": "Teslimat ve iade bilgisi alanı"
+    },
+    "hidden": false,
+    "similarProductIds": [
+      "urun-11",
+      "urun-17",
+      "urun-22"
+    ]
+  },
+  {
+    "id": "urun-06",
+    "number": "06",
+    "slug": "urun-06",
+    "name": "Ürün 06 — Ürün adı",
+    "category": "elbiseler",
+    "isNew": true,
+    "price": 3480,
+    "colors": [
+      {
+        "id": "renk-3",
+        "label": "Renk 3"
+      }
+    ],
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": {
+      "renk-3": {
+        "XS": 0,
+        "S": 0,
+        "M": 4,
+        "L": 4,
+        "XL": 4
+      }
+    },
+    "content": {
+      "description": "Ürün 06 — Ürün açıklaması alanı",
+      "fabricCare": "Ürün 06 — Kumaş ve bakım bilgisi alanı",
+      "deliveryReturns": "Teslimat ve iade bilgisi alanı"
+    },
+    "hidden": false,
+    "completeLookProductIds": [
+      "urun-17"
+    ]
+  },
+  {
+    "id": "urun-07",
+    "number": "07",
+    "slug": "urun-07",
+    "name": "Ürün 07 — Ürün adı",
+    "category": "ust-giyim",
+    "isNew": false,
+    "price": 2150,
+    "colors": [
+      {
+        "id": "renk-1",
+        "label": "Renk 1"
+      },
+      {
+        "id": "renk-2",
+        "label": "Renk 2"
+      },
+      {
+        "id": "renk-3",
+        "label": "Renk 3"
+      }
+    ],
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": {
+      "renk-1": {
+        "XS": 4,
+        "S": 4,
+        "M": 4,
+        "L": 4,
+        "XL": 4
+      },
+      "renk-2": {
+        "XS": 4,
+        "S": 4,
+        "M": 4,
+        "L": 4,
+        "XL": 4
+      },
+      "renk-3": {
+        "XS": 4,
+        "S": 4,
+        "M": 4,
+        "L": 4,
+        "XL": 4
+      }
+    },
+    "content": {
+      "description": "Ürün 07 — Ürün açıklaması alanı",
+      "fabricCare": "Ürün 07 — Kumaş ve bakım bilgisi alanı",
+      "deliveryReturns": "Teslimat ve iade bilgisi alanı"
+    },
+    "hidden": false,
+    "similarProductIds": [
+      "urun-02",
+      "urun-12",
+      "urun-15"
+    ],
+    "completeLookProductIds": [
+      "urun-08",
+      "urun-10"
+    ]
+  },
+  {
+    "id": "urun-08",
+    "number": "08",
+    "slug": "urun-08",
+    "name": "Ürün 08 — Ürün adı",
+    "category": "alt-giyim",
+    "isNew": false,
+    "price": 2990,
+    "colors": [
+      {
+        "id": "renk-1",
+        "label": "Renk 1"
+      }
+    ],
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": {
+      "renk-1": {
+        "XS": 4,
+        "S": 4,
+        "M": 4,
+        "L": 0,
+        "XL": 4
+      }
+    },
+    "content": {
+      "description": "Ürün 08 — Ürün açıklaması alanı",
+      "fabricCare": "Ürün 08 — Kumaş ve bakım bilgisi alanı",
+      "deliveryReturns": "Teslimat ve iade bilgisi alanı"
+    },
+    "hidden": false
+  },
+  {
+    "id": "urun-09",
+    "number": "09",
+    "slug": "urun-09",
+    "name": "Ürün 09 — Ürün adı",
+    "category": "elbiseler",
+    "isNew": false,
+    "price": 5200,
+    "colors": [
+      {
+        "id": "renk-2",
+        "label": "Renk 2"
+      }
+    ],
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": {
+      "renk-2": {
+        "XS": 4,
+        "S": 4,
+        "M": 4,
+        "L": 4,
+        "XL": 4
+      }
+    },
+    "content": {
+      "description": "Ürün 09 — Ürün açıklaması alanı",
+      "fabricCare": "Ürün 09 — Kumaş ve bakım bilgisi alanı",
+      "deliveryReturns": "Teslimat ve iade bilgisi alanı"
+    },
+    "hidden": false,
+    "completeLookProductIds": [
+      "urun-22"
+    ]
+  },
+  {
+    "id": "urun-10",
+    "number": "10",
+    "slug": "urun-10",
+    "name": "Ürün 10 — Ürün adı",
+    "category": "takimlar",
+    "isNew": false,
+    "price": 7400,
+    "colors": [
+      {
+        "id": "renk-1",
+        "label": "Renk 1"
+      },
+      {
+        "id": "renk-2",
+        "label": "Renk 2"
+      }
+    ],
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": {
+      "renk-1": {
+        "XS": 4,
+        "S": 4,
+        "M": 4,
+        "L": 4,
+        "XL": 4
+      },
+      "renk-2": {
+        "XS": 4,
+        "S": 4,
+        "M": 0,
+        "L": 0,
+        "XL": 4
+      }
+    },
+    "content": {
+      "description": "Ürün 10 — Ürün açıklaması alanı",
+      "fabricCare": "Ürün 10 — Kumaş ve bakım bilgisi alanı",
+      "deliveryReturns": "Teslimat ve iade bilgisi alanı"
+    },
+    "hidden": false,
+    "similarProductIds": [
+      "urun-04",
+      "urun-18",
+      "urun-23"
+    ]
+  },
+  {
+    "id": "urun-11",
+    "number": "11",
+    "slug": "urun-11",
+    "name": "Ürün 11 — Ürün adı",
+    "category": "dis-giyim",
+    "isNew": false,
+    "price": 9900,
+    "colors": [
+      {
+        "id": "renk-1",
+        "label": "Renk 1"
+      }
+    ],
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": {
+      "renk-1": {
+        "XS": 0,
+        "S": 4,
+        "M": 4,
+        "L": 4,
+        "XL": 0
+      }
+    },
+    "content": {
+      "description": "Ürün 11 — Ürün açıklaması alanı",
+      "fabricCare": "Ürün 11 — Kumaş ve bakım bilgisi alanı",
+      "deliveryReturns": "Teslimat ve iade bilgisi alanı"
+    },
+    "hidden": false
+  },
+  {
+    "id": "urun-12",
+    "number": "12",
+    "slug": "urun-12",
+    "name": "Ürün 12 — Ürün adı",
+    "category": "ust-giyim",
+    "isNew": true,
+    "price": 1650,
+    "colors": [
+      {
+        "id": "renk-2",
+        "label": "Renk 2"
+      }
+    ],
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": {
+      "renk-2": {
+        "XS": 4,
+        "S": 4,
+        "M": 4,
+        "L": 4,
+        "XL": 4
+      }
+    },
+    "content": {
+      "description": "Ürün 12 — Ürün açıklaması alanı",
+      "fabricCare": "Ürün 12 — Kumaş ve bakım bilgisi alanı",
+      "deliveryReturns": "Teslimat ve iade bilgisi alanı"
+    },
+    "hidden": false
+  },
+  {
+    "id": "urun-13",
+    "number": "13",
+    "slug": "urun-13",
+    "name": "Ürün 13 — Ürün adı",
+    "category": "elbiseler",
+    "isNew": false,
+    "price": 3950,
+    "colors": [
+      {
+        "id": "renk-1",
+        "label": "Renk 1"
+      },
+      {
+        "id": "renk-3",
+        "label": "Renk 3"
+      }
+    ],
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": {
+      "renk-1": {
+        "XS": 4,
+        "S": 4,
+        "M": 4,
+        "L": 4,
+        "XL": 1
+      },
+      "renk-3": {
+        "XS": 4,
+        "S": 4,
+        "M": 4,
+        "L": 4,
+        "XL": 1
+      }
+    },
+    "content": {
+      "description": "Ürün 13 — Ürün açıklaması alanı",
+      "fabricCare": "Ürün 13 — Kumaş ve bakım bilgisi alanı",
+      "deliveryReturns": "Teslimat ve iade bilgisi alanı"
+    },
+    "hidden": false,
+    "completeLookProductIds": [
+      "urun-11"
+    ]
+  },
+  {
+    "id": "urun-14",
+    "number": "14",
+    "slug": "urun-14",
+    "name": "Ürün 14 — Ürün adı",
+    "category": "alt-giyim",
+    "isNew": false,
+    "price": 2380,
+    "colors": [
+      {
+        "id": "renk-3",
+        "label": "Renk 3"
+      }
+    ],
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": {
+      "renk-3": {
+        "XS": 4,
+        "S": 4,
+        "M": 4,
+        "L": 4,
+        "XL": 4
+      }
+    },
+    "content": {
+      "description": "Ürün 14 — Ürün açıklaması alanı",
+      "fabricCare": "Ürün 14 — Kumaş ve bakım bilgisi alanı",
+      "deliveryReturns": "Teslimat ve iade bilgisi alanı"
+    },
+    "hidden": false,
+    "completeLookProductIds": [
+      "urun-12",
+      "urun-15"
+    ]
+  },
+  {
+    "id": "urun-15",
+    "number": "15",
+    "slug": "urun-15",
+    "name": "Ürün 15 — Ürün adı",
+    "category": "ust-giyim",
+    "isNew": false,
+    "price": 2790,
+    "colors": [
+      {
+        "id": "renk-1",
+        "label": "Renk 1"
+      }
+    ],
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": {
+      "renk-1": {
+        "XS": 4,
+        "S": 4,
+        "M": 0,
+        "L": 4,
+        "XL": 4
+      }
+    },
+    "content": {
+      "description": "Ürün 15 — Ürün açıklaması alanı",
+      "fabricCare": "Ürün 15 — Kumaş ve bakım bilgisi alanı",
+      "deliveryReturns": "Teslimat ve iade bilgisi alanı"
+    },
+    "hidden": false
+  },
+  {
+    "id": "urun-16",
+    "number": "16",
+    "slug": "urun-16",
+    "name": "Ürün 16 — Ürün adı",
+    "category": "elbiseler",
+    "isNew": false,
+    "price": 6150,
+    "colors": [
+      {
+        "id": "renk-2",
+        "label": "Renk 2"
+      },
+      {
+        "id": "renk-3",
+        "label": "Renk 3"
+      }
+    ],
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": {
+      "renk-2": {
+        "XS": 4,
+        "S": 4,
+        "M": 4,
+        "L": 4,
+        "XL": 4
+      },
+      "renk-3": {
+        "XS": 4,
+        "S": 4,
+        "M": 4,
+        "L": 4,
+        "XL": 4
+      }
+    },
+    "content": {
+      "description": "Ürün 16 — Ürün açıklaması alanı",
+      "fabricCare": "Ürün 16 — Kumaş ve bakım bilgisi alanı",
+      "deliveryReturns": "Teslimat ve iade bilgisi alanı"
+    },
+    "hidden": false
+  },
+  {
+    "id": "urun-17",
+    "number": "17",
+    "slug": "urun-17",
+    "name": "Ürün 17 — Ürün adı",
+    "category": "dis-giyim",
+    "isNew": false,
+    "price": 11200,
+    "colors": [
+      {
+        "id": "renk-1",
+        "label": "Renk 1"
+      }
+    ],
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": {
+      "renk-1": {
+        "XS": 4,
+        "S": 2,
+        "M": 4,
+        "L": 4,
+        "XL": 4
+      }
+    },
+    "content": {
+      "description": "Ürün 17 — Ürün açıklaması alanı",
+      "fabricCare": "Ürün 17 — Kumaş ve bakım bilgisi alanı",
+      "deliveryReturns": "Teslimat ve iade bilgisi alanı"
+    },
+    "hidden": false
+  },
+  {
+    "id": "urun-18",
+    "number": "18",
+    "slug": "urun-18",
+    "name": "Ürün 18 — Ürün adı",
+    "category": "takimlar",
+    "isNew": false,
+    "price": 5850,
+    "colors": [
+      {
+        "id": "renk-3",
+        "label": "Renk 3"
+      }
+    ],
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": {
+      "renk-3": {
+        "XS": 0,
+        "S": 4,
+        "M": 4,
+        "L": 4,
+        "XL": 4
+      }
+    },
+    "content": {
+      "description": "Ürün 18 — Ürün açıklaması alanı",
+      "fabricCare": "Ürün 18 — Kumaş ve bakım bilgisi alanı",
+      "deliveryReturns": "Teslimat ve iade bilgisi alanı"
+    },
+    "hidden": false,
+    "completeLookProductIds": [
+      "urun-05"
+    ]
+  },
+  {
+    "id": "urun-19",
+    "number": "19",
+    "slug": "urun-19",
+    "name": "Ürün 19 — Ürün adı",
+    "category": "alt-giyim",
+    "isNew": true,
+    "price": 3120,
+    "colors": [
+      {
+        "id": "renk-1",
+        "label": "Renk 1"
+      },
+      {
+        "id": "renk-2",
+        "label": "Renk 2"
+      }
+    ],
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": {
+      "renk-1": {
+        "XS": 4,
+        "S": 4,
+        "M": 4,
+        "L": 4,
+        "XL": 4
+      },
+      "renk-2": {
+        "XS": 4,
+        "S": 4,
+        "M": 4,
+        "L": 4,
+        "XL": 4
+      }
+    },
+    "content": {
+      "description": "Ürün 19 — Ürün açıklaması alanı",
+      "fabricCare": "Ürün 19 — Kumaş ve bakım bilgisi alanı",
+      "deliveryReturns": "Teslimat ve iade bilgisi alanı"
+    },
+    "hidden": false
+  },
+  {
+    "id": "urun-20",
+    "number": "20",
+    "slug": "urun-20",
+    "name": "Ürün 20 — Ürün adı",
+    "category": "ust-giyim",
+    "isNew": false,
+    "price": 1990,
+    "colors": [
+      {
+        "id": "renk-3",
+        "label": "Renk 3"
+      }
+    ],
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": {
+      "renk-3": {
+        "XS": 4,
+        "S": 4,
+        "M": 4,
+        "L": 0,
+        "XL": 0
+      }
+    },
+    "content": {
+      "description": "Ürün 20 — Ürün açıklaması alanı",
+      "fabricCare": "Ürün 20 — Kumaş ve bakım bilgisi alanı",
+      "deliveryReturns": "Teslimat ve iade bilgisi alanı"
+    },
+    "hidden": false
+  },
+  {
+    "id": "urun-21",
+    "number": "21",
+    "slug": "urun-21",
+    "name": "Ürün 21 — Ürün adı",
+    "category": "elbiseler",
+    "isNew": false,
+    "price": 4780,
+    "colors": [
+      {
+        "id": "renk-1",
+        "label": "Renk 1"
+      }
+    ],
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": {
+      "renk-1": {
+        "XS": 4,
+        "S": 4,
+        "M": 4,
+        "L": 4,
+        "XL": 4
+      }
+    },
+    "content": {
+      "description": "Ürün 21 — Ürün açıklaması alanı",
+      "fabricCare": "Ürün 21 — Kumaş ve bakım bilgisi alanı",
+      "deliveryReturns": "Teslimat ve iade bilgisi alanı"
+    },
+    "hidden": false
+  },
+  {
+    "id": "urun-22",
+    "number": "22",
+    "slug": "urun-22",
+    "name": "Ürün 22 — Ürün adı",
+    "category": "dis-giyim",
+    "isNew": false,
+    "price": 7650,
+    "colors": [
+      {
+        "id": "renk-2",
+        "label": "Renk 2"
+      }
+    ],
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": {
+      "renk-2": {
+        "XS": 4,
+        "S": 4,
+        "M": 1,
+        "L": 4,
+        "XL": 4
+      }
+    },
+    "content": {
+      "description": "Ürün 22 — Ürün açıklaması alanı",
+      "fabricCare": "Ürün 22 — Kumaş ve bakım bilgisi alanı",
+      "deliveryReturns": "Teslimat ve iade bilgisi alanı"
+    },
+    "hidden": false
+  },
+  {
+    "id": "urun-23",
+    "number": "23",
+    "slug": "urun-23",
+    "name": "Ürün 23 — Ürün adı",
+    "category": "takimlar",
+    "isNew": false,
+    "price": 8200,
+    "colors": [
+      {
+        "id": "renk-1",
+        "label": "Renk 1"
+      },
+      {
+        "id": "renk-3",
+        "label": "Renk 3"
+      }
+    ],
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": {
+      "renk-1": {
+        "XS": 4,
+        "S": 4,
+        "M": 4,
+        "L": 4,
+        "XL": 4
+      },
+      "renk-3": {
+        "XS": 4,
+        "S": 4,
+        "M": 4,
+        "L": 4,
+        "XL": 4
+      }
+    },
+    "content": {
+      "description": "Ürün 23 — Ürün açıklaması alanı",
+      "fabricCare": "Ürün 23 — Kumaş ve bakım bilgisi alanı",
+      "deliveryReturns": "Teslimat ve iade bilgisi alanı"
+    },
+    "hidden": false
+  },
+  {
+    "id": "urun-24",
+    "number": "24",
+    "slug": "urun-24",
+    "name": "Ürün 24 — Ürün adı",
+    "category": "alt-giyim",
+    "isNew": false,
+    "price": 2540,
+    "colors": [
+      {
+        "id": "renk-2",
+        "label": "Renk 2"
+      }
+    ],
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "stock": {
+      "renk-2": {
+        "XS": 4,
+        "S": 4,
+        "M": 4,
+        "L": 4,
+        "XL": 4
+      }
+    },
+    "content": {
+      "description": "Ürün 24 — Ürün açıklaması alanı",
+      "fabricCare": "Ürün 24 — Kumaş ve bakım bilgisi alanı",
+      "deliveryReturns": "Teslimat ve iade bilgisi alanı"
+    },
+    "hidden": false
+  }
+]
