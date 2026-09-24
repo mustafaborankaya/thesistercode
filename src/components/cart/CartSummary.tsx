@@ -15,7 +15,7 @@ interface CartSummaryProps {
 
 /** Sepet paneli, sepet sayfası ve checkout'un ortak tutar özeti. */
 export function CartSummary({ totals, showDiscountHint = true, className }: CartSummaryProps) {
-  const { discountEligible } = useAccount()
+  const { isLoggedIn, discountEligible } = useAccount()
   const campaign = siteSettings.memberDiscount
   const shippingDefined = totals.shipping != null
 
@@ -27,7 +27,7 @@ export function CartSummary({ totals, showDiscountHint = true, className }: Cart
       </div>
       {totals.discountAmount > 0 ? (
         <div className={styles.row} data-discount-line>
-          <span>{S.cart.memberDiscount(totals.discountPercent)}</span>
+          <span>{S.cart.memberDiscount(totals.discountPercent, campaign.firstOrderOnly !== false)}</span>
           <span>
             −<Price amount={totals.discountAmount} />
           </span>
@@ -42,7 +42,8 @@ export function CartSummary({ totals, showDiscountHint = true, className }: Cart
         <Price amount={totals.total} />
       </div>
       <p className={styles.hint}>{S.cart.demoNote}</p>
-      {showDiscountHint && campaign.enabled && !discountEligible ? (
+      {/* Kayıt ipucu yalnızca misafire: ilk sipariş indirimini kullanmış üyeye "hesap oluştur" denmez. */}
+      {showDiscountHint && campaign.enabled && !isLoggedIn ? (
         <p className={styles.hint}>
           {S.cart.discountHint} <Link to="/kayit" className="link">{S.account.register}</Link>
         </p>

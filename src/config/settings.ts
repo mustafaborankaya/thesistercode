@@ -38,10 +38,11 @@ export const defaultSettings = {
   },
 
   /**
-   * Hesap oluşturana %10 indirim kampanyası.
+   * Hesap oluşturana İLK SİPARİŞTE %10 indirim kampanyası.
    * Demo varsayımı: kampanya sepet ara toplamına otomatik uygulanır; minimum sepet, son kullanım
    * tarihi ve kullanım sınırı tanımlı değildir (null). Bu değerler marka tarafından kesinleşince
-   * burada veya yönetici panelinden güncellenir.
+   * burada veya yönetici panelinden güncellenir. Hak kuralı sunucudadır (api/src/services/orders.js);
+   * mağaza yalnızca `GET /account/me` → `discountEligible`'ı gösterir.
    */
   memberDiscount: {
     enabled: true,
@@ -52,6 +53,8 @@ export const defaultSettings = {
     minSubtotal: null as number | null,
     usageLimit: null as number | null,
     expiresAt: null as string | null,
+    /** true → yalnızca üyenin ilk (iptal edilmemiş) siparişine uygulanır; false → her siparişte. */
+    firstOrderOnly: true as boolean,
   },
 
   support: {

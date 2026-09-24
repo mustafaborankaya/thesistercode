@@ -10,6 +10,8 @@ import { parseBody, unauthorized, conflict, badRequest } from '../errors.js'
 import { sendMail } from '../services/mail.js'
 import { siteUrl } from '../env.js'
 import { listOrdersForCustomer } from '../services/customers.js'
+import { customerHasActiveOrder, isFirstOrderOnly } from '../services/orders.js'
+import { getSetting } from '../services/settings.js'
 
 const router = Router()
 
@@ -128,7 +130,12 @@ router.get('/me', requireCustomer, async (req, res, next) => {
     ])
     const user = rows[0]
     if (!user) return next(unauthorized('Oturum geçersiz'))
-    res.json({ customer: { id: user.id, email: user.email, name: user.name, discountEligible: !!user.discount_eligible } })
+    // discountEligible dinamiktir: bayrak 1 VE (ilk sipariş kuralı kapalı VEYA aktif — iptal edilmemiş —
+    // siparişi yok). İlk sipariş iptal edilirse hak kendiliğinden geri gelir (bkz. services/orders.js).
+    const discountUsed = await customerHasActiveOrder(pool, user.id)
+    const firstOrderOnly = isFirstOrderOnly(await getSetting('memberDiscount'))
+    const discountEligible = !!user.discount_eligible && (!firstOrderOnly || !discountUsed)
+    res.json({ customer: { id: user.id, email: user.email, name: user.name, discountEligible, discountUsed } })
   } catch (err) {
     next(err)
   }

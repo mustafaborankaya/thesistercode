@@ -71,6 +71,13 @@ Tüm hatalar `{ error: { code, message } }` biçiminde, mesajlar Türkçedir.
 - `POST /orders` — sipariş oluşturur; fiyat/stok DB'den doğrulanır, toplamlar sunucuda hesaplanır
   (üyelik indirimi yalnızca oturumu açık ve `discount_eligible` müşteri için), stok transaction
   içinde düşülür.
+- **Üyelik indirimi — yalnızca ilk sipariş:** `memberDiscount.firstOrderOnly` (varsayılan `true`;
+  alan yoksa da `true` sayılır) açıkken indirim, müşterinin `status IN ('new','paid','shipped')`
+  hiçbir siparişi yoksa uygulanır (iptal edilenler sayılmaz → ilk sipariş iptal edilirse hak geri
+  gelir). `createOrder` müşteri satırını `FOR UPDATE` kilitler; aynı müşterinin eşzamanlı iki
+  siparişinden yalnızca biri indirim alır. `GET /account/me` → `discountEligible` bu kurala göre
+  dinamik hesaplanır, ek alan `discountUsed` (aktif siparişi var mı). `false` → eski davranış
+  (bayrak 1 olan üyeye her siparişte). Kural durum listesi: `services/orders.js → ACTIVE_ORDER_STATUSES`.
 - `POST /orders` yanıtı `{ order, accessToken }` — `accessToken` yalnızca bu anda, bir kez döner
   (DB'de yalnızca SHA-256 hash'i). İstek gövdesine isteğe bağlı `locale: 'tr'|'en'` eklenebilir
   (sipariş onay e-postasının dili). Sipariş sonrası müşteriye onay, `ADMIN_NOTIFY_EMAIL`

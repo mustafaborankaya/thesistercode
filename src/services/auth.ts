@@ -18,7 +18,10 @@ export type AuthResult =
 export interface AccountInfo {
   name: string
   email: string
+  /** Sunucu kuralı: üyelik indirimi bir sonraki siparişte uygulanır mı (ilk sipariş kuralı dahil). */
   discountEligible: boolean
+  /** Aktif (iptal edilmemiş) bir siparişi var → ilk sipariş indirimi kullanıldı. */
+  discountUsed: boolean
 }
 
 export interface AuthProvider {
@@ -94,8 +97,8 @@ const apiAuthProvider: AuthProvider = {
   },
   async me() {
     try {
-      const res = await api<{ customer: { id: number; email: string; name: string; discountEligible: boolean } }>('/account/me')
-      return { name: res.customer.name, email: res.customer.email, discountEligible: res.customer.discountEligible }
+      const res = await api<{ customer: { id: number; email: string; name: string; discountEligible: boolean; discountUsed?: boolean } }>('/account/me')
+      return { name: res.customer.name, email: res.customer.email, discountEligible: res.customer.discountEligible, discountUsed: res.customer.discountUsed === true }
     } catch {
       return null
     }

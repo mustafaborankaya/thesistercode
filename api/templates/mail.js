@@ -95,8 +95,8 @@ ${t.discountAmount > 0 ? `<tr><td style="padding:2px 16px 2px 0">${en ? 'Member 
     const en = locale === 'en'
     const subject = en ? 'Welcome to Teshvikiye' : "Teshvikiye'ye hoş geldiniz"
     const body = en
-      ? `Hello ${name},\n\nYour account has been created. Your member discount is applied automatically in your cart.`
-      : `Merhaba ${name},\n\nHesabınız oluşturuldu. Üyelik indiriminiz sepetinizde otomatik uygulanır.`
+      ? `Hello ${name},\n\nYour account has been created. You get 10% off your first order — it is applied automatically in your cart.`
+      : `Merhaba ${name},\n\nHesabınız oluşturuldu. İlk siparişinizde %10 indirim sepetinizde otomatik uygulanır.`
     return { subject, text: body, html: layout(subject, `<p>${esc(body).replace(/\n/g, '<br>')}</p>`, locale) }
   },
 

@@ -90,7 +90,7 @@ const PUBLIC_SETTING_KEYS = [
 // memberDiscount içindeki `code` (indirim/kupon kodu) ve `usageLimit` (iç kullanım sayacı) iş
 // verisidir ve herkese açık bir uç noktada yayınlanmamalıdır; kod doğrulaması gerekiyorsa sunucu
 // tarafında ayrı, kimlik doğrulamalı/hız sınırlı bir uç noktadan yapılmalıdır.
-const PUBLIC_MEMBER_DISCOUNT_KEYS = ['enabled', 'percent', 'mode', 'minSubtotal', 'expiresAt']
+const PUBLIC_MEMBER_DISCOUNT_KEYS = ['enabled', 'percent', 'mode', 'minSubtotal', 'expiresAt', 'firstOrderOnly']
 
 function sanitizeSettingsForPublic(settings) {
   const out = {}

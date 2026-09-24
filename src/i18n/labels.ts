@@ -10,7 +10,7 @@ const labels = {
     links: {
       hakkimizda: 'Hakkımızda', uretim: 'Üretim', koleksiyonlar: 'Koleksiyonlar', iletisim: 'İletişim',
       teslimat: 'Teslimat', iade: 'İade ve Değişim', beden: 'Beden Rehberi', sss: 'Sıkça Sorulan Sorular', whatsapp: 'WhatsApp Destek',
-      giris: 'Giriş Yap', kayit: 'Hesap Oluştur', teklif: 'Hesap oluştur, %10 indirim kazan', favoriler: 'Favoriler', sepet: 'Sepet',
+      giris: 'Giriş Yap', kayit: 'Hesap Oluştur', teklif: 'İlk siparişe %10 indirim', favoriler: 'Favoriler', sepet: 'Sepet',
       gizlilik: 'Gizlilik Politikası', cerez: 'Çerez Politikası', cerezTercih: 'Çerez Tercihleri', kosullar: 'Alışveriş Koşulları',
       gizlilikKisa: 'Gizlilik',
     },
@@ -30,7 +30,7 @@ const labels = {
     links: {
       hakkimizda: 'About us', uretim: 'Production', koleksiyonlar: 'Collections', iletisim: 'Contact',
       teslimat: 'Delivery', iade: 'Returns & exchanges', beden: 'Size guide', sss: 'FAQ', whatsapp: 'WhatsApp support',
-      giris: 'Sign in', kayit: 'Create account', teklif: 'Create an account, get 10% off', favoriler: 'Wishlist', sepet: 'Cart',
+      giris: 'Sign in', kayit: 'Create account', teklif: 'Get 10% off your first order', favoriler: 'Wishlist', sepet: 'Cart',
       gizlilik: 'Privacy policy', cerez: 'Cookie policy', cerezTercih: 'Cookie preferences', kosullar: 'Terms of purchase',
       gizlilikKisa: 'Privacy',
     },

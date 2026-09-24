@@ -29,6 +29,7 @@ const KNOWN_SETTINGS_SCHEMAS = {
       minSubtotal: z.number().min(0).nullable(),
       usageLimit: z.number().int().min(0).nullable(),
       expiresAt: z.string().nullable(),
+      firstOrderOnly: z.boolean(),
     })
     .partial(),
   'shipping.amount': z.number().min(0).nullable(),

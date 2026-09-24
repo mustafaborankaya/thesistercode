@@ -33,7 +33,7 @@ function isTypingInForm(): boolean {
 export function DiscountOffer() {
   const { isOpen, openPanel, closePanel, open } = usePanels()
   const { consent } = useConsent()
-  const { isLoggedIn } = useAccount()
+  const { isLoggedIn, discountEligible, discountUsed } = useAccount()
   const location = useLocation()
   const navigate = useNavigate()
   const panelRef = useRef<HTMLDivElement>(null)
@@ -98,7 +98,7 @@ export function DiscountOffer() {
         <IconButton icon="close" label={S.account.offerClose} onClick={dismiss} className={styles.offerClose} />
       </div>
       <p id="offer-text" className={styles.offerText}>
-        {isLoggedIn ? S.account.discountActive(campaign.percent) : S.account.offerText}
+        {isLoggedIn ? (discountEligible ? S.account.discountActive(campaign.percent) : discountUsed ? S.account.discountUsed : S.account.discountInactive) : S.account.offerText}
       </p>
       {isLoggedIn ? (
         <Link to="/hesap" className="link text-sm" onClick={dismiss}>

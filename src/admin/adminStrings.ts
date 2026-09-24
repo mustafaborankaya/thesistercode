@@ -179,6 +179,7 @@ export const AS = {
     discountMinSubtotalLabel: 'Minimum sepet tutarı (boş = tanımsız)',
     discountUsageLimitLabel: 'Kullanım sınırı (boş = tanımsız)',
     discountExpiresAtLabel: 'Son kullanım tarihi (boş = tanımsız)',
+    discountFirstOrderOnlyLabel: 'Yalnızca ilk siparişte (iptal edilen sipariş sayılmaz)',
     shippingTitle: 'Kargo ücreti',
     shippingAmountLabel: 'Ücret (boş = tanımsız)',
     supportTitle: 'Destek',

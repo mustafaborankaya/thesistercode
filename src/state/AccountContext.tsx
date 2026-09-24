@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { siteSettings } from '../config/settings'
 import { isApiMode } from '../data/remote'
 import { readJSON, storageKeys, writeJSON } from '../lib/storage'
-import { authProvider, type AuthResult } from '../services/auth'
+import { authProvider, type AccountInfo, type AuthResult } from '../services/auth'
 import { CUSTOMER_CHANGED } from '../lib/customerStorage'
 
 /** Demo hesap — şifre hiçbir zaman saklanmaz ve loglanmaz. */
@@ -9,8 +10,10 @@ export interface Account {
   name: string
   email: string
   createdAt: string
-  /** Hesap oluşturmayla kazanılan %10 üyelik indirimi hakkı. */
+  /** Üyelik indirimi bir sonraki siparişte uygulanır mı (hesap açınca kazanılır; ilk siparişle kullanılır). */
   discountEligible: boolean
+  /** İlk sipariş indirimi kullanıldı (aktif — iptal edilmemiş — siparişi var). Eski önbellekte olmayabilir. */
+  discountUsed?: boolean
 }
 
 interface AccountStore {
@@ -23,13 +26,23 @@ interface AccountContextValue {
   account: Account | null
   isLoggedIn: boolean
   discountEligible: boolean
+  discountUsed: boolean
   register: (input: { name: string; email: string; password: string }) => Promise<AuthResult>
   login: (input: { email: string; password: string }) => Promise<AuthResult>
   logout: () => void
+  /**
+   * Hesap bilgisini (özellikle indirim hakkını) tazeler. API modunda `GET /account/me` yeniden okunur;
+   * yerel demo modda `orderPlaced` ile çağrılırsa ilk sipariş kuralı yerelde uygulanır.
+   */
+  refresh: (opts?: { orderPlaced?: boolean }) => Promise<void>
 }
 
 const AccountContext = createContext<AccountContextValue | null>(null)
 const emptyStore: AccountStore = { current: null, known: [] }
+
+function accountFromInfo(info: AccountInfo, createdAt: string): Account {
+  return { name: info.name, email: info.email, createdAt, discountEligible: info.discountEligible, discountUsed: info.discountUsed }
+}
 
 export function AccountProvider({ children }: { children: ReactNode }) {
   const [store, setStore] = useState<AccountStore>(() => readJSON<AccountStore>(storageKeys.account, emptyStore))
@@ -53,7 +66,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       if (cancelled) return
       setStore((s) => ({
         ...s,
-        current: info ? { name: info.name, email: info.email, createdAt: s.current?.email === info.email ? s.current.createdAt : new Date().toISOString(), discountEligible: info.discountEligible } : null,
+        current: info ? accountFromInfo(info, s.current?.email === info.email ? s.current.createdAt : new Date().toISOString()) : null,
       }))
     })
     return () => {
@@ -66,9 +79,9 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     if (result.ok) {
       if (isApiMode()) {
         const info = await authProvider.me()
-        if (info) setStore((s) => ({ ...s, current: { name: info.name, email: info.email, createdAt: new Date().toISOString(), discountEligible: info.discountEligible } }))
+        if (info) setStore((s) => ({ ...s, current: accountFromInfo(info, new Date().toISOString()) }))
       } else {
-        const account: Account = { name: input.name.trim(), email: input.email.trim().toLowerCase(), createdAt: new Date().toISOString(), discountEligible: true }
+        const account: Account = { name: input.name.trim(), email: input.email.trim().toLowerCase(), createdAt: new Date().toISOString(), discountEligible: true, discountUsed: false }
         setStore((s) => ({ current: account, known: [...s.known.filter((k) => k.email !== account.email), account] }))
       }
     }
@@ -81,7 +94,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         const result = await authProvider.login({ ...input, knownAccount: true })
         if (result.ok) {
           const info = await authProvider.me()
-          if (info) setStore((s) => ({ ...s, current: { name: info.name, email: info.email, createdAt: new Date().toISOString(), discountEligible: info.discountEligible } }))
+          if (info) setStore((s) => ({ ...s, current: accountFromInfo(info, new Date().toISOString()) }))
         }
         return result
       }
@@ -99,16 +112,34 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     void authProvider.logout()
   }, [])
 
+  const refresh = useCallback(async (opts?: { orderPlaced?: boolean }) => {
+    if (isApiMode()) {
+      const info = await authProvider.me()
+      // Ağ hatasında (null) mevcut oturum bilgisi korunur; çıkış yalnızca açılış doğrulamasında yapılır.
+      if (info) setStore((s) => (s.current ? { ...s, current: accountFromInfo(info, s.current.email === info.email ? s.current.createdAt : new Date().toISOString()) } : s))
+      return
+    }
+    // Yerel demo: sunucu kuralının aynısı — sipariş verilince ilk sipariş indirimi kullanılmış olur.
+    if (!opts?.orderPlaced || siteSettings.memberDiscount.firstOrderOnly === false) return
+    setStore((s) => {
+      if (!s.current) return s
+      const current: Account = { ...s.current, discountEligible: false, discountUsed: true }
+      return { current, known: s.known.map((k) => (k.email === current.email ? current : k)) }
+    })
+  }, [])
+
   const value = useMemo<AccountContextValue>(
     () => ({
       account: store.current,
       isLoggedIn: store.current != null,
       discountEligible: store.current?.discountEligible ?? false,
+      discountUsed: store.current?.discountUsed ?? false,
       register,
       login,
       logout,
+      refresh,
     }),
-    [store, register, login, logout],
+    [store, register, login, logout, refresh],
   )
   return <AccountContext.Provider value={value}>{children}</AccountContext.Provider>
 }

@@ -46,7 +46,7 @@ function withDefaultAddress(values: CheckoutFormValues, addresses: SavedAddress[
 
 export function CheckoutPage() {
   const { lines, totals, clear, setQty, removeLine } = useCart()
-  const { isLoggedIn, account } = useAccount()
+  const { isLoggedIn, account, refresh: refreshAccount } = useAccount()
   const navigate = useNavigate()
   // Sipariş verildikten sonra clear() sepeti boşaltır; bu bayrak "sepet boş" ekranının
   // yönlendirmeden önce bir an için yanıp sönmesini engeller.
@@ -67,6 +67,10 @@ export function CheckoutPage() {
   // Kayıtlı adresler (API modunda sunucudan) yüklenir; teslimat alanları hâlâ boşsa varsayılan adresle
   // doldurulur. Seçici checkout/SavedAddressPicker aynı önbelleği okur (CUSTOMER_CHANGED ile tazelenir).
   useEffect(() => subscribeCustomer(refreshAddresses), [])
+  // Ödeme özetindeki üyelik indirimi sunucunun güncel kuralıyla eşleşsin (ör. başka sekmede verilmiş ilk sipariş).
+  useEffect(() => {
+    if (isLoggedIn && isApiMode()) void refreshAccount()
+  }, [isLoggedIn, refreshAccount])
   useEffect(() => {
     if (!accountEmail) return
     let cancelled = false
@@ -171,6 +175,8 @@ export function CheckoutPage() {
         placedRef.current = true
         saveDeliveryAddress()
         clear()
+        // İlk sipariş indirimi kullanıldı: /account/me yeniden okunur ki sepet artık indirim göstermesin.
+        if (isLoggedIn) void refreshAccount()
         navigate(`/odeme/sonuc/${result.order.id}`, { replace: true })
         return
       }
@@ -210,6 +216,7 @@ export function CheckoutPage() {
       placedRef.current = true
       saveDeliveryAddress()
       clear()
+      if (isLoggedIn) void refreshAccount({ orderPlaced: true })
       navigate(`/odeme/sonuc/${result.order.id}`, { replace: true })
       return
     }

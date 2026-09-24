@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Field, SelectField, Switch } from '../../components/ui/Field'
+import { Checkbox, Field, SelectField, Switch } from '../../components/ui/Field'
 import { defaultSettings, siteSettings } from '../../config/settings'
 import { brandMedia, brandMediaNames } from '../../data/media'
 import { apiErrorMessage } from '../../i18n/apiMessages'
@@ -22,6 +22,7 @@ interface SettingsForm {
   discountMinSubtotal: string
   discountUsageLimit: string
   discountExpiresAt: string
+  discountFirstOrderOnly: boolean
   shippingAmount: string
   whatsapp: string
   supportEmail: string
@@ -45,6 +46,7 @@ function buildInitialForm(): SettingsForm {
     discountMinSubtotal: s.memberDiscount.minSubtotal == null ? '' : String(s.memberDiscount.minSubtotal),
     discountUsageLimit: s.memberDiscount.usageLimit == null ? '' : String(s.memberDiscount.usageLimit),
     discountExpiresAt: s.memberDiscount.expiresAt ? s.memberDiscount.expiresAt.slice(0, 10) : '',
+    discountFirstOrderOnly: s.memberDiscount.firstOrderOnly !== false,
     shippingAmount: s.shipping.amount == null ? '' : String(s.shipping.amount),
     whatsapp: s.support.whatsappNumber ?? '',
     supportEmail: s.support.email ?? '',
@@ -79,6 +81,7 @@ function buildFormFromAdminSettings(raw: Record<string, unknown>): SettingsForm 
     discountMinSubtotal: md.minSubtotal == null ? '' : String(md.minSubtotal),
     discountUsageLimit: md.usageLimit == null ? '' : String(md.usageLimit),
     discountExpiresAt: md.expiresAt ? md.expiresAt.slice(0, 10) : '',
+    discountFirstOrderOnly: md.firstOrderOnly !== false,
     shippingAmount: typeof shippingAmount === 'number' ? String(shippingAmount) : '',
     whatsapp: typeof raw['support.whatsappNumber'] === 'string' ? (raw['support.whatsappNumber'] as string) : '',
     supportEmail: typeof raw['support.email'] === 'string' ? (raw['support.email'] as string) : '',
@@ -183,6 +186,7 @@ export function SettingsPage() {
             minSubtotal: toNullableNumber(form.discountMinSubtotal),
             usageLimit: toNullableNumber(form.discountUsageLimit),
             expiresAt: toNullableString(form.discountExpiresAt),
+            firstOrderOnly: form.discountFirstOrderOnly,
           },
           'shipping.amount': toNullableNumber(form.shippingAmount),
           'support.whatsappNumber': toNullableString(form.whatsapp),
@@ -213,6 +217,7 @@ export function SettingsPage() {
           minSubtotal: toNullableNumber(form.discountMinSubtotal),
           usageLimit: toNullableNumber(form.discountUsageLimit),
           expiresAt: toNullableString(form.discountExpiresAt),
+          firstOrderOnly: form.discountFirstOrderOnly,
         },
         shipping: { amount: toNullableNumber(form.shippingAmount) },
         support: { whatsappNumber: toNullableString(form.whatsapp), email: toNullableString(form.supportEmail) },
@@ -265,6 +270,9 @@ export function SettingsPage() {
           <Field label={AS.settings.discountMinSubtotalLabel} type="number" min={0} value={form.discountMinSubtotal} onChange={(e) => set('discountMinSubtotal', e.target.value)} />
           <Field label={AS.settings.discountUsageLimitLabel} type="number" min={0} value={form.discountUsageLimit} onChange={(e) => set('discountUsageLimit', e.target.value)} />
           <Field label={AS.settings.discountExpiresAtLabel} type="date" value={form.discountExpiresAt} onChange={(e) => set('discountExpiresAt', e.target.value)} />
+        </div>
+        <div style={{ marginTop: 'var(--sp-4)' }}>
+          <Checkbox label={AS.settings.discountFirstOrderOnlyLabel} checked={form.discountFirstOrderOnly} onChange={(e) => set('discountFirstOrderOnly', e.target.checked)} />
         </div>
       </div>
 

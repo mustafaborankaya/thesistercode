@@ -15,9 +15,12 @@ import { Icon } from '../ui/Icon'
 import { MediaSlot } from '../ui/MediaSlot'
 import styles from './Header.module.css'
 
-/** Üst şerit: üye olmayan ziyaretçiye kolay bulunan "%10" erişimi; kısa demo notu. */
+/**
+ * Üst şerit: üye olmayan ziyaretçiye kolay bulunan "ilk siparişe %10" erişimi; kısa demo notu.
+ * Üyede: ilk sipariş hakkı duruyorsa hatırlatma, kullanıldıysa marka adı.
+ */
 export function TopStrip() {
-  const { isLoggedIn } = useAccount()
+  const { isLoggedIn, discountEligible } = useAccount()
   const campaign = siteSettings.memberDiscount
   return (
     <div className={styles.topStrip} data-top-strip>
@@ -31,7 +34,7 @@ export function TopStrip() {
           <u>{S.account.topStripAction}</u>
         </Link>
       ) : (
-        <span className={styles.topOffer}>{isLoggedIn ? S.account.topStripMember : S.common.brand}</span>
+        <span className={styles.topOffer}>{isLoggedIn && discountEligible && campaign.enabled ? S.account.topStripMember : S.common.brand}</span>
       )}
       <div className={styles.topRight}>
         <nav className={styles.langSwitch} aria-label={S.locale.switchLabel}>

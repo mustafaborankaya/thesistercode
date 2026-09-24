@@ -12,7 +12,7 @@ import { AddressBook } from '../components/account/AddressBook'
 import { CustomerNotifications, CustomerOrders } from '../components/account/CustomerOrders'
 
 export function AccountPage() {
-  const { isLoggedIn, account, discountEligible, logout } = useAccount()
+  const { isLoggedIn, account, discountEligible, discountUsed, logout } = useAccount()
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -43,7 +43,13 @@ export function AccountPage() {
       {apiMode ? null : <p className={authStyles.demoNote}>Siparişleriniz, adresleriniz ve talepleriniz bu tarayıcıda saklanır. Bildirimlerinizi hesabınızdan takip edebilirsiniz.</p>}
       <div key={account.email} className={authStyles.accordionGroup}>
         <AccordionItem title={S.account.discountStatus} defaultOpen>
-          <p>{discountEligible ? S.account.discountActive(siteSettings.memberDiscount.percent) : S.account.discountInactive}</p>
+          <p>
+            {discountEligible
+              ? S.account.discountActive(siteSettings.memberDiscount.percent)
+              : discountUsed
+                ? S.account.discountUsed
+                : S.account.discountInactive}
+          </p>
         </AccordionItem>
         <AccordionItem title={S.account.orders}>
           <CustomerOrders email={account.email} />

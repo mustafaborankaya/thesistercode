@@ -126,7 +126,7 @@ export const infoSectionTexts: Record<string, string[]> = {
     ].join('\n'),
     [
       'S: Üyelik indirimi nasıl uygulanır?',
-      'C: Hesap oluşturduğunuzda %10 üyelik indirimi sepetinizde otomatik olarak uygulanır.',
+      'C: Hesap oluşturduğunuzda ilk siparişinizde %10 indirim sepetinizde otomatik uygulanır; sonraki siparişlerde geçerli değildir.',
       'S: Üyelik indiriminin bir kullanım şartı var mı?',
       'C: Kampanya koşulları zaman zaman güncellenebilir; güncel koşullar sitede belirtilir.',
       'S: Üye olmadan alışveriş yapabilir miyim?',
@@ -293,7 +293,7 @@ export const infoSectionTextsEn: Record<string, string[]> = {
     ].join('\n'),
     [
       'Q: How is the member discount applied?',
-      'A: When you create an account, the 10% member discount is applied to your cart automatically.',
+      'A: When you create an account, 10% off is applied automatically to your first order in your cart; it does not apply to later orders.',
       'Q: Are there any conditions for the member discount?',
       'A: Campaign terms may be updated from time to time; the current terms are stated on the site.',
       'Q: Can I shop without an account?',

@@ -60,7 +60,7 @@ export interface ContentOverrides {
 
 export interface SettingsOverrides {
   brand?: { name?: string; shortName?: string }
-  memberDiscount?: { enabled?: boolean; percent?: number; mode?: 'automatic' | 'code'; code?: string | null; minSubtotal?: number | null; usageLimit?: number | null; expiresAt?: string | null }
+  memberDiscount?: { enabled?: boolean; percent?: number; mode?: 'automatic' | 'code'; code?: string | null; minSubtotal?: number | null; usageLimit?: number | null; expiresAt?: string | null; firstOrderOnly?: boolean }
   shipping?: { amount?: number | null }
   support?: { whatsappNumber?: string | null; email?: string | null }
   social?: { instagram?: string | null; tiktok?: string | null; pinterest?: string | null }

@@ -181,6 +181,8 @@ const DEFAULT_SETTINGS = {
     minSubtotal: null,
     usageLimit: null,
     expiresAt: null,
+    /** true → indirim yalnızca üyenin İLK (iptal edilmemiş) siparişine uygulanır; false → her siparişte. */
+    firstOrderOnly: true,
   },
   'shipping.amount': null,
   'support.whatsappNumber': null,
@@ -203,7 +205,28 @@ async function seedSettings() {
       const [result] = await pool.query('INSERT IGNORE INTO settings (`key`, value) VALUES (?, ?)', [key, JSON.stringify(value)])
       added += result.affectedRows
     }
-    console.log(`[seed] settings zaten dolu; eksik ${added} varsayılan anahtar eklendi.`)
+    // Nesne değerli anahtarlara sonradan eklenen alanlar (örn. memberDiscount.firstOrderOnly): mevcut
+    // alanların değerleri KORUNUR, yalnızca eksik alanlar varsayılanla tamamlanır.
+    let merged = 0
+    for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) continue
+      const [rows] = await pool.query('SELECT CAST(value AS CHAR) AS value FROM settings WHERE `key` = ? LIMIT 1', [key])
+      if (!rows[0]) continue
+      let current
+      try {
+        current = JSON.parse(rows[0].value)
+      } catch {
+        continue
+      }
+      if (!current || typeof current !== 'object' || Array.isArray(current)) continue
+      const missing = Object.keys(value).filter((k) => !(k in current))
+      if (!missing.length) continue
+      const next = { ...current }
+      for (const k of missing) next[k] = value[k]
+      await pool.query('UPDATE settings SET value = ? WHERE `key` = ?', [JSON.stringify(next), key])
+      merged += missing.length
+    }
+    console.log(`[seed] settings zaten dolu; eksik ${added} varsayılan anahtar, ${merged} eksik alan eklendi.`)
     return
   }
   for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {

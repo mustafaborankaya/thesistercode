@@ -6,6 +6,25 @@ import { getSetting } from './settings.js'
 
 export const ORDER_STATUSES = ['demo', 'new', 'paid', 'shipped', 'cancelled']
 
+/**
+ * "Aktif" sipariş durumları: üyelik indiriminin İLK SİPARİŞ kuralında sayılan siparişler.
+ * İptal edilen ('cancelled') ve 'demo' siparişler sayılmaz — ilk sipariş iptal edilirse hak geri gelir.
+ * Yeni bir durum eklenirse (ör. ödeme bekleyen) burada da değerlendirilmelidir.
+ */
+export const ACTIVE_ORDER_STATUSES = ['new', 'paid', 'shipped']
+const ACTIVE_STATUS_SQL = ACTIVE_ORDER_STATUSES.map((s) => `'${s}'`).join(', ')
+
+/** Üyelik indirimi yalnızca ilk siparişte mi? Alan yoksa/tanımsızsa varsayılan `true` (kesin kural). */
+export function isFirstOrderOnly(memberDiscount) {
+  return memberDiscount?.firstOrderOnly !== false
+}
+
+/** Müşterinin aktif (iptal edilmemiş) siparişi var mı? `db` bir transaction bağlantısı veya havuz olabilir. */
+export async function customerHasActiveOrder(db, customerId) {
+  const [rows] = await db.query(`SELECT id FROM orders WHERE customer_id = ? AND status IN (${ACTIVE_STATUS_SQL}) LIMIT 1`, [customerId])
+  return !!rows[0]
+}
+
 function round2(n) {
   return Math.round(n * 100) / 100
 }
@@ -73,10 +92,17 @@ export async function createOrder(input, customer) {
   try {
     await conn.beginTransaction()
 
+    // Üyelik indirimi hakkı: bayrak (discount_eligible) + "yalnızca ilk sipariş" kuralı. Müşteri satırı
+    // `FOR UPDATE` ile transaction sonuna kadar kilitlenir; aynı müşterinin eşzamanlı iki siparişi sıraya
+    // girer ve ikincisi, ilkinin commit'inden SONRA onun aktif siparişini görür (ikisi birden indirim alamaz).
+    // Kilit sırası her zaman: önce müşteri, sonra ürün/stok satırları.
     let discountEligible = false
     if (customer) {
-      const [customerRows] = await conn.query('SELECT discount_eligible FROM customers WHERE id = ? LIMIT 1', [customer.id])
+      const [customerRows] = await conn.query('SELECT discount_eligible FROM customers WHERE id = ? LIMIT 1 FOR UPDATE', [customer.id])
       discountEligible = !!customerRows[0]?.discount_eligible
+      if (discountEligible && isFirstOrderOnly(memberDiscount) && (await customerHasActiveOrder(conn, customer.id))) {
+        discountEligible = false
+      }
     }
 
     const items = []
