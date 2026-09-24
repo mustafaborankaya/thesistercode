@@ -122,16 +122,6 @@ function ShopMenu() {
           <div>
             <div className={styles.shopTitle}>{S.header.shopMenuTitle}</div>
             <ul className={styles.shopList}>
-              <li>
-                <NavLink
-                  to="/koleksiyon"
-                  end
-                  className={({ isActive }) => [styles.shopLink, isActive ? styles.shopLinkActive : ''].join(' ').trim()}
-                  onClick={() => closePanel('shop-menu')}
-                >
-                  {S.header.shopAll}
-                </NavLink>
-              </li>
               {categories.map((c) => (
                 <li key={c.id}>
                   <NavLink
