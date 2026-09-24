@@ -231,7 +231,7 @@ export const en: Strings = {
     noAccount: "Don't have an account?",
     haveAccount: 'Already have an account?',
     demoNote: 'Demo membership: information is stored only in this browser, no password is saved, and nothing is sent to any server.',
-    registerSuccess: 'Your demo account has been created. Your 10% member discount will apply automatically in your cart.',
+    registerSuccess: 'Your account has been created. Your 10% member discount will apply automatically in your cart.',
     loginFailed: 'No demo account found for this email.',
     genericError: 'Something went wrong. Please try again.',
     welcome: (name: string) => `Hello, ${name}`,

@@ -231,7 +231,7 @@ export const tr = {
     noAccount: 'Hesabınız yok mu?',
     haveAccount: 'Zaten hesabınız var mı?',
     demoNote: 'Demo üyelik: bilgiler yalnızca bu tarayıcıda tutulur, şifre saklanmaz ve hiçbir sunucuya gönderilmez.',
-    registerSuccess: 'Demo hesabınız oluşturuldu. %10 üyelik indirimi sepetinizde uygulanacak.',
+    registerSuccess: 'Hesabınız oluşturuldu. %10 üyelik indirimi sepetinizde uygulanacak.',
     loginFailed: 'Bu e-posta ile oluşturulmuş bir demo hesap bulunamadı.',
     genericError: 'Bir hata oluştu. Lütfen tekrar deneyin.',
     welcome: (name: string) => `Merhaba, ${name}`,
