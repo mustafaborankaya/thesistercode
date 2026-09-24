@@ -181,8 +181,21 @@ export async function updateAdminOrderStatus(id: string, status: string): Promis
   return res.order
 }
 
-/** API sipariş durumları — yerel demo durumlarından (placed/preparing/...) farklıdır. */
-export const ADMIN_ORDER_STATUSES = ['demo', 'new', 'paid', 'shipped', 'cancelled'] as const
+/**
+ * `POST /admin/orders/:id/refund` — ödemenin tamamını sağlayıcıda geri alır (aynı gün iptal, sonrasında
+ * kalem bazında iade); sipariş 'cancelled' olur, stok geri yüklenir.
+ */
+export async function refundAdminOrder(id: string): Promise<ApiOrder> {
+  const res = await api<{ order: ApiOrder }>(`/admin/orders/${encodeURIComponent(id)}/refund`, { method: 'POST' })
+  return res.order
+}
+
+/**
+ * API sipariş durumları — yerel demo durumlarından (placed/preparing/...) farklıdır.
+ * 'pending_payment' elle seçilemez ve ödeme sağlayıcısı etkinken 'paid' yalnızca sağlayıcı sonucuyla gelir
+ * (sunucu da reddeder: 409 status_not_allowed); seçici bu seçenekleri devre dışı gösterir.
+ */
+export const ADMIN_ORDER_STATUSES = ['demo', 'new', 'pending_payment', 'paid', 'shipped', 'cancelled'] as const
 export type AdminOrderStatus = (typeof ADMIN_ORDER_STATUSES)[number]
 
 /* ---------------- Yönetici kullanıcıları ---------------- */

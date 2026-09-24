@@ -44,6 +44,10 @@ desteklenmez.
 | `UPLOAD_DIR` | Yüklenen medyanın diskteki hedefi (`/home/teshvikiyeadmin/public_html/uploads`) |
 | `UPLOAD_PUBLIC_BASE` | Yüklenen medyanın genel URL öneki (`/uploads`) |
 | `CORS_ORIGIN` | CORS + CSRF Origin kontrolü için izinli kaynak (`https://teshvikiye.com`) |
+| `PAYMENT_PROVIDER` | `none` (varsayılan) / `iyzico` / `fake` (yalnızca yerel test) — bkz. "Ödeme (iyzico)" |
+| `IYZICO_API_KEY`, `IYZICO_SECRET_KEY` | iyzico anahtarları (`iyzico` iken zorunlu) |
+| `IYZICO_BASE_URL` | `https://sandbox-api.iyzipay.com` (varsayılan) / `https://api.iyzipay.com` |
+| `PAYMENT_INSTALLMENTS` | Taksit seçenekleri, ör. `1,2,3,6,9` (varsayılan `1`) |
 
 ## Güvenlik
 
@@ -73,7 +77,7 @@ Tüm hatalar `{ error: { code, message } }` biçiminde, mesajlar Türkçedir.
   içinde düşülür.
 - **Üyelik indirimi — yalnızca ilk sipariş:** `memberDiscount.firstOrderOnly` (varsayılan `true`;
   alan yoksa da `true` sayılır) açıkken indirim, müşterinin `status IN ('new','paid','shipped')`
-  hiçbir siparişi yoksa uygulanır (iptal edilenler sayılmaz → ilk sipariş iptal edilirse hak geri
+  (007 sonrası `'pending_payment'` de sayılır) hiçbir siparişi yoksa uygulanır (iptal edilenler sayılmaz → ilk sipariş iptal edilirse hak geri
   gelir). `createOrder` müşteri satırını `FOR UPDATE` kilitler; aynı müşterinin eşzamanlı iki
   siparişinden yalnızca biri indirim alır. `GET /account/me` → `discountEligible` bu kurala göre
   dinamik hesaplanır, ek alan `discountUsed` (aktif siparişi var mı). `false` → eski davranış
@@ -113,7 +117,8 @@ Tüm hatalar `{ error: { code, message } }` biçiminde, mesajlar Türkçedir.
 - `GET /admin/content`, `PUT /admin/content`, `PUT /admin/brand-media`
 - `GET /admin/settings`, `PUT /admin/settings`
 - `POST /admin/upload` (multipart: `file` + `name`; `name` alanı formda `file`'dan ÖNCE olmalı)
-- `GET /admin/orders?status=`, `GET /admin/orders/:id`, `PATCH /admin/orders/:id` `{status}`
+- `GET /admin/orders?status=`, `GET /admin/orders/:id`, `PATCH /admin/orders/:id` `{status}`,
+  `POST /admin/orders/:id/refund` (bkz. "Ödeme (iyzico)")
 - `GET /admin/users`
 - `POST /admin/users`, `PATCH /admin/users/:id` — **yalnızca owner** (`requireOwner`)
 - `GET /admin/export`, `POST /admin/import` (yalnızca owner) — bkz. "Bilinen sınırlar"
@@ -165,6 +170,127 @@ o da yoksa Türkçe değere düşer. Sunucu boş EN metni her zaman `null` olara
   (export → import → export birebir aynı; MariaDB 10.11 ile doğrulandı).
 - Sınır: `delivery_returns` için EN sütunu yoktur; sipariş kalemleri (`order_items`) ve e-postalar
   ürün/renk adını Türkçe saklar.
+
+## Ödeme (iyzico)
+
+iyzico **Ödeme Formu (Checkout Form)** — yönlendirme modeli. Kart verisi sunucumuza hiç gelmez: müşteri
+iyzico'nun barındırdığı sayfada kartını girer (3D Secure iyzico tarafından yürütülür). Sayfa mağazaya
+gömülmez (CSP `script-src 'self'`, `form-action 'self'`); tarayıcı `paymentPageUrl`'e yönlendirilir.
+Kod: `src/services/payments/` (`index.js` sağlayıcı seçimi, `iyzico.js` SDK, `fake.js` yerel test,
+`service.js` akış), `src/routes/payments.js`, `migrations/007_payments.sql`, `scripts/sweep-pending.js`.
+
+### Akış
+
+```
+Mağaza                         API                                   iyzico
+POST /orders ───────────────▶ sipariş 'pending_payment' (stok ayrıldı, indirim hakkı "kullanıldı")
+          ◀── { order, accessToken, payment: { required: true } }
+POST /payments/init ────────▶ checkoutFormInitialize ─────────────▶ { token, paymentPageUrl }
+   (Bearer accessToken)       payments satırı 'initialized'
+          ◀── { paymentPageUrl }
+window.location.assign(paymentPageUrl) ───────────────────────────▶ kart + 3D Secure
+                              POST /payments/iyzico/callback ◀───── tarayıcı, form-urlencoded token
+                              checkoutFormRetrieve ───────────────▶ sonuç (+ imza)
+                              doğrula → 'paid' + e-postalar | 'failure' (sipariş pending kalır)
+          ◀── 302 {SITE_URL}[/en]/odeme/sonuc/<id>?odeme=basarili|basarisiz
+```
+
+### Uç noktalar
+
+- `POST /orders` — `PAYMENT_PROVIDER` ≠ none iken sipariş `pending_payment` oluşur, yanıt
+  `{ order, accessToken, payment: { required: true } }`; onay e-postaları ödeme BAŞARILI olunca gider.
+  `none` iken eski davranış (`new`, e-postalar hemen; `payment.required: false`).
+- `POST /payments/init` `{ orderId }` + `Authorization: Bearer <accessToken>` ya da sahibi müşteri
+  oturumu → `{ paymentPageUrl }`. Hatalar: `404` (yetkisiz/yok), `409 already_paid | order_not_payable |
+  payments_disabled`, `429 too_many_attempts` (sipariş başına 10 deneme), `502 payment_init_failed`.
+  20 istek / 15 dk / IP.
+- `POST /payments/iyzico/callback` — iyzico'nun (tarayıcı üzerinden) form-urlencoded `token` POST'u.
+  **originCheck/CSRF'den muaftır ve çerez okumaz** (app.js'de `express.json`/`originCheck`'ten önce
+  bağlanır); güvenlik, token'ın bizim `payments` kaydımızda olmasından ve sunucudan sunucuya
+  `retrieve` doğrulamasından gelir. Bilinmeyen token sağlayıcıya hiç sorulmaz. Yanıt her durumda `302`.
+  60 istek / 15 dk / IP.
+- `GET /payments/status/:orderId` (Bearer / oturum) → `{ status, paymentStatus, lastError }`.
+- `GET /admin/orders`, `GET /admin/orders/:id` → her siparişte `payment` (durum, paymentId, taksit,
+  kart kuruluşu/ailesi, son 4 hane, fraudStatus, hata) ve `paymentAttempts`.
+- `POST /admin/orders/:id/refund` — tam iade: önce `cancel` (aynı gün, gün sonu mutabakatından önce;
+  ekstreye yansımaz), olmazsa her `paymentTransactionId` için `refund` (365 güne kadar). Başarıda
+  sipariş `cancelled` (stok geri) + `payments.status='refunded'`. Kısmen başarısız iade tekrar
+  denenebilir (tamamlanan kalemler `refunded_transaction_ids`'te tutulur, yeniden iade edilmez).
+  Yetki: tüm yöneticiler (sipariş durum değişikliğiyle aynı kural).
+- `PATCH /admin/orders/:id` kuralları: `pending_payment` elle seçilemez; `pending_payment` sipariş elle
+  yalnızca `cancelled` yapılabilir; sağlayıcı etkinken `paid` elle seçilemez; iade edilmemiş başarılı
+  ödemesi olan sipariş durum seçiciyle iptal edilemez (`409 use_refund` → iade uç noktası).
+- `GET /settings` → `payment.provider` (env'deki gerçek değer: none|iyzico|fake; tabloya yazılmaz,
+  `PUT /admin/settings` ile yazılamaz) ve `payment.installments` (panel ayarı > env).
+
+### Doğrulama kuralları (callback)
+
+`status=success`, `paymentStatus=SUCCESS`, `currency=TRY`, `conversationId` = `basketId` = sipariş no,
+`token` eşleşmesi, `fraudStatus ≠ -1`, `price` (sepet toplamı) birebir, `paidPrice` tek çekimde birebir.
+Taksitte (installment > 1) vade farkı müşteriye yansıtılıyorsa `paidPrice` büyük olabilir:
+`beklenen ≤ paidPrice ≤ beklenen × 1,5` kabul edilir, gerçek tahsilat `payments.paid_price`'a yazılır.
+Yanıt imzası (HMAC-SHA256, secret key; `paymentStatus:paymentId:currency:basketId:conversationId:paidPrice:price:token`,
+fiyatların sondaki sıfırları atılarak) varsa doğrulanır, yanlışsa reddedilir. Tutarlar kuruş (tam sayı)
+ile karşılaştırılır. Sepet: her satır `birim fiyat × adet`; kargo > 0 ise ayrı "Kargo" kalemi;
+`price` = ara toplam + kargo, `paidPrice` = indirim sonrası genel toplam. Callback tekrarları
+idempotenttir (durum ve e-posta bir kez). `fraudStatus=0` (incelemede) ödeme kabul edilir ama
+yöneticiye "onay gelmeden kargolamayın" uyarısı gider ve panelde gösterilir.
+
+### Süre dolumu (30 dk)
+
+Ödenmeyen `pending_payment` sipariş, oluşturulmasından 30 dk sonra `cancelled` olur (stok ve üyelik
+indirimi hakkı geri gelir). Son 30 dk içinde başlatılmış açık bir ödeme denemesi varsa sipariş o
+deneme bitene kadar korunur (en fazla ~60 dk). Başarılı ödemesi olan sipariş asla süpürülmez.
+Süpürme: `POST /orders`, `POST /payments/init`, `GET /admin/orders` çağrılarında tembel (süreç
+başına dakikada en fazla bir kez) + cron:
+
+```
+*/5 * * * * cd ~/api && /home/teshvikiyeadmin/nodevenv/api/22/bin/node scripts/sweep-pending.js >> ~/logs/sweep-pending.log 2>&1
+```
+
+(Node yolu cPanel "Setup Node.js App" ekranındaki sanal ortamdan alınmalıdır.) İptalden SONRA gelen
+başarılı ödeme: stok yeniden ayrılabiliyorsa sipariş `paid` olur (`late_payment_recovered`); ayrılamıyorsa
+ödeme otomatik iade edilir (`late_payment_refunded`) ve yöneticiye bildirim gider.
+
+### Kurulum ve sandbox → canlı
+
+1. `npm install` (`iyzipay` bağımlılığı), `npm run migrate` (007), `npm run seed` (eksik ayar anahtarı eklenir).
+2. **Sandbox:** sandbox-merchant.iyzipay.com'da hesap aç → API/secret anahtarı → `.env`:
+   `PAYMENT_PROVIDER=iyzico`, `IYZICO_API_KEY`, `IYZICO_SECRET_KEY`, `IYZICO_BASE_URL=https://sandbox-api.iyzipay.com`,
+   `SITE_URL=https://teshvikiye.com` (callback adresi buradan üretilir) → Passenger restart.
+3. Sandbox test kartları (SKT gelecekte herhangi bir tarih, CVC herhangi 3 hane):
+   başarılı `5526 0800 0000 0006` (Akbank MC kredi), `5890 0400 0000 0016` (Akbank MC banka),
+   `4766 6200 0000 0001` (Denizbank Visa); başarısız `4111 1111 1111 1129` (yetersiz bakiye),
+   `4129 1111 1111 1111` (banka reddi), `4124 1111 1111 1116` (geçersiz CVC),
+   `4151 1111 1111 1112` (3DS başlatılamadı).
+4. **Canlı:** merchant.iyzipay.com canlı anahtarları + `IYZICO_BASE_URL=https://api.iyzipay.com` → restart.
+   Canlıda iyzico üye işyeri onayı (web sitesi denetimi: mesafeli satış sözleşmesi, iade koşulları,
+   iletişim bilgisi, iyzico logosu) tamamlanmış olmalıdır.
+5. Cron satırını ekleyin (yukarıda). `ADMIN_NOTIFY_EMAIL` tanımlayın (ödeme uyarıları buraya gider).
+6. Sağlayıcıyı kapatmak için `PAYMENT_PROVIDER=none` + restart (bekleyen siparişler süpürmeyle düşer —
+   cron ya da `npm run sweep-pending`).
+
+### Güvenlik notları
+
+- Anahtarlar yalnızca `.env`; hiçbir yanıt/logda anahtar ya da kart verisi yoktur. `payments.raw_result`
+  beyaz listeli özettir (kart token'ı, BIN, `cardUserKey` saklanmaz); yalnızca kart kuruluşu/ailesi ve son 4 hane.
+- Tutar, para birimi ve sipariş eşleşmesi daima sunucuda DB'deki `payments` satırına göre doğrulanır;
+  istemcinin gönderdiği hiçbir tutar kullanılmaz.
+- `buyer.identityNumber`: TC kimlik no toplanmadığı için iyzico'nun kabul ettiği yer tutucu
+  `11111111111` gönderilir (bkz. `iyzico.js` → `PLACEHOLDER_IDENTITY_NUMBER`).
+- `fake` sağlayıcı yalnızca `NODE_ENV!=='production'`de açılır (env doğrulaması üretimde reddeder); sahte
+  ödeme uç noktası `GET /payments/fake/pay?token=…&result=success|failure|amount_mismatch|fraud` da yalnızca
+  o zaman bağlanır. Durumu süreç belleğindedir (tek süreç, yeniden başlatmada sıfırlanır).
+- `npm audit`, iyzipay'in bağımlılığı `postman-request` zincirinde uyarılar gösterir (SDK'nın kendi
+  bağımlılığı; `audit fix --force` SDK'yı bozacağından uygulanmadı).
+
+### Test
+
+- `npm test` — iyzico sağlayıcısı birim testleri (ağsız): istek gövdesi/tutar kuralları, sahte SDK istemcisiyle
+  initialize/retrieve/cancel/refund parametreleri, openssl ile bağımsız hesaplanmış imza vektörleri, GERÇEK
+  iyzipay SDK'sının yerel sahte sunucuya gönderdiği gövde/uç nokta/`IYZWSv2` başlığı, `validateRetrieve` kuralları.
+- Uçtan uca: `PAYMENT_PROVIDER=fake` + MariaDB 10.11 ile sipariş → init → callback (başarı/başarısızlık/tutar
+  uyuşmazlığı/fraud/tekrar), süre dolumu, geç ödeme, iade ve durum kuralları doğrulandı (24.09.2026).
 
 ## Bilinen sınırlar / bilinçli tasarım kararları
 

@@ -7,6 +7,8 @@ import * as productsService from '../services/products.js'
 import { parseBody, notFound } from '../errors.js'
 import { optionalCustomer } from '../auth.js'
 import { sendMail, notifyAdmin } from '../services/mail.js'
+import { paymentsEnabled } from '../services/payments/index.js'
+import { maybeSweep } from '../services/payments/service.js'
 
 const router = Router()
 
@@ -73,10 +75,21 @@ const orderSchema = z.object({
 router.post('/', orderCreateLimiter, optionalCustomer, async (req, res, next) => {
   try {
     const input = parseBody(orderSchema, req.body)
-    const { order, accessToken } = await ordersService.createOrder(input, req.customer ?? null)
+    const online = paymentsEnabled()
+    // Süresi dolan ödeme bekleyen siparişler önce düşürülür (stok + üyelik indirimi hakkı geri gelsin).
+    if (online) await maybeSweep()
+    const { order, accessToken } = await ordersService.createOrder(input, req.customer ?? null, {
+      initialStatus: online ? 'pending_payment' : 'new',
+    })
     // accessToken yalnızca burada döner — istemci (mağaza) bunu saklamalı (ör. sipariş onay
     // sayfası/e-postası); sunucu bunu bir daha asla düz metin olarak döndürmez.
-    res.status(201).json({ order, accessToken })
+    if (online) {
+      // Çevrim içi ödeme: sipariş 'pending_payment'; e-postalar ödeme BAŞARILI olunca gider
+      // (bkz. services/payments/service.js → handleCallback). İstemci şimdi POST /payments/init çağırır.
+      res.status(201).json({ order, accessToken, payment: { required: true } })
+      return
+    }
+    res.status(201).json({ order, accessToken, payment: { required: false } })
     // E-postalar yanıtı bekletmez; sağlayıcı tanımlı değilse (MAIL_PROVIDER=none) mail_log'a "skipped" yazılır.
     const locale = input.locale ?? 'tr'
     sendMail({ to: order.contact.email, template: 'orderConfirmation', data: { order }, locale, refType: 'order', refId: order.id }).catch(() => undefined)

@@ -7,6 +7,8 @@ import { AccountChoice } from './AccountChoice'
 import styles from './Checkout.module.css'
 import { SavedAddressPicker } from './SavedAddressPicker'
 import { useAccount } from '../../state/AccountContext'
+import { siteSettings } from '../../config/settings'
+import { onlinePaymentEnabled } from '../../services/ordersApi'
 
 interface CheckoutFormProps {
   values: CheckoutFormValues
@@ -17,6 +19,7 @@ interface CheckoutFormProps {
 /** Checkout'un üç adımı: İletişim → Teslimat → Ödeme, tek bir <form> içinde numaralı bölümler. */
 export function CheckoutForm({ values, errors, onChange }: CheckoutFormProps) {
   const { account } = useAccount()
+  const online = onlinePaymentEnabled()
   return (
     <>
       <section className={styles.step}>
@@ -135,19 +138,40 @@ export function CheckoutForm({ values, errors, onChange }: CheckoutFormProps) {
           </span>
           {S.checkout.steps.payment}
         </h2>
-        <div className={styles.radioGroup} role="radiogroup" aria-label={S.checkout.paymentMethod}>
-          <label className={styles.radioOption}>
-            <input
-              id="checkout-paymentMethod"
-              type="radio"
-              name="checkout-payment-method"
-              checked={values.paymentMethod === 'demo'}
-              onChange={() => onChange('paymentMethod', 'demo')}
-            />
-            {S.checkout.paymentDemo}
-          </label>
-        </div>
-        <p className={styles.paymentPending}>{S.checkout.paymentPending}</p>
+        {online ? (
+          <>
+            <div className={styles.radioGroup} role="radiogroup" aria-label={S.checkout.paymentMethod}>
+              <label className={styles.radioOption}>
+                <input
+                  id="checkout-paymentMethod"
+                  type="radio"
+                  name="checkout-payment-method"
+                  checked={values.paymentMethod === 'card'}
+                  onChange={() => onChange('paymentMethod', 'card')}
+                />
+                {S.checkout.paymentCard}
+              </label>
+            </div>
+            <p className={styles.paymentPending}>{S.checkout.paymentCardNote(siteSettings.payment.installments)}</p>
+          </>
+        ) : (
+          <>
+            {/* Demo (tahsilatsız) seçenek yalnızca ödeme sağlayıcısı yokken (payment.provider = none). */}
+            <div className={styles.radioGroup} role="radiogroup" aria-label={S.checkout.paymentMethod}>
+              <label className={styles.radioOption}>
+                <input
+                  id="checkout-paymentMethod"
+                  type="radio"
+                  name="checkout-payment-method"
+                  checked={values.paymentMethod === 'demo'}
+                  onChange={() => onChange('paymentMethod', 'demo')}
+                />
+                {S.checkout.paymentDemo}
+              </label>
+            </div>
+            <p className={styles.paymentPending}>{S.checkout.paymentPending}</p>
+          </>
+        )}
         {errors.paymentMethod ? (
           <div role="alert" className={styles.formError}>
             <Icon name="info" size={14} />

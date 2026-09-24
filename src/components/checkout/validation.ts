@@ -14,7 +14,8 @@ export interface CheckoutFormValues {
   postalCode: string
   country: string
   note: string
-  paymentMethod: '' | 'demo'
+  /** 'demo': tahsilatsız akış (provider none); 'card': iyzico güvenli ödeme sayfası. */
+  paymentMethod: '' | 'demo' | 'card'
   agree: boolean
 }
 

@@ -193,6 +193,9 @@ const DEFAULT_SETTINGS = {
   'inventory.lowStockThreshold': 3,
   // "Yeni" rozeti otomatik kuralı: created_at son N gün içindeyse (bkz. migrations/006_inventory.sql).
   'catalog.newBadgeDays': 30,
+  // Çevrim içi ödeme taksit seçenekleri (iyzico: 1,2,3,6,9,12). null → env PAYMENT_INSTALLMENTS (varsayılan 1).
+  // Sağlayıcı (payment.provider) bilinçli olarak burada YOK: env PAYMENT_PROVIDER'dan gelir.
+  'payment.installments': null,
 }
 
 async function seedSettings() {

@@ -94,6 +94,16 @@ export const defaultSettings = {
     pinterest: null as string | null,
   },
 
+  /**
+   * Çevrim içi ödeme. Sağlayıcı sunucunun ortam değişkeninden (PAYMENT_PROVIDER) gelir ve `GET /settings`
+   * ile yansıtılır: 'none' → demo/tahsilatsız akış; 'iyzico' (ya da yerel test için 'fake') → iyzico güvenli
+   * ödeme sayfasına yönlendirme. Taksitler yalnızca bilgi notu içindir; asıl seçenekleri iyzico sayfası sunar.
+   */
+  payment: {
+    provider: 'none' as 'none' | 'iyzico' | 'fake',
+    installments: [1] as number[],
+  },
+
   /** Kurulacak gerçek servisler bağlanana kadar demo modu açık kalır. */
   demo: {
     enabled: true,

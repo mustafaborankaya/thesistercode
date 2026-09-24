@@ -4,14 +4,16 @@ import { pool } from '../db.js'
 import { badRequest, conflict, notFound } from '../errors.js'
 import { getSetting } from './settings.js'
 
-export const ORDER_STATUSES = ['demo', 'new', 'paid', 'shipped', 'cancelled']
+export const ORDER_STATUSES = ['demo', 'new', 'pending_payment', 'paid', 'shipped', 'cancelled']
 
 /**
  * "Aktif" sipariş durumları: üyelik indiriminin İLK SİPARİŞ kuralında sayılan siparişler.
  * İptal edilen ('cancelled') ve 'demo' siparişler sayılmaz — ilk sipariş iptal edilirse hak geri gelir.
- * Yeni bir durum eklenirse (ör. ödeme bekleyen) burada da değerlendirilmelidir.
+ * 'pending_payment' (çevrim içi ödeme bekleyen) AKTİF sayılır: aksi halde ödeme sayfasındayken ikinci
+ * bir indirimli sipariş oluşturulabilirdi. Ödenmeyen sipariş 30 dk sonra 'cancelled'a düşer (bkz.
+ * services/payments/service.js → sweepExpiredPendingOrders) ve hak geri gelir.
  */
-export const ACTIVE_ORDER_STATUSES = ['new', 'paid', 'shipped']
+export const ACTIVE_ORDER_STATUSES = ['new', 'pending_payment', 'paid', 'shipped']
 const ACTIVE_STATUS_SQL = ACTIVE_ORDER_STATUSES.map((s) => `'${s}'`).join(', ')
 
 /** Üyelik indirimi yalnızca ilk siparişte mi? Alan yoksa/tanımsızsa varsayılan `true` (kesin kural). */
@@ -82,7 +84,13 @@ function normalizeLines(lines) {
   return [...merged.values()].sort((a, b) => (a.productId + a.colorId + a.size).localeCompare(b.productId + b.colorId + b.size))
 }
 
-export async function createOrder(input, customer) {
+/**
+ * @param {object} input doğrulanmış sipariş gövdesi
+ * @param {{id:number}|null} customer oturumdaki müşteri
+ * @param {{ initialStatus?: 'new'|'pending_payment' }} [opts] çevrim içi ödeme etkinse 'pending_payment'
+ */
+export async function createOrder(input, customer, { initialStatus = 'new' } = {}) {
+  if (initialStatus !== 'new' && initialStatus !== 'pending_payment') throw new Error('Geçersiz başlangıç durumu')
   const lines = normalizeLines(input.lines)
 
   const memberDiscount = (await getSetting('memberDiscount')) ?? {}
@@ -192,12 +200,13 @@ export async function createOrder(input, customer) {
 
     await conn.query(
       `INSERT INTO orders
-        (id, customer_id, status, email, phone, first_name, last_name, address, district, city, postal_code, country, note,
+        (id, customer_id, status, email, phone, first_name, last_name, address, district, city, postal_code, country, note, locale,
          subtotal, discount_percent, discount_amount, shipping, total, access_token_hash)
-       VALUES (?, ?, 'new', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         orderId,
         customer?.id ?? null,
+        initialStatus,
         input.contact.email,
         input.contact.phone,
         input.delivery.firstName,
@@ -208,6 +217,7 @@ export async function createOrder(input, customer) {
         input.delivery.postalCode,
         input.delivery.country,
         input.delivery.note || null,
+        input.locale === 'en' ? 'en' : 'tr',
         subtotal,
         discountPercent,
         discountAmount,
@@ -314,7 +324,7 @@ export async function listOrders({ status } = {}) {
  * iptali GERİ ALINIRSA (cancelled → new/paid/…) stok tekrar OTOMATİK düşülmez; bu, mevcut spesifikasyon
  * kapsamının dışındadır ve operatörün stoğu manuel doğrulaması gerekir.
  */
-export async function updateOrderStatus(id, status) {
+export async function updateOrderStatus(id, status, { guard } = {}) {
   if (!ORDER_STATUSES.includes(status)) throw badRequest('Geçersiz sipariş durumu', 'validation_error')
 
   const conn = await pool.getConnection()
@@ -324,21 +334,10 @@ export async function updateOrderStatus(id, status) {
     const [rows] = await conn.query('SELECT status FROM orders WHERE id = ? LIMIT 1 FOR UPDATE', [id])
     const current = rows[0]
     if (!current) throw notFound('Sipariş bulunamadı')
+    // İsteğe bağlı iş kuralı denetimi (ör. yönetici paneli geçiş kuralları) — kilit altında, güncel durumla.
+    if (guard) await guard(conn, current.status)
 
-    const becomingCancelled = status === 'cancelled' && current.status !== 'cancelled'
-
-    await conn.query('UPDATE orders SET status = ? WHERE id = ?', [status, id])
-
-    if (becomingCancelled) {
-      const [items] = await conn.query('SELECT product_id, color_id, size, qty FROM order_items WHERE order_id = ?', [id])
-      for (const item of items) {
-        await conn.query(
-          `INSERT INTO product_stock (product_id, color_id, size, qty) VALUES (?, ?, ?, ?)
-           ON DUPLICATE KEY UPDATE qty = qty + VALUES(qty)`,
-          [item.product_id, item.color_id, item.size, item.qty],
-        )
-      }
-    }
+    await setOrderStatusInTx(conn, id, current.status, status)
 
     await conn.commit()
   } catch (err) {
@@ -350,6 +349,59 @@ export async function updateOrderStatus(id, status) {
 
   return getOrderById(id)
 }
+
+/**
+ * Kilitli (FOR UPDATE) bir sipariş satırının durumunu transaction içinde değiştirir; 'cancelled'a
+ * GEÇİŞTE stok geri yüklenir (idempotent: zaten iptal ise stoğa dokunulmaz).
+ */
+export async function setOrderStatusInTx(conn, id, currentStatus, status) {
+  await conn.query('UPDATE orders SET status = ? WHERE id = ?', [status, id])
+  if (status === 'cancelled' && currentStatus !== 'cancelled') {
+    const [items] = await conn.query('SELECT product_id, color_id, size, qty FROM order_items WHERE order_id = ?', [id])
+    for (const item of items) {
+      await conn.query(
+        `INSERT INTO product_stock (product_id, color_id, size, qty) VALUES (?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE qty = qty + VALUES(qty)`,
+        [item.product_id, item.color_id, item.size, item.qty],
+      )
+    }
+  }
+}
+
+/**
+ * İptal edilmiş bir siparişin stoğunu YENİDEN rezerve etmeye çalışır (ödeme süresi dolup iptal edildikten
+ * sonra gelen geç başarılı ödeme için). Hepsi düşülebilirse true; biri bile yetersizse false döner —
+ * çağıran transaction'ı geri almalıdır.
+ */
+export async function reserveOrderStockInTx(conn, id) {
+  const [items] = await conn.query('SELECT product_id, color_id, size, qty FROM order_items WHERE order_id = ? ORDER BY product_id, color_id, size', [id])
+  for (const item of items) {
+    const [result] = await conn.query(
+      'UPDATE product_stock SET qty = qty - ? WHERE product_id = ? AND color_id = ? AND size = ? AND qty >= ?',
+      [item.qty, item.product_id, item.color_id, item.size, item.qty],
+    )
+    if (result.affectedRows !== 1) return false
+  }
+  return true
+}
+
+/** Erişim doğrulaması (sahibi müşteri oturumu ya da accessToken) — ham satırı döndürür; yoksa/yetkisizse null. */
+export async function getOrderRowForAccess(id, { customerId, token } = {}) {
+  const [orderRows] = await pool.query('SELECT * FROM orders WHERE id = ? LIMIT 1', [id])
+  const row = orderRows[0]
+  if (!row) return null
+  const ownerMatch = customerId != null && row.customer_id === customerId
+  const tokenMatch =
+    !ownerMatch &&
+    typeof token === 'string' &&
+    token.length > 0 &&
+    token.length <= 128 &&
+    row.access_token_hash &&
+    safeEqualHex(hashAccessToken(token), row.access_token_hash)
+  return ownerMatch || tokenMatch ? row : null
+}
+
+export { formatOrder }
 
 /** Müşterinin siparişleri (yeniden eskiye), kalemleriyle; sipariş sayısından bağımsız iki sorgu. */
 export async function listOrdersByCustomer(customerId, limit = 50) {
@@ -373,6 +425,7 @@ function formatOrder(row, itemRows) {
     id: row.id,
     customerId: row.customer_id,
     status: row.status,
+    locale: row.locale === 'en' ? 'en' : 'tr',
     contact: { email: row.email, phone: row.phone },
     delivery: {
       firstName: row.first_name,

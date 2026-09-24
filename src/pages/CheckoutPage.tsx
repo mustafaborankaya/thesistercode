@@ -16,7 +16,7 @@ import { applyKnownStock, lineKey } from '../lib/cart'
 import { formatPrice } from '../lib/format'
 import { paymentProvider } from '../services/checkout'
 import { listAddresses, loadAddresses, sameAddress, saveAddress, subscribeCustomer, type SavedAddress } from '../services/customer'
-import { createApiOrder } from '../services/ordersApi'
+import { createApiOrder, initPayment, onlinePaymentEnabled } from '../services/ordersApi'
 import { useAccount } from '../state/AccountContext'
 import { useCart } from '../state/CartContext'
 import styles from './CheckoutPage.module.css'
@@ -53,9 +53,12 @@ export function CheckoutPage() {
   const placedRef = useRef(false)
 
   const accountEmail = isLoggedIn && account ? account.email : null
-  const [values, setValues] = useState<CheckoutFormValues>(() =>
-    withDefaultAddress(initialCheckoutValues(accountEmail), accountEmail ? listAddresses(accountEmail) : []),
-  )
+  // Çevrim içi ödeme (iyzico) modunda tek ödeme yöntemi kart olduğundan önceden seçili gelir.
+  const online = onlinePaymentEnabled()
+  const [values, setValues] = useState<CheckoutFormValues>(() => {
+    const initial = initialCheckoutValues(accountEmail)
+    return withDefaultAddress(online ? { ...initial, paymentMethod: 'card' } : initial, accountEmail ? listAddresses(accountEmail) : [])
+  })
   const [errors, setErrors] = useState<CheckoutErrors>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
   /** 409 insufficient_stock sonrası satır bazlı açıklamalar (sepet otomatik olarak mevcut stoğa indirildi). */
@@ -170,6 +173,31 @@ export function CheckoutPage() {
     // sağlayıcıya düşülür — üretimde asla sessizce yerel demo siparişe düşülmez.
     if (isApiMode()) {
       const result = await createApiOrder({ contact, delivery, lines })
+      if (result.ok && result.paymentRequired) {
+        // Çevrim içi ödeme: sipariş 'pending_payment' (stok ayrıldı). Sepet ödeme BAŞARILI olana kadar
+        // KORUNUR (sonuç sayfası ?odeme=basarili + sunucu durumu 'paid' iken boşaltır); böylece başarısız ya
+        // da yarım kalan ödemede müşteri sepetini kaybetmez.
+        placedRef.current = true
+        saveDeliveryAddress()
+        if (isLoggedIn) void refreshAccount()
+        const init = await initPayment(result.order.id)
+        if (init.ok) {
+          // Yönlendirme modeli: iyzico sayfası gömülmez (CSP). Önce geçmişteki bu kayıt sipariş sonuç
+          // sayfasıyla DEĞİŞTİRİLİR: müşteri iyzico'dan "Geri" ile dönerse ödeme formuna değil aynı siparişin
+          // "Ödeme bekleniyor + Tekrar dene" görünümüne gelir (ikinci sipariş/rezervasyon oluşmaz).
+          navigate(`/odeme/sonuc/${result.order.id}`, { replace: true })
+          window.setTimeout(() => window.location.assign(init.paymentPageUrl), 0)
+          return
+        }
+        setPending(false)
+        // Sipariş oluştu ama ödeme sayfası açılamadı: formu yeniden göndermek ikinci bir rezervasyon
+        // yaratacağından sonuç sayfasına (yeniden deneme düğmesiyle) gidilir.
+        navigate(`/odeme/sonuc/${result.order.id}?odeme=basarisiz`, {
+          replace: true,
+          state: { initError: `${S.checkout.paymentInitFailed} (${apiErrorMessage(init.error)})` },
+        })
+        return
+      }
       setPending(false)
       if (result.ok) {
         placedRef.current = true
@@ -229,7 +257,7 @@ export function CheckoutPage() {
 
       <div className={styles.demoBanner} role="note">
         <Icon name="info" size={18} />
-        <span>{isApiMode() ? S.api.checkoutBanner : S.checkout.demoBanner}</span>
+        <span>{online ? S.checkout.onlineBanner : isApiMode() ? S.api.checkoutBanner : S.checkout.demoBanner}</span>
       </div>
 
       <div className={styles.mobileSummary}>
@@ -266,7 +294,7 @@ export function CheckoutPage() {
           ) : null}
           <div className={styles.submitRow}>
             <Button type="submit" variant="primary" block disabled={pending}>
-              {pending ? S.checkout.processing : S.checkout.placeOrder}
+              {online ? (pending ? S.checkout.redirecting : S.checkout.placeOrderPay) : pending ? S.checkout.processing : S.checkout.placeOrder}
             </Button>
           </div>
         </form>

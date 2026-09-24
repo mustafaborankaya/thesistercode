@@ -45,6 +45,11 @@ const KNOWN_SETTINGS_SCHEMAS = {
     })
     .partial(),
   'offerPanel.delayAfterConsentMs': z.number().int().min(0),
+  // null → env PAYMENT_INSTALLMENTS. iyzico'nun desteklediği taksit sayıları.
+  'payment.installments': z
+    .array(z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(6), z.literal(9), z.literal(12)]))
+    .min(1)
+    .nullable(),
 }
 
 router.get('/', async (req, res, next) => {
@@ -59,6 +64,8 @@ router.get('/', async (req, res, next) => {
 router.put('/', async (req, res, next) => {
   try {
     const patch = parseBody(settingsSchema, req.body)
+    // Ödeme sağlayıcısı yalnızca env'den (PAYMENT_PROVIDER) seçilir; ayar tablosuna yazılamaz.
+    if ('payment.provider' in patch) throw badRequest('payment.provider sunucu ortam değişkeninden (PAYMENT_PROVIDER) gelir', 'validation_error')
     for (const [key, value] of Object.entries(patch)) {
       const knownSchema = KNOWN_SETTINGS_SCHEMAS[key]
       if (!knownSchema) continue

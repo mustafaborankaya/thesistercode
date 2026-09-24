@@ -31,10 +31,13 @@ export const templates = {
     const items = order.items ?? []
     const subject = en ? `Your order ${order.id} has been received` : `${order.id} numaralı siparişiniz alındı`
     const lines = items.map((i) => `${i.qty} × ${i.productName} (${i.colorLabel} / ${i.size}) — ${money(i.unitPrice * i.qty)}`)
+    // Çevrim içi ödeme başarıyla alındıysa (iyzico) bu e-posta ödeme onayını da içerir.
+    const paidLine = order.status === 'paid' ? (en ? 'Your payment has been received.' : 'Ödemeniz alındı.') : null
     const shippingText = t.shipping == null ? (en ? 'to be confirmed' : 'bildirilecek') : money(t.shipping)
     const text = [
       en ? `Hello ${d.firstName},` : `Merhaba ${d.firstName},`,
       en ? `We have received your order ${order.id}.` : `${order.id} numaralı siparişinizi aldık.`,
+      paidLine,
       '',
       ...lines,
       '',
@@ -52,7 +55,7 @@ export const templates = {
     const html = layout(
       subject,
       `<p>${esc(en ? `Hello ${d.firstName},` : `Merhaba ${d.firstName},`)}</p>
-<p>${esc(en ? `We have received your order ${order.id}.` : `${order.id} numaralı siparişinizi aldık.`)}</p>
+<p>${esc(en ? `We have received your order ${order.id}.` : `${order.id} numaralı siparişinizi aldık.`)}${paidLine ? ` ${esc(paidLine)}` : ''}</p>
 <ul style="padding-left:18px">${lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>
 <table style="border-collapse:collapse;margin-top:12px">
 <tr><td style="padding:2px 16px 2px 0">${en ? 'Subtotal' : 'Ara toplam'}</td><td>${esc(money(t.subtotal))}</td></tr>
@@ -73,7 +76,7 @@ ${t.discountAmount > 0 ? `<tr><td style="padding:2px 16px 2px 0">${en ? 'Member 
     const items = order.items ?? []
     const subject = `Yeni sipariş: ${order.id} — ${money(order.totals.total)}`
     const text = [
-      `Yeni sipariş alındı: ${order.id}`,
+      `Yeni sipariş alındı: ${order.id}${order.status === 'paid' ? ' (ödeme alındı)' : ''}`,
       `${d.firstName} ${d.lastName} — ${order.contact.email} — ${order.contact.phone}`,
       `${d.address}, ${d.district} / ${d.city} ${d.postalCode}, ${d.country}`,
       d.note ? `Not: ${d.note}` : null,
@@ -88,6 +91,13 @@ ${t.discountAmount > 0 ? `<tr><td style="padding:2px 16px 2px 0">${en ? 'Member 
       .join('\n')
     const html = layout(subject, `<pre style="white-space:pre-wrap;font-family:inherit">${esc(text)}</pre>`, 'tr')
     return { subject, text, html }
+  },
+
+  /** Ödeme sorunu (geç/mükerrer/doğrulanamayan ödeme, sahtecilik incelemesi) — yöneticiye (TR). */
+  adminPaymentIssue({ orderId, issue }) {
+    const subject = `Ödeme uyarısı: ${orderId}`
+    const text = `Sipariş ${orderId} için ödeme uyarısı:\n\n${issue}\n\nYönetim paneli → Siparişler üzerinden kontrol edin.`
+    return { subject, text, html: layout(subject, `<pre style="white-space:pre-wrap;font-family:inherit">${esc(text)}</pre>`, 'tr') }
   },
 
   /** Hoş geldin — hesap oluşturan müşteriye. */

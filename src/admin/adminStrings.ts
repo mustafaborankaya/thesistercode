@@ -260,11 +260,30 @@ export const AS = {
 
   /** API bağlı modda sipariş durumları (demo/new/paid/shipped/cancelled) — yerel demo durumlarından farklıdır. */
   ordersApi: {
-    statusLabels: { demo: 'Demo', new: 'Yeni', paid: 'Ödendi', shipped: 'Kargoda', cancelled: 'İptal' } as Record<string, string>,
+    statusLabels: { demo: 'Demo', new: 'Yeni', pending_payment: 'Ödeme bekleniyor', paid: 'Ödendi', shipped: 'Kargoda', cancelled: 'İptal' } as Record<string, string>,
     statusLabel: 'Durum',
     changeStatus: 'Durumu güncelle',
     statusUpdated: 'Sipariş durumu güncellendi.',
     missingFeatures: 'İade/iptal/değişim talep akışı ve kargo takip numarası için API uç noktası henüz yok.',
+    /** Ödeme (iyzico) — sipariş tablosu kolonu ve detay çekmecesi. */
+    paymentLabel: 'Ödeme',
+    paymentNone: '—',
+    paymentStatus: { initialized: 'Başlatıldı', success: 'Alındı', failure: 'Başarısız', refunded: 'İade edildi' } as Record<string, string>,
+    paymentTitle: 'Ödeme',
+    paymentId: 'Ödeme no (paymentId)',
+    paymentInstallment: 'Taksit',
+    paymentCard: 'Kart',
+    paymentPaid: 'Tahsil edilen',
+    paymentError: 'Son hata',
+    paymentAttempts: (n: number) => `${n} deneme`,
+    fraudReview: 'iyzico sahtecilik incelemesinde — onay gelmeden kargolamayın.',
+    refund: 'Tam iade et',
+    refundConfirm: (total: string) => `${total} tutarındaki ödeme karta iade edilecek ve sipariş iptal edilecek (stok geri yüklenir). Emin misiniz?`,
+    refundYes: 'Evet, iade et',
+    refundNo: 'Vazgeç',
+    refunding: 'İade ediliyor…',
+    refunded: 'Ödeme iade edildi, sipariş iptal edildi.',
+    statusLockedHint: "'Ödeme bekleniyor' ve 'Ödendi' durumları ödeme sağlayıcısından gelir; ödenmiş sipariş iade ile iptal edilir.",
   },
 
   /** `/admin/kullanicilar` — yalnızca API modunda gösterilir (GET/POST/PATCH /admin/users). */

@@ -8,6 +8,8 @@ import { ADMIN_COOKIE } from '../auth.js'
 import jwt from 'jsonwebtoken'
 import { env } from '../env.js'
 import { pool } from '../db.js'
+import { publicProviderName } from '../services/payments/index.js'
+import { getEffectiveInstallments } from '../services/payments/service.js'
 
 const router = Router()
 
@@ -109,7 +111,12 @@ function sanitizeSettingsForPublic(settings) {
 router.get('/settings', async (req, res, next) => {
   try {
     const settings = await settingsService.getSettings()
-    res.json({ settings: sanitizeSettingsForPublic(settings) })
+    const out = sanitizeSettingsForPublic(settings)
+    // Ödeme: sağlayıcı daima env'deki GERÇEK durumdan gelir (settings tablosuna yazılmaz); taksitler
+    // panel ayarı `payment.installments` > env PAYMENT_INSTALLMENTS.
+    out['payment.provider'] = publicProviderName()
+    out['payment.installments'] = await getEffectiveInstallments()
+    res.json({ settings: out })
   } catch (err) {
     next(err)
   }

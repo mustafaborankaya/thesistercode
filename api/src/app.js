@@ -25,6 +25,7 @@ import adminOrdersRoutes from './routes/admin-orders.js'
 import adminUsersRoutes from './routes/admin-users.js'
 import adminDataRoutes from './routes/admin-data.js'
 import adminInventoryRoutes from './routes/admin-inventory.js'
+import paymentsRoutes, { callbackRouter as paymentCallbackRouter } from './routes/payments.js'
 
 const PKG_VERSION = '1.0.0'
 
@@ -65,6 +66,11 @@ export function createApp() {
     next()
   })
 
+  // Ödeme sağlayıcısı callback'i (iyzico → tarayıcı → biz; form-urlencoded, çapraz köken): originCheck ve
+  // JSON gövde ayrıştırıcıdan ÖNCE, her iki önekte bağlanır. Çerez okumaz; bkz. routes/payments.js.
+  app.use('/api', paymentCallbackRouter)
+  app.use('/', paymentCallbackRouter)
+
   app.use(express.json({ limit: '1mb' }))
   app.use(cookieParser())
   app.use(originCheck)
@@ -80,6 +86,7 @@ export function createApp() {
   router.use('/account/addresses', accountAddressesRoutes) // /account router'ından ÖNCE
   router.use('/account', accountRoutes)
   router.use('/orders', ordersRoutes)
+  router.use('/payments', paymentsRoutes)
   router.use('/admin/products', adminProductsRoutes)
   router.use('/admin/orders', adminOrdersRoutes)
   router.use('/admin/inventory', adminInventoryRoutes)
