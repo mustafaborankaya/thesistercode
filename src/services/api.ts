@@ -9,10 +9,13 @@ export const API_BASE: string = (import.meta.env.VITE_API_URL as string | undefi
 export class ApiError extends Error {
   status: number
   code: string
-  constructor(status: number, code: string, message: string) {
+  /** Sunucunun `error.details` alanı (varsa) — örn. `insufficient_stock` için varyant listesi. */
+  details?: unknown
+  constructor(status: number, code: string, message: string, details?: unknown) {
     super(message)
     this.status = status
     this.code = code
+    if (details !== undefined) this.details = details
   }
 }
 
@@ -43,8 +46,8 @@ export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T
   const text = await res.text()
   const data = text ? safeJson(text) : null
   if (!res.ok) {
-    const err = (data as { error?: { code?: string; message?: string } } | null)?.error
-    throw new ApiError(res.status, err?.code ?? `http_${res.status}`, err?.message ?? 'Beklenmeyen bir hata oluştu.')
+    const err = (data as { error?: { code?: string; message?: string; details?: unknown } } | null)?.error
+    throw new ApiError(res.status, err?.code ?? `http_${res.status}`, err?.message ?? 'Beklenmeyen bir hata oluştu.', err?.details)
   }
   return data as T
 }

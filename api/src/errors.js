@@ -1,10 +1,12 @@
 /** Uygulama genelinde kullanılan hata sınıfı ve merkezi hata işleyici. */
 
 export class ApiError extends Error {
-  constructor(status, code, message) {
+  constructor(status, code, message, details) {
     super(message)
     this.status = status
     this.code = code
+    /** İsteğe bağlı yapılandırılmış ayrıntı (örn. insufficient_stock → varyant listesi); varsa yanıta eklenir. */
+    if (details !== undefined) this.details = details
   }
 }
 
@@ -12,7 +14,7 @@ export const badRequest = (message = 'Geçersiz istek', code = 'bad_request') =>
 export const unauthorized = (message = 'Giriş gerekli', code = 'unauthorized') => new ApiError(401, code, message)
 export const forbidden = (message = 'Bu işlem için yetkiniz yok', code = 'forbidden') => new ApiError(403, code, message)
 export const notFound = (message = 'Kayıt bulunamadı', code = 'not_found') => new ApiError(404, code, message)
-export const conflict = (message = 'Çakışma oluştu', code = 'conflict') => new ApiError(409, code, message)
+export const conflict = (message = 'Çakışma oluştu', code = 'conflict', details) => new ApiError(409, code, message, details)
 
 /** zod SafeParseError'dan Türkçe, okunabilir tek bir hata mesajı üretir. */
 export function zodMessage(error) {
@@ -29,7 +31,9 @@ export function parseBody(schema, body) {
 // eslint-disable-next-line no-unused-vars
 export function errorHandler(err, req, res, next) {
   if (err instanceof ApiError) {
-    return res.status(err.status).json({ error: { code: err.code, message: err.message } })
+    const body = { code: err.code, message: err.message }
+    if (err.details !== undefined) body.details = err.details
+    return res.status(err.status).json({ error: body })
   }
 
   if (err?.name === 'MulterError') {

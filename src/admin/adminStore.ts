@@ -65,6 +65,10 @@ export interface SettingsOverrides {
   support?: { whatsappNumber?: string | null; email?: string | null }
   social?: { instagram?: string | null; tiktok?: string | null; pinterest?: string | null }
   offerPanel?: { delayAfterConsentMs?: number }
+  /** Stok takibi — düşük stok eşiği (bkz. src/admin/inventory.ts). */
+  inventory?: { lowStockThreshold?: number }
+  /** "Yeni" rozeti otomatik kural gün sayısı. */
+  catalog?: { newBadgeDays?: number }
   /** Marka görselleri (acilis-masaustu, acilis-mobil, koleksiyon, giris, logo, uretim-*) → blob anahtarı ya da URL */
   media?: Record<string, string>
 }

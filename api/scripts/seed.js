@@ -187,12 +187,23 @@ const DEFAULT_SETTINGS = {
   'support.email': null,
   social: { instagram: null, tiktok: null, pinterest: null },
   'offerPanel.delayAfterConsentMs': 6000,
+  // Stok takibi: 1..eşik adet "düşük stok", 0 "tükendi" (yalnızca yönetici ayarı — public /settings'e girmez).
+  'inventory.lowStockThreshold': 3,
+  // "Yeni" rozeti otomatik kuralı: created_at son N gün içindeyse (bkz. migrations/006_inventory.sql).
+  'catalog.newBadgeDays': 30,
 }
 
 async function seedSettings() {
   const count = await tableCount('settings')
   if (count > 0) {
-    console.log('[seed] settings zaten dolu, atlanıyor.')
+    // Dolu tabloda mevcut değerlere DOKUNULMAZ; yalnızca sonradan eklenen varsayılan anahtarlar
+    // (örn. inventory.lowStockThreshold, catalog.newBadgeDays) eksikse eklenir.
+    let added = 0
+    for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
+      const [result] = await pool.query('INSERT IGNORE INTO settings (`key`, value) VALUES (?, ?)', [key, JSON.stringify(value)])
+      added += result.affectedRows
+    }
+    console.log(`[seed] settings zaten dolu; eksik ${added} varsayılan anahtar eklendi.`)
     return
   }
   for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {

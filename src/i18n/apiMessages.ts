@@ -29,3 +29,34 @@ export function apiErrorMessage(e: unknown): string {
   }
   return M.default
 }
+
+/** `409 insufficient_stock` → `error.details[]` öğesi (bkz. api/README.md "Stok takibi"). */
+export interface StockShortage {
+  productId: string
+  colorId: string
+  size: string
+  requested: number
+  available: number
+}
+
+/** Hata `insufficient_stock` ise geçerli `details` öğelerini döndürür; değilse (ya da eski API) boş dizi. */
+export function stockShortages(e: unknown): StockShortage[] {
+  if (!(e instanceof ApiError) || e.code !== 'insufficient_stock' || !Array.isArray(e.details)) return []
+  return e.details.filter(
+    (d): d is StockShortage =>
+      !!d &&
+      typeof d === 'object' &&
+      typeof (d as StockShortage).productId === 'string' &&
+      typeof (d as StockShortage).colorId === 'string' &&
+      typeof (d as StockShortage).size === 'string' &&
+      Number.isFinite((d as StockShortage).available),
+  )
+}
+
+/**
+ * Yetersiz stok satırı için yerelleştirilmiş kısa mesaj — sunucu mesajı yalnızca Türkçe olduğundan
+ * ürün/renk adı mağazanın (dile göre yerelleştirilmiş) katalogundan verilir.
+ */
+export function stockShortageMessage(name: string, variant: string, available: number): string {
+  return available > 0 ? S.checkout.stockLeft(name, variant, available) : S.checkout.stockGone(name, variant)
+}

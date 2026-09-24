@@ -206,6 +206,10 @@ export const en: Strings = {
     orderNumber: 'Demo order number',
     resultNotFound: 'Demo order not found.',
     orderFailed: 'Could not place the order. Please try again.',
+    /** POST /orders → 409 insufficient_stock: the cart is reduced to the available stock. */
+    stockChangedTitle: 'Stock changed for some items. Your bag has been updated; please review it and place the order again.',
+    stockLeft: (name: string, variant: string, n: number) => `${name} (${variant}): only ${n} left, quantity updated to ${n}.`,
+    stockGone: (name: string, variant: string) => `${name} (${variant}): sold out, removed from your bag.`,
     backToShop: 'Back to shop',
     edit: 'Edit',
     continueTo: (step: string) => `Continue to ${step}`,

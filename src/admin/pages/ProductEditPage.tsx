@@ -6,7 +6,8 @@ import { allProducts, allSizes, baseSeeds, categories, colorOptions } from '../.
 import { productMediaName } from '../../data/media'
 import type { Product, SizeId } from '../../data/types'
 import { apiErrorMessage } from '../../i18n/apiMessages'
-import { listAdminProducts, updateAdminProduct, useApiMode, type AdminProduct, type AdminProductPatch } from '../adminApi'
+import { getAdminSettings, listAdminProducts, updateAdminProduct, useApiMode, type AdminProduct, type AdminProductPatch, type NewBadgeMode } from '../adminApi'
+import { inventoryConfigFrom, localInventoryConfig, MAX_STOCK_QTY, stockLevel, type InventoryConfig } from '../inventory'
 import { AS } from '../adminStrings'
 import { ApiMediaField } from '../components/ApiMediaField'
 import { MediaField } from '../components/MediaField'
@@ -24,6 +25,8 @@ interface FormState {
   price: string
   category: CategoryValue
   isNew: boolean
+  /** "Yeni" rozeti modu (yalnızca API modunda düzenlenir; yerelde `isNew` anahtarı kullanılır). */
+  newBadge: NewBadgeMode
   hidden: boolean
   colors: string[]
   stock: Record<string, Record<SizeId, string>>
@@ -76,6 +79,7 @@ function buildFormFromProduct(product: Product | AdminProduct): FormState {
     price: String(product.price),
     category: product.category,
     isNew: product.isNew,
+    newBadge: (product as Partial<AdminProduct>).newBadge ?? (product.isNew ? 'on' : 'off'),
     hidden: product.hidden ?? false,
     colors: product.colors.map((c) => c.id),
     stock,
@@ -102,6 +106,7 @@ function buildFormFromSeed(seed: Seed, number: string): FormState {
     price: String(seed.price),
     category: seed.category,
     isNew: seed.isNew ?? false,
+    newBadge: seed.isNew ? 'on' : 'off',
     hidden: false,
     colors,
     stock,
@@ -122,6 +127,92 @@ function enDiff(value: string, original: string | null | undefined): string | nu
   const trimmed = value.trim()
   if (trimmed === (original ?? '').trim()) return undefined
   return trimmed ? trimmed : null
+}
+
+/** Stok hücresi geçerli mi: boşluksuz 0..9999 tam sayı (ondalık/negatif/boş → geçersiz). */
+function validStockValue(value: string): boolean {
+  const t = value.trim()
+  return /^\d+$/.test(t) && Number(t) <= MAX_STOCK_QTY
+}
+
+function stockFormValid(form: FormState): boolean {
+  return form.colors.every((cid) => allSizes.every((size) => validStockValue(form.stock[cid]?.[size] ?? '0')))
+}
+
+interface StockMatrixProps {
+  colors: string[]
+  labelOf: (colorId: string) => string
+  stock: FormState['stock']
+  threshold: number
+  onChange: (colorId: string, size: SizeId, value: string) => void
+}
+
+/** Renk × beden stok matrisi; eşik altındaki (1..eşik) hücre vurgulu, 0 soluk, geçersiz hücre işaretli. */
+function StockMatrix({ colors, labelOf, stock, threshold, onChange }: StockMatrixProps) {
+  return (
+    <>
+      <p className="text-soft text-xs" style={{ marginBottom: 'var(--sp-3)' }}>
+        {AS.productEdit.stockHint(threshold)}
+      </p>
+      <div className={styles.stockTableWrap}>
+        <table className={styles.stockTable}>
+          <thead>
+            <tr>
+              <th scope="col">{AS.productEdit.colorsTitle}</th>
+              {allSizes.map((size) => (
+                <th key={size} scope="col">
+                  {size}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {colors.map((colorId) => {
+              const label = labelOf(colorId)
+              return (
+                <tr key={colorId}>
+                  <th scope="row">{label}</th>
+                  {allSizes.map((size) => {
+                    const raw = stock[colorId]?.[size] ?? '0'
+                    const valid = validStockValue(raw)
+                    const level = valid ? stockLevel(Number(raw), threshold) : 'ok'
+                    const cellClass = level === 'low' ? styles.stockCellLow : level === 'out' ? styles.stockCellOut : undefined
+                    const note = level === 'low' ? AS.productEdit.cellLow : level === 'out' ? AS.productEdit.cellOut : null
+                    return (
+                      <td key={size} className={cellClass}>
+                        <label className="sr-only" htmlFor={`stock-${colorId}-${size}`}>
+                          {label} {size}
+                          {note ? ` — ${note}` : ''}
+                        </label>
+                        <div className={styles.stockCell}>
+                          <input
+                            id={`stock-${colorId}-${size}`}
+                            type="number"
+                            inputMode="numeric"
+                            min={0}
+                            max={MAX_STOCK_QTY}
+                            step={1}
+                            aria-invalid={valid ? undefined : true}
+                            value={raw}
+                            onChange={(e) => onChange(colorId, size, e.target.value)}
+                          />
+                          {note ? (
+                            <span className={styles.stockCellNote} aria-hidden="true">
+                              {note}
+                            </span>
+                          ) : null}
+                        </div>
+                      </td>
+                    )
+                  })}
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </>
+  )
 }
 
 function sameSet(a: string[], b: string[]): boolean {
@@ -146,6 +237,14 @@ function ApiProductEditPage({ id }: { id: string }) {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const [config, setConfig] = useState<InventoryConfig>(localInventoryConfig)
+
+  // Eşik ve rozet gün sayısı yönetici ayarından (public /settings'te yok); hata olursa varsayılan kalır.
+  useEffect(() => {
+    getAdminSettings()
+      .then((raw) => setConfig(inventoryConfigFrom(raw)))
+      .catch(() => undefined)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -250,8 +349,13 @@ function ApiProductEditPage({ id }: { id: string }) {
     if (Number.isFinite(priceNum) && priceNum >= 0 && priceNum !== product.price) patch.price = priceNum
 
     if (form.category !== product.category) patch.category = form.category
-    if (form.isNew !== product.isNew) patch.isNew = form.isNew
+    if (form.newBadge !== (product.newBadge ?? (product.isNew ? 'on' : 'off'))) patch.newBadge = form.newBadge
     if (form.hidden !== (product.hidden ?? false)) patch.hidden = form.hidden
+
+    if (!stockFormValid(form)) {
+      setSaveError(AS.productEdit.stockInvalid)
+      return
+    }
 
     const nameEn = enDiff(form.nameEn, product.nameEn)
     if (nameEn !== undefined) patch.nameEn = nameEn
@@ -345,7 +449,14 @@ function ApiProductEditPage({ id }: { id: string }) {
             ))}
           </SelectField>
           <div className={styles.fieldStack}>
-            <Switch label={AS.productEdit.isNewLabel} checked={form.isNew} onChange={(e) => update('isNew', e.target.checked)} />
+            <SelectField label={AS.productEdit.newBadgeLabel} value={form.newBadge} onChange={(e) => update('newBadge', e.target.value as NewBadgeMode)}>
+              <option value="on">{AS.productEdit.newBadgeOn}</option>
+              <option value="auto">{AS.productEdit.newBadgeAuto(config.newBadgeDays)}</option>
+              <option value="off">{AS.productEdit.newBadgeOff}</option>
+            </SelectField>
+            {form.newBadge === (product.newBadge ?? (product.isNew ? 'on' : 'off')) ? (
+              <p className="text-soft text-xs">{AS.productEdit.newBadgeState(product.isNew)}</p>
+            ) : null}
             <Switch label={AS.productEdit.hiddenLabel} checked={form.hidden} onChange={(e) => update('hidden', e.target.checked)} />
           </div>
         </div>
@@ -384,44 +495,13 @@ function ApiProductEditPage({ id }: { id: string }) {
 
       <div className={styles.section}>
         <div className={styles.sectionTitle}>{AS.productEdit.stockTitle}</div>
-        <div className={styles.stockTableWrap}>
-          <table className={styles.stockTable}>
-            <thead>
-              <tr>
-                <th scope="col">{AS.productEdit.colorsTitle}</th>
-                {allSizes.map((size) => (
-                  <th key={size} scope="col">
-                    {size}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {form.colors.map((colorId) => {
-                const label = colorOptions.find((c) => c.id === colorId)?.label ?? colorId
-                return (
-                  <tr key={colorId}>
-                    <th scope="row">{label}</th>
-                    {allSizes.map((size) => (
-                      <td key={size}>
-                        <label className="sr-only" htmlFor={`stock-${colorId}-${size}`}>
-                          {label} {size}
-                        </label>
-                        <input
-                          id={`stock-${colorId}-${size}`}
-                          type="number"
-                          min={0}
-                          value={form.stock[colorId]?.[size] ?? '0'}
-                          onChange={(e) => updateStock(colorId, size, e.target.value)}
-                        />
-                      </td>
-                    ))}
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        <StockMatrix
+          colors={form.colors}
+          labelOf={(colorId) => product.colors.find((c) => c.id === colorId)?.label ?? colorOptions.find((c) => c.id === colorId)?.label ?? colorId}
+          stock={form.stock}
+          threshold={config.lowStockThreshold}
+          onChange={updateStock}
+        />
       </div>
 
       <div className={styles.section}>
@@ -576,6 +656,10 @@ function LocalProductEditPage({ id }: { id: string }) {
   }
 
   function handleSave() {
+    if (!stockFormValid(currentForm)) {
+      setMessage(AS.productEdit.stockInvalid)
+      return
+    }
     const override: ProductOverride = {}
     const f = currentForm
     const sd = currentSeed
@@ -695,44 +779,13 @@ function LocalProductEditPage({ id }: { id: string }) {
 
       <div className={styles.section}>
         <div className={styles.sectionTitle}>{AS.productEdit.stockTitle}</div>
-        <div className={styles.stockTableWrap}>
-          <table className={styles.stockTable}>
-            <thead>
-              <tr>
-                <th scope="col">{AS.productEdit.colorsTitle}</th>
-                {allSizes.map((size) => (
-                  <th key={size} scope="col">
-                    {size}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {form.colors.map((colorId) => {
-                const label = colorOptions.find((c) => c.id === colorId)?.label ?? colorId
-                return (
-                  <tr key={colorId}>
-                    <th scope="row">{label}</th>
-                    {allSizes.map((size) => (
-                      <td key={size}>
-                        <label className="sr-only" htmlFor={`stock-${colorId}-${size}`}>
-                          {label} {size}
-                        </label>
-                        <input
-                          id={`stock-${colorId}-${size}`}
-                          type="number"
-                          min={0}
-                          value={form.stock[colorId]?.[size] ?? '0'}
-                          onChange={(e) => updateStock(colorId, size, e.target.value)}
-                        />
-                      </td>
-                    ))}
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        <StockMatrix
+          colors={form.colors}
+          labelOf={(colorId) => colorOptions.find((c) => c.id === colorId)?.label ?? colorId}
+          stock={form.stock}
+          threshold={localInventoryConfig().lowStockThreshold}
+          onChange={updateStock}
+        />
       </div>
 
       <div className={styles.section}>

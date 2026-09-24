@@ -69,6 +69,13 @@ export const AS = {
     lastUpdate: 'Son güncelleme',
     neverUpdated: 'Henüz değişiklik yapılmadı',
     quickLinks: 'Hızlı bağlantılar',
+    lowStockCard: 'Düşük stok',
+    lowStockThreshold: (n: number) => `Eşik: 1–${n} adet`,
+    lowStockCount: (n: number) => `Eşik altında: ${n} varyant`,
+    outOfStockCount: (n: number) => `Tükenen: ${n} varyant`,
+    lowStockNone: 'Eşik altında varyant yok.',
+    lowStockRow: (number: string, color: string, size: string, qty: number) => `Ürün ${number} · ${color} / ${size} — ${qty} adet`,
+    lowStockMore: (n: number) => `+${n} varyant daha`,
   },
 
   products: {
@@ -89,6 +96,10 @@ export const AS = {
     edit: 'Düzenle',
     add: 'Yeni ürün ekle',
     addCategoryLabel: 'Kategori seçin',
+    lowStock: 'Düşük stok',
+    soldOut: 'Tükendi',
+    lowStockTitle: (n: number, threshold: number) => `${n} varyant 1–${threshold} adet`,
+    newAuto: 'Otomatik',
   },
 
   productEdit: {
@@ -99,6 +110,16 @@ export const AS = {
     priceLabel: 'Fiyat',
     categoryLabel: 'Kategori',
     isNewLabel: 'Yeni ürün',
+    newBadgeLabel: '"Yeni" rozeti',
+    newBadgeOn: 'Manuel açık',
+    newBadgeAuto: (days: number) => `Otomatik (${days} gün)`,
+    newBadgeOff: 'Kapalı',
+    newBadgeState: (active: boolean) => (active ? 'Mağazada şu an rozet görünüyor.' : 'Mağazada şu an rozet görünmüyor.'),
+    stockHint: (threshold: number) =>
+      `Her hücre 0–9999 arasında tam sayı. Vurgulu hücreler düşük stok (1–${threshold} adet); 0 = tükendi. Siparişler stoktan fazla oluşamaz.`,
+    stockInvalid: 'Stok adetleri 0–9999 arasında tam sayı olmalı. Hatalı hücreleri düzeltin.',
+    cellLow: 'düşük stok',
+    cellOut: 'tükendi',
     hiddenLabel: 'Mağazada gizle',
     colorsTitle: 'Renkler',
     colorsHint: 'En az bir renk seçili olmalı.',
@@ -169,6 +190,12 @@ export const AS = {
     pinterestLabel: 'Pinterest (boş = tanımsız)',
     offerTitle: 'Teklif paneli',
     offerDelayLabel: 'Çerez kararından sonraki gecikme (ms)',
+    inventoryTitle: 'Stok ve "Yeni" rozeti',
+    lowStockThresholdLabel: 'Düşük stok eşiği (adet)',
+    newBadgeDaysLabel: 'Yeni rozeti gün sayısı',
+    inventoryHint:
+      'Stoğu 1 ile eşik arasında kalan varyantlar panelde "Düşük stok" olarak işaretlenir ve ürün sayfasında "Son N adet" notu çıkar. Otomatik rozetli ürünler oluşturulduktan sonra bu kadar gün "Yeni" görünür.',
+    inventoryInvalid: 'Düşük stok eşiği 0–9999, gün sayısı 0–3650 arasında tam sayı olmalı.',
     mediaTitle: 'Marka görselleri',
     mediaLabels: {
       heroDesktop: 'Açılış görseli (masaüstü)',

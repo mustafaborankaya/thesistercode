@@ -206,6 +206,10 @@ export const tr = {
     orderNumber: 'Demo sipariş numarası',
     resultNotFound: 'Demo sipariş bulunamadı.',
     orderFailed: 'Sipariş oluşturulamadı. Lütfen tekrar deneyin.',
+    /** POST /orders → 409 insufficient_stock: sepet mevcut stoğa göre güncellenir. */
+    stockChangedTitle: 'Bazı ürünlerin stoğu değişti. Sepetiniz güncellendi; kontrol edip siparişi yeniden onaylayın.',
+    stockLeft: (name: string, variant: string, n: number) => `${name} (${variant}): yalnızca ${n} adet kaldı, adet ${n} olarak güncellendi.`,
+    stockGone: (name: string, variant: string) => `${name} (${variant}): tükendi, sepetten çıkarıldı.`,
     backToShop: 'Alışverişe dön',
     edit: 'Düzenle',
     continueTo: (step: string) => `${step} adımına geç`,

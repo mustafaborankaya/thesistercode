@@ -81,7 +81,12 @@ export async function createOrder(input, customer) {
 
     const items = []
     let subtotal = 0
+    /** Yetersiz stoklu TÜM varyantlar toplanır; kontrol bitince tek bir 409 ile döner (istemci sepeti tek seferde düzeltir). */
+    const shortages = []
 
+    // Satırlar normalizeLines ile birleştirilmiş (aynı varyant → tek satır, qty toplamı) ve sabit sırada
+    // kilitlenir: product_stock satırı `FOR UPDATE` ile transaction sonuna kadar kilitli kalır, böylece
+    // eşzamanlı iki sipariş aynı stoğu ikisi birden okuyup düşemez (ikincisi ilkinin commit'ini bekler).
     for (const line of lines) {
       const [productRows] = await conn.query('SELECT id, name, price, hidden FROM products WHERE id = ? FOR UPDATE', [
         line.productId,
@@ -100,9 +105,17 @@ export async function createOrder(input, customer) {
         'SELECT qty FROM product_stock WHERE product_id = ? AND color_id = ? AND size = ? FOR UPDATE',
         [line.productId, line.colorId, line.size],
       )
-      const stockQty = stockRows[0]?.qty ?? 0
+      const stockQty = Math.max(0, stockRows[0]?.qty ?? 0)
       if (stockQty < line.qty) {
-        throw conflict(`Yetersiz stok: ${product.name} (${color.label}, ${line.size})`, 'insufficient_stock')
+        shortages.push({
+          productId: line.productId,
+          colorId: line.colorId,
+          size: line.size,
+          requested: line.qty,
+          available: stockQty,
+          label: `${product.name} (${color.label}, ${line.size})`,
+        })
+        continue
       }
 
       const unitPrice = Number(product.price)
@@ -116,6 +129,15 @@ export async function createOrder(input, customer) {
         qty: line.qty,
         unitPrice,
       })
+    }
+
+    if (shortages.length) {
+      const message = `Yetersiz stok: ${shortages.map((s) => `${s.label} — kalan ${s.available}`).join('; ')}`
+      throw conflict(
+        message,
+        'insufficient_stock',
+        shortages.map((s) => ({ productId: s.productId, colorId: s.colorId, size: s.size, requested: s.requested, available: s.available })),
+      )
     }
 
     let discountPercent = 0
@@ -181,7 +203,15 @@ export async function createOrder(input, customer) {
         [item.qty, item.productId, item.colorId, item.size, item.qty],
       )
       if (result.affectedRows !== 1) {
-        throw conflict(`Yetersiz stok: ${item.productName} (${item.colorLabel}, ${item.size})`, 'insufficient_stock')
+        // Savunma derinliği: satır kilitli olduğundan buraya normalde düşülmez.
+        const [again] = await conn.query('SELECT qty FROM product_stock WHERE product_id = ? AND color_id = ? AND size = ?', [
+          item.productId,
+          item.colorId,
+          item.size,
+        ])
+        throw conflict(`Yetersiz stok: ${item.productName} (${item.colorLabel}, ${item.size})`, 'insufficient_stock', [
+          { productId: item.productId, colorId: item.colorId, size: item.size, requested: item.qty, available: Math.max(0, again[0]?.qty ?? 0) },
+        ])
       }
     }
 

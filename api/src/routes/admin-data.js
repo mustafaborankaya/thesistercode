@@ -53,7 +53,10 @@ const productImportSchema = z.object({
   name: z.string().min(1).max(200),
   nameEn: z.string().max(200).nullable().optional(),
   category: z.enum(productsService.CATEGORIES),
+  /** Dışa aktarımda isNew hesaplanmış (etkin) rozettir; içe aktarımda ham mod için newBadge/isNewManual tercih edilir. */
   isNew: z.boolean().optional(),
+  isNewManual: z.boolean().optional(),
+  newBadge: z.enum(['on', 'auto', 'off']).optional(),
   price: z.number().min(0),
   hidden: z.boolean().optional(),
   content: z
@@ -113,8 +116,8 @@ router.post('/import', requireOwner, async (req, res, next) => {
         let sortOrder = 0
         for (const p of data.products) {
           await conn.query(
-            `INSERT INTO products (id, number, slug, name, name_en, category, is_new, price, description, description_en, fabric_care, fabric_care_en, delivery_returns, hidden, sort_order)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO products (id, number, slug, name, name_en, category, is_new, new_badge_auto, price, description, description_en, fabric_care, fabric_care_en, delivery_returns, hidden, sort_order)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               p.id,
               p.number,
@@ -122,7 +125,8 @@ router.post('/import', requireOwner, async (req, res, next) => {
               p.name,
               productsService.enOrNull(p.nameEn),
               p.category,
-              p.isNew ? 1 : 0,
+              (p.newBadge ? p.newBadge === 'on' : (p.isNewManual ?? p.isNew)) ? 1 : 0,
+              p.newBadge === 'auto' ? 1 : 0,
               p.price,
               p.content?.description ?? null,
               productsService.enOrNull(p.content?.descriptionEn),

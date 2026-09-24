@@ -24,6 +24,7 @@ import adminUploadRoutes from './routes/admin-upload.js'
 import adminOrdersRoutes from './routes/admin-orders.js'
 import adminUsersRoutes from './routes/admin-users.js'
 import adminDataRoutes from './routes/admin-data.js'
+import adminInventoryRoutes from './routes/admin-inventory.js'
 
 const PKG_VERSION = '1.0.0'
 
@@ -81,6 +82,7 @@ export function createApp() {
   router.use('/orders', ordersRoutes)
   router.use('/admin/products', adminProductsRoutes)
   router.use('/admin/orders', adminOrdersRoutes)
+  router.use('/admin/inventory', adminInventoryRoutes)
   router.use('/admin/users', adminUsersRoutes)
   router.use('/admin/settings', adminSettingsRoutes)
   router.use('/admin', adminContentRoutes) // /admin/content, /admin/brand-media

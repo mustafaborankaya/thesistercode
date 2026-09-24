@@ -4,7 +4,8 @@ import { Icon } from '../../components/ui/Icon'
 import { allProducts } from '../../data/catalog'
 import { missingBrandMedia } from '../../data/media'
 import { listDemoOrders } from '../../services/checkout'
-import { listAdminOrders, useApiMode } from '../adminApi'
+import { getAdminInventory, listAdminOrders, useApiMode, type AdminInventory } from '../adminApi'
+import { localInventoryConfig, summarizeInventory } from '../inventory'
 import { readAdminData } from '../adminStore'
 import { AS } from '../adminStrings'
 import styles from '../admin.module.css'
@@ -25,6 +26,20 @@ export function Dashboard() {
       .catch(() => setApiOrderCount(null))
   }, [])
   const orderCount = useApiMode ? apiOrderCount : listDemoOrders().length
+
+  // Stok özeti: API modunda GET /admin/inventory (eşik yönetici ayarından); yerelde katalogdan.
+  const [apiInventory, setApiInventory] = useState<AdminInventory | null>(null)
+  const [inventoryError, setInventoryError] = useState(false)
+  useEffect(() => {
+    if (!useApiMode) return
+    getAdminInventory()
+      .then(setApiInventory)
+      .catch(() => setInventoryError(true))
+  }, [])
+  const inventory = useApiMode ? apiInventory : summarizeInventory(allProducts, localInventoryConfig().lowStockThreshold)
+  const lowRows = inventory
+    ? inventory.products.flatMap((p) => p.lowStockVariants.map((v) => ({ ...v, number: p.number }))).sort((a, b) => a.qty - b.qty)
+    : []
 
   return (
     <div>
@@ -48,6 +63,39 @@ export function Dashboard() {
           <p>{orderCount == null ? AS.common.loading : AS.dashboard.orderCount(orderCount)}</p>
           <Link className="link" to="/admin/siparisler">
             {AS.dashboard.viewOrders}
+          </Link>
+        </div>
+
+        <div className={styles.card}>
+          <div className={styles.sectionTitle}>{AS.dashboard.lowStockCard}</div>
+          {inventory ? (
+            <>
+              <p>
+                <span className={inventory.lowStockCount ? styles.stockFlag : undefined} style={{ fontSize: 'inherit' }}>{AS.dashboard.lowStockCount(inventory.lowStockCount)}</span>
+              </p>
+              <p className="text-soft">
+                {AS.dashboard.outOfStockCount(inventory.outOfStockCount)} · {AS.dashboard.lowStockThreshold(inventory.threshold)}
+              </p>
+              {lowRows.length === 0 ? (
+                <p className={styles.statusMuted}>{AS.dashboard.lowStockNone}</p>
+              ) : (
+                <ul className={styles.plainList} style={{ marginTop: 'var(--sp-3)' }}>
+                  {lowRows.slice(0, 5).map((v) => (
+                    <li key={`${v.productId}:${v.colorId}:${v.size}`}>
+                      <Link className="link" to={`/admin/urunler/${v.productId}`}>
+                        {AS.dashboard.lowStockRow(v.number, v.colorLabel, v.size, v.qty)}
+                      </Link>
+                    </li>
+                  ))}
+                  {lowRows.length > 5 ? <li className="text-soft">{AS.dashboard.lowStockMore(lowRows.length - 5)}</li> : null}
+                </ul>
+              )}
+            </>
+          ) : (
+            <p>{inventoryError ? AS.apiNotice.loadError : AS.common.loading}</p>
+          )}
+          <Link className="link" to="/admin/urunler">
+            {AS.dashboard.manageProducts}
           </Link>
         </div>
 

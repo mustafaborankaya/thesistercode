@@ -9,6 +9,7 @@ import { AS } from '../adminStrings'
 import { ApiMediaField } from '../components/ApiMediaField'
 import { MediaField } from '../components/MediaField'
 import { SaveBar } from '../components/SaveBar'
+import { intSetting, MAX_STOCK_QTY } from '../inventory'
 import styles from '../admin.module.css'
 
 interface SettingsForm {
@@ -28,6 +29,8 @@ interface SettingsForm {
   tiktok: string
   pinterest: string
   offerDelayMs: string
+  lowStockThreshold: string
+  newBadgeDays: string
 }
 
 function buildInitialForm(): SettingsForm {
@@ -49,6 +52,8 @@ function buildInitialForm(): SettingsForm {
     tiktok: s.social.tiktok ?? '',
     pinterest: s.social.pinterest ?? '',
     offerDelayMs: String(s.offerPanel.delayAfterConsentMs),
+    lowStockThreshold: String(intSetting(s.inventory.lowStockThreshold, defaultSettings.inventory.lowStockThreshold, 0, MAX_STOCK_QTY)),
+    newBadgeDays: String(intSetting(s.catalog.newBadgeDays, defaultSettings.catalog.newBadgeDays, 0, 3650)),
   }
 }
 
@@ -81,6 +86,8 @@ function buildFormFromAdminSettings(raw: Record<string, unknown>): SettingsForm 
     tiktok: social.tiktok ?? '',
     pinterest: social.pinterest ?? '',
     offerDelayMs: String(typeof offerDelay === 'number' ? offerDelay : defaultSettings.offerPanel.delayAfterConsentMs),
+    lowStockThreshold: String(intSetting(raw['inventory.lowStockThreshold'], defaultSettings.inventory.lowStockThreshold, 0, MAX_STOCK_QTY)),
+    newBadgeDays: String(intSetting(raw['catalog.newBadgeDays'], defaultSettings.catalog.newBadgeDays, 0, 3650)),
   }
 }
 
@@ -89,6 +96,14 @@ function toNullableNumber(v: string): number | null {
   if (!t) return null
   const n = Number(t)
   return Number.isFinite(n) ? n : null
+}
+
+/** Boşluksuz tam sayı ve [min, max] içinde → sayı; değilse null (kaydetme engellenir). */
+function toIntInRange(v: string, min: number, max: number): number | null {
+  const t = v.trim()
+  if (!/^\d+$/.test(t)) return null
+  const n = Number(t)
+  return n >= min && n <= max ? n : null
 }
 
 function toNullableString(v: string): string | null {
@@ -146,6 +161,13 @@ export function SettingsPage() {
   }
 
   async function handleSave() {
+    const lowStockThreshold = toIntInRange(form.lowStockThreshold, 0, MAX_STOCK_QTY)
+    const newBadgeDays = toIntInRange(form.newBadgeDays, 0, 3650)
+    if (lowStockThreshold == null || newBadgeDays == null) {
+      setError(AS.settings.inventoryInvalid)
+      return
+    }
+    setError(null)
     if (useApiMode) {
       setPending(true)
       setError(null)
@@ -167,6 +189,8 @@ export function SettingsPage() {
           'support.email': toNullableString(form.supportEmail),
           social: { instagram: toNullableString(form.instagram), tiktok: toNullableString(form.tiktok), pinterest: toNullableString(form.pinterest) },
           'offerPanel.delayAfterConsentMs': toNullableNumber(form.offerDelayMs) ?? siteSettings.offerPanel.delayAfterConsentMs,
+          'inventory.lowStockThreshold': lowStockThreshold,
+          'catalog.newBadgeDays': newBadgeDays,
         })
         setMessage(AS.apiNotice.saved)
       } catch (e) {
@@ -194,6 +218,8 @@ export function SettingsPage() {
         support: { whatsappNumber: toNullableString(form.whatsapp), email: toNullableString(form.supportEmail) },
         social: { instagram: toNullableString(form.instagram), tiktok: toNullableString(form.tiktok), pinterest: toNullableString(form.pinterest) },
         offerPanel: { delayAfterConsentMs: toNullableNumber(form.offerDelayMs) ?? undefined },
+        inventory: { lowStockThreshold },
+        catalog: { newBadgeDays },
       },
     }))
     setMessage(AS.save.saved)
@@ -271,6 +297,35 @@ export function SettingsPage() {
         <div className={styles.grid}>
           <Field label={AS.settings.offerDelayLabel} type="number" min={0} value={form.offerDelayMs} onChange={(e) => set('offerDelayMs', e.target.value)} />
         </div>
+      </div>
+
+      <div className={styles.section}>
+        <div className={styles.sectionTitle}>{AS.settings.inventoryTitle}</div>
+        <div className={styles.grid}>
+          <Field
+            label={AS.settings.lowStockThresholdLabel}
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={MAX_STOCK_QTY}
+            step={1}
+            value={form.lowStockThreshold}
+            onChange={(e) => set('lowStockThreshold', e.target.value)}
+          />
+          <Field
+            label={AS.settings.newBadgeDaysLabel}
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={3650}
+            step={1}
+            value={form.newBadgeDays}
+            onChange={(e) => set('newBadgeDays', e.target.value)}
+          />
+        </div>
+        <p className="text-soft text-xs" style={{ marginTop: 'var(--sp-2)' }}>
+          {AS.settings.inventoryHint}
+        </p>
       </div>
 
       <div className={styles.section}>

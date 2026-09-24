@@ -83,6 +83,8 @@ const PUBLIC_SETTING_KEYS = [
   'support.email',
   'social',
   'offerPanel.delayAfterConsentMs',
+  // Mağazadaki "Son N adet" notu yöneticinin eşiğini kullansın (iş sırrı değildir).
+  'inventory.lowStockThreshold',
 ]
 
 // memberDiscount içindeki `code` (indirim/kupon kodu) ve `usageLimit` (iç kullanım sayacı) iş

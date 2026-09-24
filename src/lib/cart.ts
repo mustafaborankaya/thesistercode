@@ -12,6 +12,31 @@ export function variantStock(product: Product, colorId: string, size: SizeId): n
   return product.stock[colorId]?.[size] ?? 0
 }
 
+/**
+ * Düşük stok eşiği — kural API ile aynı: 0 tükendi, 1..eşik düşük stok (bkz. api/README.md "Stok takibi").
+ * Eşik yalnızca yönetici ayarıdır (public /settings'e girmez); mağaza varsayılanı kullanır.
+ */
+export function lowStockThreshold(): number {
+  const t = siteSettings.inventory?.lowStockThreshold
+  return typeof t === 'number' && Number.isInteger(t) && t >= 0 ? t : 3
+}
+
+export function isLowStock(qty: number): boolean {
+  return qty > 0 && qty <= lowStockThreshold()
+}
+
+/**
+ * Sunucudan öğrenilen güncel stok (örn. `POST /orders` → 409 insufficient_stock `details[].available`)
+ * bellekteki katalog nesnesine yazılır — aksi halde `maxQty`/beden seçici açılış anındaki stoğu
+ * görmeye devam eder ve kullanıcı adedi tekrar artırabilirdi.
+ */
+export function applyKnownStock(productId: string, colorId: string, size: SizeId, qty: number): void {
+  const product = productById[productId]
+  if (!product) return
+  const row = product.stock[colorId] ?? (product.stock[colorId] = {})
+  row[size] = Math.max(0, Math.floor(qty))
+}
+
 export function lineProduct(line: CartLine): Product | undefined {
   return productById[line.productId]
 }

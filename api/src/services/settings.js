@@ -53,3 +53,31 @@ export async function updateSettings(patch) {
   }
   return getSettings()
 }
+
+/* ---------------- Stok takibi / "Yeni" rozeti ayarları ---------------- */
+
+/** Varsayılanlar — scripts/seed.js DEFAULT_SETTINGS ve src/config/settings.ts ile aynı. */
+export const INVENTORY_DEFAULTS = {
+  lowStockThreshold: 3,
+  newBadgeDays: 30,
+}
+
+/** Tam sayı [min, max] aralığındaysa onu, değilse varsayılanı döndürür (yazımda şema doğrulaması olmadığından okumada temizlenir). */
+function intOr(value, fallback, min, max) {
+  return Number.isInteger(value) && value >= min && value <= max ? value : fallback
+}
+
+/**
+ * `inventory.lowStockThreshold` (düşük stok eşiği; 1..eşik adet "düşük", 0 "tükendi") ve
+ * `catalog.newBadgeDays` (otomatik "Yeni" rozeti gün sayısı). Anahtar yoksa/geçersizse varsayılan.
+ */
+export async function getInventorySettings() {
+  const [rows] = await pool.query(
+    "SELECT `key`, CAST(value AS CHAR) AS value FROM settings WHERE `key` IN ('inventory.lowStockThreshold', 'catalog.newBadgeDays')",
+  )
+  const map = Object.fromEntries(rows.map((r) => [r.key, parseOnce(r.value)]))
+  return {
+    lowStockThreshold: intOr(map['inventory.lowStockThreshold'], INVENTORY_DEFAULTS.lowStockThreshold, 0, 9999),
+    newBadgeDays: intOr(map['catalog.newBadgeDays'], INVENTORY_DEFAULTS.newBadgeDays, 0, 3650),
+  }
+}

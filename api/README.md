@@ -110,6 +110,31 @@ Tüm hatalar `{ error: { code, message } }` biçiminde, mesajlar Türkçedir.
 - `GET /admin/users`
 - `POST /admin/users`, `PATCH /admin/users/:id` — **yalnızca owner** (`requireOwner`)
 - `GET /admin/export`, `POST /admin/import` (yalnızca owner) — bkz. "Bilinen sınırlar"
+- `GET /admin/inventory` — stok özeti (bkz. "Stok takibi")
+
+## Stok takibi
+
+- **Aşırı satış yok:** `POST /orders` aynı varyantın satırlarını toplar, her `product_stock` satırını
+  sabit sırada `SELECT … FOR UPDATE` ile kilitler ve `qty >= istenen` kontrol eder. Yetersiz varyantların
+  TÜMÜ tek yanıtta döner, transaction geri alınır:
+  `409 { error: { code: 'insufficient_stock', message, details: [{ productId, colorId, size, requested, available }] } }`.
+  Düşüm ayrıca `UPDATE … WHERE qty >= ?` ile korunur. Paralel siparişler stoğu aşamaz (MariaDB 10.11:
+  stok 3'e 6 paralel 1'er adet → 3×201 + 3×409, stok 0). Sipariş `cancelled` olunca stok geri yüklenir.
+- **Stok yazımı:** `PUT /admin/products/:id` `{ stock: { [colorId]: { [size]: qty } } }` — qty 0..9999 tam
+  sayı; negatif/ondalık/bilinmeyen beden → `400 validation_error`. Ayrı bir `/stock` uç noktası yoktur.
+- **`GET /admin/inventory`** → `{ threshold, totalUnits, lowStockCount, outOfStockCount, products: [{ productId,
+  number, name, hidden, totalStock, variantCount, outOfStockVariants, lowStockVariants: [{ productId, colorId,
+  colorLabel, size, qty }] }] }`. Kural: `qty = 0` tükendi, `1..threshold` düşük stok (örtüşmez). Yalnızca
+  ürünün tanımlı renkleri × `XS..XL` sayılır.
+- **Ayarlar** (yalnızca `GET /admin/settings`; public `/settings`'e girmez): `inventory.lowStockThreshold`
+  (varsayılan 3), `catalog.newBadgeDays` (varsayılan 30). Anahtar yoksa/geçersizse varsayılan kullanılır;
+  `npm run seed` dolu tabloda yalnızca eksik varsayılan anahtarları ekler.
+- **"Yeni" rozeti** (`migrations/006_inventory.sql`, `products.new_badge_auto`): ürün yanıtında
+  `newBadge: 'on' | 'auto' | 'off'`, `isNewManual` (ham `is_new`), `createdAt` ve etkin `isNew`
+  (`on` → true; `auto` → `created_at` son `catalog.newBadgeDays` gün içindeyse; `off` → false).
+  `PUT/POST /admin/products` `newBadge` ya da boolean `isNew` (true → `on`, false → `off`) kabul eder.
+  Mevcut ürünler migration'da `on/off` olarak kalır (davranış değişmez); panelden yeni eklenen ürün
+  varsayılan `auto`. `GET /products?category=yeni-gelenler` aynı kuralla süzülür.
 
 ## Çok dilli içerik
 

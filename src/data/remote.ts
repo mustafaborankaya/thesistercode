@@ -22,6 +22,13 @@ export interface RemoteColorOption extends ColorOption {
  */
 export interface RemoteProduct extends Omit<Product, 'colors' | 'content'> {
   nameEn?: string | null
+  /**
+   * "Yeni" rozeti (bkz. api/README.md "Stok takibi"): `isNew` sunucunun hesapladığı ETKİN rozettir
+   * (manuel açık ya da otomatik kural); `newBadge` mod, `isNewManual` ham bayrak. Eski API'de yoktur.
+   */
+  newBadge?: 'on' | 'auto' | 'off'
+  isNewManual?: boolean
+  createdAt?: string | null
   colors: RemoteColorOption[]
   content: Product['content'] & { descriptionEn?: string | null; fabricCareEn?: string | null }
 }

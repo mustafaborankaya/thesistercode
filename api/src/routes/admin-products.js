@@ -14,7 +14,12 @@ const PRODUCT_ID_RE = /^urun-\d{2,4}$/
 // İngilizce alanlar opsiyoneldir; null ya da boş metin EN değerini temizler (mağaza Türkçeye düşer).
 // Uzunluk sınırları TR karşılıklarıyla / DB sütunlarıyla aynıdır (bkz. migrations/005_content_locale.sql).
 const colorSchema = z.object({ id: z.string().min(1), label: z.string().min(1), labelEn: z.string().max(64).nullable().optional() })
-const stockSchema = z.record(z.string(), z.record(z.string(), z.number().int().min(0)))
+// Stok matrisi: { [colorId]: { [size]: qty } } — qty 0..9999 tam sayı; negatif/ondalık/bilinmeyen beden → 400.
+const stockSchema = z.record(
+  z.string().min(1).max(32),
+  z.record(z.enum(productsService.SIZES), z.number().int().min(0).max(productsService.MAX_STOCK_QTY)),
+)
+const newBadgeSchema = z.enum(productsService.NEW_BADGE_MODES)
 const mediaSchema = z.record(z.enum(productsService.MEDIA_KINDS), z.string().min(1))
 
 const updateSchema = z.object({
@@ -23,6 +28,7 @@ const updateSchema = z.object({
   price: z.number().min(0).optional(),
   category: z.enum(productsService.CATEGORIES).optional(),
   isNew: z.boolean().optional(),
+  newBadge: newBadgeSchema.optional(),
   hidden: z.boolean().optional(),
   colors: z.array(colorSchema).min(1).optional(),
   stock: stockSchema.optional(),
@@ -42,6 +48,7 @@ const createSchema = z.object({
   category: z.enum(productsService.CATEGORIES),
   price: z.number().min(0),
   isNew: z.boolean().optional(),
+  newBadge: newBadgeSchema.optional(),
   hidden: z.boolean().optional(),
   colors: z.array(colorSchema).optional(),
   stock: stockSchema.optional(),

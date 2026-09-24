@@ -1,10 +1,36 @@
 /** Ürün SQL sorguları ve mağaza `Product` tipiyle aynı şekle dönüştürme. */
 import { pool } from '../db.js'
 import { badRequest, conflict, notFound } from '../errors.js'
+import { getInventorySettings } from './settings.js'
 
 export const SIZES = ['XS', 'S', 'M', 'L', 'XL']
 export const CATEGORIES = ['elbiseler', 'ust-giyim', 'alt-giyim', 'takimlar', 'dis-giyim']
 export const MEDIA_KINDS = ['front', 'back', 'model', 'fabric']
+/** "Yeni" rozeti modu: 'on' manuel açık, 'auto' created_at son N gün içindeyse, 'off' kapalı (bkz. migrations/006_inventory.sql). */
+/** Tek varyant için izin verilen en yüksek stok adedi (panel ve API doğrulaması). */
+export const MAX_STOCK_QTY = 9999
+export const NEW_BADGE_MODES = ['on', 'auto', 'off']
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+function newBadgeMode(row) {
+  if (row.is_new) return 'on'
+  return row.new_badge_auto ? 'auto' : 'off'
+}
+
+/** Etkin rozet — TEK hesaplama noktası (ürün yanıtı ve 'yeni-gelenler' filtresi bunu kullanır). */
+function computeIsNew(row, newBadgeDays, now = Date.now()) {
+  const mode = newBadgeMode(row)
+  if (mode === 'on') return true
+  if (mode === 'off' || !row.created_at) return false
+  const created = new Date(row.created_at).getTime()
+  return Number.isFinite(created) && now - created <= newBadgeDays * DAY_MS
+}
+
+/** Mod → DB sütunları. */
+function badgeColumns(mode) {
+  return { is_new: mode === 'on' ? 1 : 0, new_badge_auto: mode === 'auto' ? 1 : 0 }
+}
 
 /** Boş/boşluk EN metni → null: EN alanı "yok" demektir, mağaza Türkçe değere düşer. */
 export const enOrNull = (v) => (typeof v === 'string' && v.trim() ? v : null)
@@ -57,15 +83,17 @@ async function fetchRelated(productIds) {
 }
 
 /** DB satırlarını mağazanın `Product` tipiyle aynı şekle çevirir (bkz. src/data/types.ts). */
-function toProduct(row, related) {
+function toProduct(row, related, ctx) {
   const colorRows = related.colors.get(row.id) ?? []
   const colors = colorRows.map((c) => ({ id: c.color_id, label: c.label, labelEn: enOrNull(c.label_en) }))
 
   const stockRows = related.stock.get(row.id) ?? []
+  // Yalnızca ürünün TANIMLI renkleri: renk listesinden çıkarılmış bir rengin eski stok satırları
+  // (updateProduct renkleri silse de product_stock satırları kalır) toplamları şişirmesin.
   const stock = {}
   for (const c of colorRows) stock[c.color_id] = Object.fromEntries(SIZES.map((s) => [s, 0]))
   for (const s of stockRows) {
-    if (!stock[s.color_id]) stock[s.color_id] = Object.fromEntries(SIZES.map((sz) => [sz, 0]))
+    if (!stock[s.color_id] || !SIZES.includes(s.size)) continue
     stock[s.color_id][s.size] = s.qty
   }
 
@@ -88,7 +116,11 @@ function toProduct(row, related) {
     name: row.name,
     nameEn: enOrNull(row.name_en),
     category: row.category,
-    isNew: !!row.is_new,
+    // isNew: etkin rozet (manuel açık YA DA otomatik kural); isNewManual: ham is_new; newBadge: mod.
+    isNew: computeIsNew(row, ctx.newBadgeDays, ctx.now),
+    isNewManual: !!row.is_new,
+    newBadge: newBadgeMode(row),
+    createdAt: row.created_at ?? null,
     price: Number(row.price),
     colors,
     sizes: SIZES,
@@ -112,7 +144,8 @@ function toProduct(row, related) {
 /** Kategori değerini gerçek kategori veya sanal kategori (tum-urunler / yeni-gelenler) olarak yorumlar. */
 function categoryFilter(category) {
   if (!category || category === 'tum-urunler') return { where: '', params: [] }
-  if (category === 'yeni-gelenler') return { where: ' AND is_new = 1', params: [] }
+  // 'yeni-gelenler' SQL'de değil, listProducts içinde computeIsNew ile süzülür (tek kural).
+  if (category === 'yeni-gelenler') return { where: '', params: [] }
   if (CATEGORIES.includes(category)) return { where: ' AND category = ?', params: [category] }
   return { where: ' AND 1=0', params: [] } // bilinmeyen kategori → boş sonuç
 }
@@ -124,8 +157,14 @@ export async function listProducts({ category, includeHidden = false } = {}) {
     `SELECT * FROM products WHERE 1=1${hiddenClause}${where} ORDER BY sort_order ASC, id ASC`,
     params,
   )
-  const related = await fetchRelated(rows.map((r) => r.id))
-  return rows.map((r) => toProduct(r, related))
+  const [related, ctx] = await Promise.all([fetchRelated(rows.map((r) => r.id)), productContext()])
+  const products = rows.map((r) => toProduct(r, related, ctx))
+  return category === 'yeni-gelenler' ? products.filter((p) => p.isNew) : products
+}
+
+async function productContext() {
+  const { newBadgeDays } = await getInventorySettings()
+  return { newBadgeDays, now: Date.now() }
 }
 
 export async function getProductBySlug(slug, { includeHidden = false } = {}) {
@@ -133,16 +172,16 @@ export async function getProductBySlug(slug, { includeHidden = false } = {}) {
   const row = rows[0]
   if (!row) return null
   if (row.hidden && !includeHidden) return null
-  const related = await fetchRelated([row.id])
-  return toProduct(row, related)
+  const [related, ctx] = await Promise.all([fetchRelated([row.id]), productContext()])
+  return toProduct(row, related, ctx)
 }
 
 export async function getProductById(id) {
   const [rows] = await pool.query('SELECT * FROM products WHERE id = ? LIMIT 1', [id])
   const row = rows[0]
   if (!row) return null
-  const related = await fetchRelated([row.id])
-  return toProduct(row, related)
+  const [related, ctx] = await Promise.all([fetchRelated([row.id]), productContext()])
+  return toProduct(row, related, ctx)
 }
 
 /** Admin panel: fiyat/stok/renk gibi satır bazlı veriler için ham ürün satırını da doğrular. */
@@ -164,7 +203,6 @@ export async function updateProduct(id, patch) {
       name: 'name',
       price: 'price',
       category: 'category',
-      isNew: 'is_new',
       hidden: 'hidden',
       description: 'description',
       fabricCare: 'fabric_care',
@@ -181,6 +219,13 @@ export async function updateProduct(id, patch) {
       if (patch[key] === undefined) continue
       fields.push(`${column} = ?`)
       values.push(enOrNull(patch[key]))
+    }
+    // "Yeni" rozeti: `newBadge` modu önceliklidir; yalnızca boolean `isNew` gelirse true → 'on', false → 'off'.
+    const mode = patch.newBadge ?? (patch.isNew === undefined ? undefined : patch.isNew ? 'on' : 'off')
+    if (mode !== undefined) {
+      const cols = badgeColumns(mode)
+      fields.push('is_new = ?', 'new_badge_auto = ?')
+      values.push(cols.is_new, cols.new_badge_auto)
     }
     if (fields.length) {
       await conn.query(`UPDATE products SET ${fields.join(', ')} WHERE id = ?`, [...values, id])
@@ -207,9 +252,10 @@ export async function updateProduct(id, patch) {
       for (const [colorId, bySize] of Object.entries(patch.stock)) {
         for (const [size, qty] of Object.entries(bySize)) {
           if (!SIZES.includes(size)) continue
+          if (!Number.isInteger(qty) || qty < 0 || qty > MAX_STOCK_QTY) throw badRequest(`Geçersiz stok adedi: ${colorId}/${size}`, 'validation_error')
           await conn.query(
             'INSERT INTO product_stock (product_id, color_id, size, qty) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE qty = VALUES(qty)',
-            [id, colorId, size, Number(qty) || 0],
+            [id, colorId, size, qty],
           )
         }
       }
@@ -278,12 +324,15 @@ export async function createProduct(data) {
     const id = `urun-${number}`
     const slug = id
 
+    // Panelden yeni eklenen ürün varsayılan olarak OTOMATİK "Yeni" kuralına girer (bkz. 006_inventory.sql).
+    const badge = badgeColumns(data.newBadge ?? (data.isNew === undefined ? 'auto' : data.isNew ? 'on' : 'off'))
+
     const [maxSort] = await conn.query('SELECT MAX(sort_order) AS maxSort FROM products')
     const sortOrder = (maxSort[0]?.maxSort ?? -1) + 1
 
     await conn.query(
-      `INSERT INTO products (id, number, slug, name, name_en, category, is_new, price, description, description_en, fabric_care, fabric_care_en, delivery_returns, hidden, sort_order)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO products (id, number, slug, name, name_en, category, is_new, new_badge_auto, price, description, description_en, fabric_care, fabric_care_en, delivery_returns, hidden, sort_order)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         number,
@@ -291,7 +340,8 @@ export async function createProduct(data) {
         data.name?.trim() || `Ürün ${number} — Ürün adı`,
         enOrNull(data.nameEn),
         data.category,
-        data.isNew ? 1 : 0,
+        badge.is_new,
+        badge.new_badge_auto,
         data.price,
         data.description ?? null,
         enOrNull(data.descriptionEn),
@@ -338,4 +388,45 @@ export async function assertProductsExist(ids) {
   const found = new Set(rows.map((r) => r.id))
   const missing = ids.filter((id) => !found.has(id))
   if (missing.length) throw conflict(`Ürün bulunamadı: ${missing.join(', ')}`)
+}
+
+/**
+ * Stok özeti (GET /admin/inventory). Kural: qty = 0 → tükendi; 1..eşik → düşük stok (örtüşmez).
+ * Yalnızca ürünün tanımlı renkleri × SIZES sayılır (bkz. toProduct). Gizli ürünler de dahildir
+ * (yönetici görünümü); her ürün için `hidden` döner.
+ */
+export async function getInventorySummary() {
+  const [{ lowStockThreshold }, products] = await Promise.all([getInventorySettings(), listProducts({ includeHidden: true })])
+  let lowStockCount = 0
+  let outOfStockCount = 0
+  let totalUnits = 0
+  const rows = products.map((p) => {
+    let total = 0
+    let variantCount = 0
+    let outOfStockVariants = 0
+    const lowStockVariants = []
+    for (const c of p.colors) {
+      for (const size of SIZES) {
+        const qty = p.stock[c.id]?.[size] ?? 0
+        variantCount++
+        total += qty
+        if (qty <= 0) outOfStockVariants++
+        else if (qty <= lowStockThreshold) lowStockVariants.push({ productId: p.id, colorId: c.id, colorLabel: c.label, size, qty })
+      }
+    }
+    lowStockCount += lowStockVariants.length
+    outOfStockCount += outOfStockVariants
+    totalUnits += total
+    return {
+      productId: p.id,
+      number: p.number,
+      name: p.name,
+      hidden: p.hidden,
+      totalStock: total,
+      variantCount,
+      outOfStockVariants,
+      lowStockVariants,
+    }
+  })
+  return { threshold: lowStockThreshold, totalUnits, lowStockCount, outOfStockCount, products: rows }
 }

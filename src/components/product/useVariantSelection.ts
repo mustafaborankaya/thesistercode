@@ -4,7 +4,7 @@
  * paylaşılır — iki farklı "Sepete Ekle" tetikleyicisi aynı durumu görür.
  */
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
-import { variantStock } from '../../lib/cart'
+import { isLowStock, variantStock } from '../../lib/cart'
 import type { Product, SizeId } from '../../data/types'
 import { useCart } from '../../state/CartContext'
 
@@ -16,7 +16,7 @@ interface UseVariantSelectionResult {
   error: VariantError
   pending: boolean
   added: boolean
-  /** Seçili beden stoğu ≤ 2 ise adet; aksi hâlde null. */
+  /** Seçili beden stoğu düşük stok eşiğinde (1..eşik, bkz. lib/cart.ts → isLowStock) ise adet; aksi hâlde null. */
   lowStock: number | null
   stockForSize: (size: SizeId) => number
   setColor: (colorId: string) => void
@@ -105,7 +105,7 @@ export function useVariantSelection(product: Product): UseVariantSelectionResult
   }, [size, colorId, product.id, addLine])
 
   const currentStock = size ? stockForSize(size) : null
-  const lowStock = currentStock != null && currentStock > 0 && currentStock <= 2 ? currentStock : null
+  const lowStock = currentStock != null && isLowStock(currentStock) ? currentStock : null
 
   return { colorId, size, error, pending, added, lowStock, stockForSize, setColor, setSize, submit, sizeGroupRef }
 }

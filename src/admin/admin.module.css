@@ -301,3 +301,80 @@
     align-items: flex-start;
   }
 }
+
+/* ---------------- Stok takibi (monokrom) ---------------- */
+
+/** Liste/gösterge rozeti: içi dolu küçük nokta + metin. */
+.stockFlag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--color-ink);
+  white-space: nowrap;
+}
+
+.stockFlag::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+/** Tükendi: içi boş nokta. */
+.stockFlagOut::before {
+  background: transparent;
+  border: 1px solid currentColor;
+}
+
+.stockCell {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+}
+
+.stockTable td.stockCellLow {
+  background: var(--color-surface);
+}
+
+.stockTable td.stockCellLow input {
+  font-weight: var(--fw-medium);
+  border: 1px solid var(--color-ink);
+}
+
+.stockTable td.stockCellOut input {
+  color: var(--color-ink-faint);
+}
+
+.stockTable input[aria-invalid='true'] {
+  outline: 2px solid var(--color-ink);
+  outline-offset: -2px;
+}
+
+.stockCellNote {
+  font-size: 10px;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+  line-height: 1.2;
+}
+
+.plainList {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+}
+
+/* sr-only etiketler (position:absolute) kaydırma kabının dışına taşıp mobilde sayfayı genişletmesin. */
+.stockTable td,
+.stockTable th {
+  position: relative;
+}

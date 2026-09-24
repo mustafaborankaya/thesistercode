@@ -34,6 +34,8 @@ export type AdminProductPatch = Partial<{
   price: number
   category: Exclude<CategoryId, 'tum-urunler' | 'yeni-gelenler'>
   isNew: boolean
+  /** "Yeni" rozeti modu: 'on' manuel açık, 'auto' son N gün kuralı, 'off' kapalı (isNew'dan önceliklidir). */
+  newBadge: NewBadgeMode
   hidden: boolean
   colors: AdminColorInput[]
   stock: Record<string, Partial<Record<SizeId, number>>>
@@ -44,6 +46,8 @@ export type AdminProductPatch = Partial<{
   completeLookProductIds: string[]
   media: Partial<Record<MediaKind, string>>
 }>
+
+export type NewBadgeMode = 'on' | 'auto' | 'off'
 
 export async function listAdminProducts(): Promise<AdminProduct[]> {
   const res = await api<{ products: AdminProduct[] }>('/admin/products')
@@ -74,6 +78,30 @@ export interface AdminProductCreateInput {
 export async function createAdminProduct(data: AdminProductCreateInput): Promise<AdminProduct> {
   const res = await api<{ product: AdminProduct }>('/admin/products', { method: 'POST', body: data })
   return res.product
+}
+
+/* ---------------- Stok özeti ---------------- */
+
+/** `GET /admin/inventory` — kural: 0 tükendi, 1..threshold düşük stok (bkz. api/README.md "Stok takibi"). */
+export interface AdminInventory {
+  threshold: number
+  totalUnits: number
+  lowStockCount: number
+  outOfStockCount: number
+  products: {
+    productId: string
+    number: string
+    name: string
+    hidden: boolean
+    totalStock: number
+    variantCount: number
+    outOfStockVariants: number
+    lowStockVariants: { productId: string; colorId: string; colorLabel: string; size: string; qty: number }[]
+  }[]
+}
+
+export async function getAdminInventory(): Promise<AdminInventory> {
+  return api<AdminInventory>('/admin/inventory')
 }
 
 /* ---------------- İçerik + marka görselleri ---------------- */

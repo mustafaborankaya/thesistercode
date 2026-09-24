@@ -7,9 +7,12 @@ import { AccordionItem } from '../components/ui/Accordion'
 import { Button } from '../components/ui/Button'
 import { Checkbox } from '../components/ui/Field'
 import { Icon } from '../components/ui/Icon'
+import { productById } from '../data/catalog'
 import { isApiMode } from '../data/remote'
+import type { SizeId } from '../data/types'
 import { S } from '../i18n'
-import { apiErrorMessage } from '../i18n/apiMessages'
+import { apiErrorMessage, stockShortageMessage, stockShortages } from '../i18n/apiMessages'
+import { applyKnownStock, lineKey } from '../lib/cart'
 import { formatPrice } from '../lib/format'
 import { paymentProvider } from '../services/checkout'
 import { listAddresses, loadAddresses, sameAddress, saveAddress, subscribeCustomer, type SavedAddress } from '../services/customer'
@@ -42,7 +45,7 @@ function withDefaultAddress(values: CheckoutFormValues, addresses: SavedAddress[
 }
 
 export function CheckoutPage() {
-  const { lines, totals, clear } = useCart()
+  const { lines, totals, clear, setQty, removeLine } = useCart()
   const { isLoggedIn, account } = useAccount()
   const navigate = useNavigate()
   // Sipariş verildikten sonra clear() sepeti boşaltır; bu bayrak "sepet boş" ekranının
@@ -55,6 +58,8 @@ export function CheckoutPage() {
   )
   const [errors, setErrors] = useState<CheckoutErrors>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
+  /** 409 insufficient_stock sonrası satır bazlı açıklamalar (sepet otomatik olarak mevcut stoğa indirildi). */
+  const [stockIssues, setStockIssues] = useState<string[]>([])
   const [pending, setPending] = useState(false)
   const [saveNewAddress, setSaveNewAddress] = useState(false)
   const [, refreshAddresses] = useReducer((n: number) => n + 1, 0)
@@ -94,6 +99,14 @@ export function CheckoutPage() {
         <h1 className={pageStyles.title}>{S.checkout.title}</h1>
         <div className={styles.empty}>
           <p>{S.checkout.emptyCart}</p>
+          {stockIssues.length ? (
+            // Yetersiz stok nedeniyle tüm satırlar kaldırıldıysa kullanıcıya nedeni yine söylenir.
+            <ul role="alert" className="text-soft" style={{ margin: 0, paddingLeft: '1.1em', fontSize: 'var(--fs-xs)' }}>
+              {stockIssues.map((note) => (
+                <li key={note}>{note}</li>
+              ))}
+            </ul>
+          ) : null}
           <Button variant="secondary" to="/koleksiyon">
             {S.common.continueShopping}
           </Button>
@@ -117,6 +130,7 @@ export function CheckoutPage() {
       return
     }
     setSubmitError(null)
+    setStockIssues([])
     setPending(true)
     const delivery = {
       firstName: values.firstName.trim(),
@@ -158,6 +172,26 @@ export function CheckoutPage() {
         saveDeliveryAddress()
         clear()
         navigate(`/odeme/sonuc/${result.order.id}`, { replace: true })
+        return
+      }
+      const shortages = stockShortages(result.error)
+      if (shortages.length) {
+        // Sunucunun bildirdiği güncel stok bellekteki kataloğa yazılır (adet sınırı/beden seçici bunu
+        // görsün), ardından sepet satırı mevcut stoğa indirilir; 0 ise satır kaldırılır.
+        const notes: string[] = []
+        for (const d of shortages) {
+          const size = d.size as SizeId
+          applyKnownStock(d.productId, d.colorId, size, d.available)
+          const key = lineKey(d.productId, d.colorId, size)
+          const product = productById[d.productId]
+          const name = product?.name ?? d.productId
+          const color = product?.colors.find((c) => c.id === d.colorId)?.label ?? d.colorId
+          if (d.available > 0) setQty(key, d.available)
+          else removeLine(key)
+          notes.push(stockShortageMessage(name, S.cart.variant(color, d.size), d.available))
+        }
+        setSubmitError(S.checkout.stockChangedTitle)
+        setStockIssues(notes)
         return
       }
       setSubmitError(apiErrorMessage(result.error))
@@ -209,9 +243,18 @@ export function CheckoutPage() {
             />
           ) : null}
           {submitError ? (
-            <div role="alert" className={styles.formError}>
+            <div role="alert" className={styles.formError} style={stockIssues.length ? { alignItems: 'flex-start' } : undefined}>
               <Icon name="info" size={14} />
-              <span>{submitError}</span>
+              <span>
+                {submitError}
+                {stockIssues.length ? (
+                  <ul style={{ margin: 'var(--sp-2) 0 0', paddingLeft: '1.1em' }}>
+                    {stockIssues.map((note) => (
+                      <li key={note}>{note}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </span>
             </div>
           ) : null}
           <div className={styles.submitRow}>

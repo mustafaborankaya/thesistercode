@@ -32,6 +32,8 @@ const KNOWN_SETTINGS_SCHEMAS = {
     })
     .partial(),
   'shipping.amount': z.number().min(0).nullable(),
+  'inventory.lowStockThreshold': z.number().int().min(0).max(9999),
+  'catalog.newBadgeDays': z.number().int().min(0).max(3650),
   'support.whatsappNumber': z.string().nullable(),
   'support.email': z.string().email().nullable(),
   social: z

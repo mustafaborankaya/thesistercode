@@ -72,6 +72,16 @@ export const defaultSettings = {
     pageSize: 12,
     /** Ürün görsel alanı başlangıç oranı. */
     mediaRatio: '3 / 4',
+    /** "Yeni" rozeti otomatik kuralı: ürün oluşturulduktan sonraki gün sayısı (API hesaplar; bkz. api/README.md "Stok takibi"). */
+    newBadgeDays: 30,
+  },
+
+  /**
+   * Stok takibi. Eşik yalnızca yönetici ayarıdır (`GET /admin/settings`, public /settings'e girmez);
+   * mağaza "Son N adet" notu için bu varsayılanı kullanır. Kural: 0 tükendi, 1..eşik düşük stok.
+   */
+  inventory: {
+    lowStockThreshold: 3,
   },
 
   /** Sosyal hesaplar henüz yok; null iken alan adıyla yer tutucu gösterilir. */

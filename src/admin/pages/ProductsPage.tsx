@@ -8,7 +8,8 @@ import { mediaByName, productMediaName } from '../../data/media'
 import type { Product } from '../../data/types'
 import { apiErrorMessage } from '../../i18n/apiMessages'
 import { formatPrice } from '../../lib/format'
-import { createAdminProduct, listAdminProducts, useApiMode } from '../adminApi'
+import { createAdminProduct, getAdminSettings, listAdminProducts, useApiMode, type AdminProduct } from '../adminApi'
+import { inventoryConfigFrom, localInventoryConfig, productStockInfo } from '../inventory'
 import { AS } from '../adminStrings'
 import styles from '../admin.module.css'
 
@@ -16,13 +17,6 @@ const creatableCategories = categories.filter((c) => !c.virtual)
 
 const filterableCategories = categories.filter((c) => !c.virtual)
 
-function totalStock(product: Product): number {
-  let total = 0
-  for (const sizes of Object.values(product.stock)) {
-    for (const qty of Object.values(sizes)) total += qty ?? 0
-  }
-  return total
-}
 
 function hasImage(product: Product): boolean {
   // API modunda ürün doğrudan sunucudan gelir; ön görsel media[0] olarak sabittir (bkz. api/src/services/products.js).
@@ -40,6 +34,15 @@ export function ProductsPage() {
   const [loading, setLoading] = useState(useApiMode)
   const [addCategory, setAddCategory] = useState<string>(creatableCategories[0]?.id ?? '')
   const [addPending, setAddPending] = useState(false)
+  const [threshold, setThreshold] = useState(() => localInventoryConfig().lowStockThreshold)
+
+  // API modunda eşik yönetici ayarından (public /settings'te yok); hata olursa varsayılan kalır.
+  useEffect(() => {
+    if (!useApiMode) return
+    getAdminSettings()
+      .then((raw) => setThreshold(inventoryConfigFrom(raw).lowStockThreshold))
+      .catch(() => undefined)
+  }, [])
 
   async function handleAdd() {
     if (!addCategory) return
@@ -166,11 +169,14 @@ export function ProductsPage() {
                     <td>{p.name}</td>
                     <td>{catLabel}</td>
                     <td>{formatPrice(p.price)}</td>
-                    <td>{totalStock(p)}</td>
+                    <td>
+                      <StockCell product={p} threshold={threshold} />
+                    </td>
                     <td>
                       {p.isNew ? (
                         <span className={styles.status}>
                           <Icon name="check" size={14} /> {AS.common.yes}
+                          {(p as Partial<AdminProduct>).newBadge === 'auto' ? <span className="text-soft"> ({AS.products.newAuto})</span> : null}
                         </span>
                       ) : (
                         <span className={styles.statusMuted}>
@@ -213,5 +219,22 @@ export function ProductsPage() {
         </div>
       )}
     </div>
+  )
+}
+
+/** Toplam stok + düşük stok / tükendi rozeti (kural: bkz. ../inventory.ts). */
+function StockCell({ product, threshold }: { product: Product; threshold: number }) {
+  const info = productStockInfo(product, threshold)
+  return (
+    <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 2 }}>
+      <span>{info.total}</span>
+      {info.soldOut ? (
+        <span className={[styles.stockFlag, styles.stockFlagOut].join(' ')}>{AS.products.soldOut}</span>
+      ) : info.low > 0 ? (
+        <span className={styles.stockFlag} title={AS.products.lowStockTitle(info.low, threshold)}>
+          {AS.products.lowStock}
+        </span>
+      ) : null}
+    </span>
   )
 }
