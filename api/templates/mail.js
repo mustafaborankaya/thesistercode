@@ -23,44 +23,69 @@ function money(n) {
 }
 
 export const templates = {
-  /** Sipariş onayı — müşteriye. */
-  orderConfirmation({ order, items, locale = 'tr' }) {
+  /** Sipariş onayı — müşteriye. `order`: services/orders.js formatOrder çıktısı (items dahil). */
+  orderConfirmation({ order, locale = 'tr' }) {
     const en = locale === 'en'
+    const d = order.delivery
+    const t = order.totals
+    const items = order.items ?? []
     const subject = en ? `Your order ${order.id} has been received` : `${order.id} numaralı siparişiniz alındı`
-    const lines = items.map((i) => `${i.qty} × ${i.product_name} (${i.color_label} / ${i.size}) — ${money(i.unit_price * i.qty)}`)
+    const lines = items.map((i) => `${i.qty} × ${i.productName} (${i.colorLabel} / ${i.size}) — ${money(i.unitPrice * i.qty)}`)
+    const shippingText = t.shipping == null ? (en ? 'to be confirmed' : 'bildirilecek') : money(t.shipping)
     const text = [
-      en ? `Hello ${order.first_name},` : `Merhaba ${order.first_name},`,
+      en ? `Hello ${d.firstName},` : `Merhaba ${d.firstName},`,
       en ? `We have received your order ${order.id}.` : `${order.id} numaralı siparişinizi aldık.`,
       '',
       ...lines,
       '',
-      `${en ? 'Subtotal' : 'Ara toplam'}: ${money(order.subtotal)}`,
-      order.discount_amount > 0 ? `${en ? 'Member discount' : 'Üyelik indirimi'} (${order.discount_percent}%): -${money(order.discount_amount)}` : null,
-      `${en ? 'Shipping' : 'Kargo'}: ${order.shipping == null ? (en ? 'to be confirmed' : 'bildirilecek') : money(order.shipping)}`,
-      `${en ? 'Total' : 'Genel toplam'}: ${money(order.total)}`,
+      `${en ? 'Subtotal' : 'Ara toplam'}: ${money(t.subtotal)}`,
+      t.discountAmount > 0 ? `${en ? 'Member discount' : 'Üyelik indirimi'} (%${t.discountPercent}): -${money(t.discountAmount)}` : null,
+      `${en ? 'Shipping' : 'Kargo'}: ${shippingText}`,
+      `${en ? 'Total' : 'Genel toplam'}: ${money(t.total)}`,
+      '',
+      `${en ? 'Delivery address' : 'Teslimat adresi'}: ${d.firstName} ${d.lastName}, ${d.address}, ${d.district} / ${d.city} ${d.postalCode}, ${d.country}`,
       '',
       en ? 'We will notify you when your order is shipped.' : 'Siparişiniz kargoya verildiğinde sizi bilgilendireceğiz.',
-    ].filter((l) => l !== null).join('\n')
+    ]
+      .filter((l) => l !== null)
+      .join('\n')
     const html = layout(
       subject,
-      `<p>${esc(en ? `Hello ${order.first_name},` : `Merhaba ${order.first_name},`)}</p>
+      `<p>${esc(en ? `Hello ${d.firstName},` : `Merhaba ${d.firstName},`)}</p>
 <p>${esc(en ? `We have received your order ${order.id}.` : `${order.id} numaralı siparişinizi aldık.`)}</p>
 <ul style="padding-left:18px">${lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>
 <table style="border-collapse:collapse;margin-top:12px">
-<tr><td style="padding:2px 16px 2px 0">${en ? 'Subtotal' : 'Ara toplam'}</td><td>${esc(money(order.subtotal))}</td></tr>
-${order.discount_amount > 0 ? `<tr><td style="padding:2px 16px 2px 0">${en ? 'Member discount' : 'Üyelik indirimi'} (${esc(order.discount_percent)}%)</td><td>-${esc(money(order.discount_amount))}</td></tr>` : ''}
-<tr><td style="padding:2px 16px 2px 0">${en ? 'Shipping' : 'Kargo'}</td><td>${order.shipping == null ? esc(en ? 'to be confirmed' : 'bildirilecek') : esc(money(order.shipping))}</td></tr>
-<tr><td style="padding:8px 16px 2px 0;font-weight:600">${en ? 'Total' : 'Genel toplam'}</td><td style="padding-top:8px;font-weight:600">${esc(money(order.total))}</td></tr>
-</table>`,
+<tr><td style="padding:2px 16px 2px 0">${en ? 'Subtotal' : 'Ara toplam'}</td><td>${esc(money(t.subtotal))}</td></tr>
+${t.discountAmount > 0 ? `<tr><td style="padding:2px 16px 2px 0">${en ? 'Member discount' : 'Üyelik indirimi'} (%${esc(t.discountPercent)})</td><td>-${esc(money(t.discountAmount))}</td></tr>` : ''}
+<tr><td style="padding:2px 16px 2px 0">${en ? 'Shipping' : 'Kargo'}</td><td>${esc(shippingText)}</td></tr>
+<tr><td style="padding:8px 16px 2px 0;font-weight:600">${en ? 'Total' : 'Genel toplam'}</td><td style="padding-top:8px;font-weight:600">${esc(money(t.total))}</td></tr>
+</table>
+<p style="margin-top:16px">${esc(en ? 'Delivery address' : 'Teslimat adresi')}: ${esc(`${d.firstName} ${d.lastName}, ${d.address}, ${d.district} / ${d.city} ${d.postalCode}, ${d.country}`)}</p>
+<p>${esc(en ? 'We will notify you when your order is shipped.' : 'Siparişiniz kargoya verildiğinde sizi bilgilendireceğiz.')}</p>`,
       locale,
     )
     return { subject, text, html }
   },
 
-  /** Yeni sipariş bildirimi — yöneticiye. */
-  adminNewOrder({ order, items }) {
-    const subject = `Yeni sipariş: ${order.id} — ${money(order.total)}`
-    const text = [`Yeni sipariş alındı: ${order.id}`, `${order.first_name} ${order.last_name} — ${order.email} — ${order.phone}`, `${order.address}, ${order.district} / ${order.city}`, '', ...items.map((i) => `${i.qty} × ${i.product_name} (${i.color_label} / ${i.size})`), '', `Toplam: ${money(order.total)}`].join('\n')
+  /** Yeni sipariş bildirimi — yöneticiye (her zaman TR). */
+  adminNewOrder({ order }) {
+    const d = order.delivery
+    const items = order.items ?? []
+    const subject = `Yeni sipariş: ${order.id} — ${money(order.totals.total)}`
+    const text = [
+      `Yeni sipariş alındı: ${order.id}`,
+      `${d.firstName} ${d.lastName} — ${order.contact.email} — ${order.contact.phone}`,
+      `${d.address}, ${d.district} / ${d.city} ${d.postalCode}, ${d.country}`,
+      d.note ? `Not: ${d.note}` : null,
+      '',
+      ...items.map((i) => `${i.qty} × ${i.productName} (${i.colorLabel} / ${i.size}) — ${money(i.unitPrice * i.qty)}`),
+      '',
+      `Ara toplam: ${money(order.totals.subtotal)}`,
+      order.totals.discountAmount > 0 ? `Üyelik indirimi (%${order.totals.discountPercent}): -${money(order.totals.discountAmount)}` : null,
+      `Toplam: ${money(order.totals.total)}`,
+    ]
+      .filter((l) => l !== null)
+      .join('\n')
     const html = layout(subject, `<pre style="white-space:pre-wrap;font-family:inherit">${esc(text)}</pre>`, 'tr')
     return { subject, text, html }
   },

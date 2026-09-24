@@ -6,6 +6,7 @@ import * as ordersService from '../services/orders.js'
 import * as productsService from '../services/products.js'
 import { parseBody, notFound } from '../errors.js'
 import { optionalCustomer } from '../auth.js'
+import { sendMail, notifyAdmin } from '../services/mail.js'
 
 const router = Router()
 
@@ -65,6 +66,8 @@ const orderSchema = z.object({
     )
     .min(1, 'Sepet boş olamaz')
     .max(100, 'Sepette en fazla 100 satır olabilir'),
+  /** E-posta dili (mağazanın /en önekinden gelir); yoksa Türkçe. */
+  locale: z.enum(['tr', 'en']).optional(),
 })
 
 router.post('/', orderCreateLimiter, optionalCustomer, async (req, res, next) => {
@@ -74,6 +77,10 @@ router.post('/', orderCreateLimiter, optionalCustomer, async (req, res, next) =>
     // accessToken yalnızca burada döner — istemci (mağaza) bunu saklamalı (ör. sipariş onay
     // sayfası/e-postası); sunucu bunu bir daha asla düz metin olarak döndürmez.
     res.status(201).json({ order, accessToken })
+    // E-postalar yanıtı bekletmez; sağlayıcı tanımlı değilse (MAIL_PROVIDER=none) mail_log'a "skipped" yazılır.
+    const locale = input.locale ?? 'tr'
+    sendMail({ to: order.contact.email, template: 'orderConfirmation', data: { order }, locale, refType: 'order', refId: order.id }).catch(() => undefined)
+    notifyAdmin('adminNewOrder', { order }, { refType: 'order', refId: order.id }).catch(() => undefined)
   } catch (err) {
     next(err)
   }

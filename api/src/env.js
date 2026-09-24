@@ -30,6 +30,8 @@ const schema = z.object({
   UPLOAD_PUBLIC_BASE: z.string().min(1).default('/uploads'),
   // Virgülle ayrılmış birden çok kaynağa izin verir (örn. "https://teshvikiye.com,https://www.teshvikiye.com").
   CORS_ORIGIN: z.string().min(1, 'CORS_ORIGIN gerekli'),
+  /** E-postalardaki bağlantıların kökü (ör. https://teshvikiye.com); yoksa ilk CORS origin'i. */
+  SITE_URL: z.string().url().optional(),
 })
 
 const parsed = schema.safeParse(process.env)
@@ -48,3 +50,6 @@ export const isProd = env.NODE_ENV === 'production'
 export const corsOrigins = env.CORS_ORIGIN.split(',')
   .map((s) => s.trim())
   .filter(Boolean)
+
+/** E-posta bağlantıları için site kökü (sondaki / atılır). */
+export const siteUrl = (env.SITE_URL || corsOrigins[0] || 'https://teshvikiye.com').replace(/\/+$/, '')

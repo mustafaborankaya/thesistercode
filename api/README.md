@@ -71,8 +71,20 @@ Tüm hatalar `{ error: { code, message } }` biçiminde, mesajlar Türkçedir.
 - `POST /orders` — sipariş oluşturur; fiyat/stok DB'den doğrulanır, toplamlar sunucuda hesaplanır
   (üyelik indirimi yalnızca oturumu açık ve `discount_eligible` müşteri için), stok transaction
   içinde düşülür.
-- `GET /orders/:id` — demo: e-posta doğrulaması yok, yalnızca id ile erişilir.
-- `POST /account/register`, `POST /account/login`, `POST /account/logout`, `GET /account/me`
+- `POST /orders` yanıtı `{ order, accessToken }` — `accessToken` yalnızca bu anda, bir kez döner
+  (DB'de yalnızca SHA-256 hash'i). İstek gövdesine isteğe bağlı `locale: 'tr'|'en'` eklenebilir
+  (sipariş onay e-postasının dili). Sipariş sonrası müşteriye onay, `ADMIN_NOTIFY_EMAIL`
+  tanımlıysa yöneticiye bildirim e-postası kuyruğa alınır (yanıtı bekletmez).
+- `GET /orders/:id` — yalnızca (a) siparişi oluşturan müşterinin oturumu veya
+  (b) `Authorization: Bearer <accessToken>` başlığı ile; yetkisiz/yanlış/yok → ayırt edilemez 404.
+  Sorgu parametresiyle token KABUL EDİLMEZ (erişim günlüklerine düşmesin diye).
+- `POST /account/register` (`{ name, email, password, locale? }`; hoş geldin + e-posta doğrulama
+  e-postası kuyruğa alınır), `POST /account/login`, `POST /account/logout`, `GET /account/me`
+- `POST /account/verify-email/request` (oturum gerekli; yeni doğrulama bağlantısı),
+  `POST /account/verify-email` `{ token }`, `GET /account/verify-email/status` (oturum gerekli)
+- `POST /account/password/forgot` `{ email, locale? }` — hesap var/yok sızdırılmaz, her zaman
+  `{ ok: true }`; 60 dk geçerli tek kullanımlık bağlantı `SITE_URL/sifre-sifirla?token=…`
+- `POST /account/password/reset` `{ token, password }` — token tek kullanımlık; çerez temizlenir.
 
 ### Yönetici (`requireAdmin`, cookie `tsc_admin`)
 
@@ -90,52 +102,46 @@ Tüm hatalar `{ error: { code, message } }` biçiminde, mesajlar Türkçedir.
 
 ## Bilinen sınırlar / bilinçli tasarım kararları
 
-- **`GET /orders/:id` KİMLİK DOĞRULAMASI YOK — GERÇEK BİR PII SIZINTI RİSKİ, "demo notu" değil.**
-  Görev tanımı bu uç noktayı e-posta doğrulaması olmadan, yalnızca id ile istemişti; id biçimi
-  `TSV-YYYYMMDD-XXXX` olup son 4 hane rastgele — yani **günde yalnızca 10.000 olası değer**. Bu,
-  hız sınırlaması olmadan birkaç dakikada taranabilecek kadar küçük bir alan; yanıt ad, telefon,
-  e-posta ve adres döner. Azaltım olarak bu uç noktaya da hız sınırı eklendi (15 dk'da 30 istek/IP)
-  ama bu YALNIZCA taramayı YAVAŞLATIR, İMKANSIZ KILMAZ. Gerçek çözüm (kapsam dışı, süpervizör
-  kararı gerektirir): sipariş onay sayfası/e-postası için e-posta doğrulaması eklemek ya da yanıtı
-  yalnızca durum + kalemlere indirip iletişim/teslimat alanlarını gizlemek.
-- **`/admin/export` ve `/admin/import` kapsamı**: yalnızca ürün katalogu + içerik alanları +
-  ayarlar + marka görselleri kapsar. `admin_users` (parola hash'i), `customers` (kişisel veri) ve
-  `orders`/`order_items` (muhasebe/stok geçmişi) bilinçli olarak DIŞARIDA bırakıldı — bunların ayrı
-  uç noktaları var ve toplu JSON dışa aktarımında dolaşmaları güvenlik/gizlilik riski oluşturur.
-  Görev tanımındaki "tüm veri" ifadesinden bu şekilde saptık; süpervizör isterse genişletilebilir.
-- `POST /admin/users` de owner'a özel yapıldı (görev tanımında yalnızca PATCH için belirtilmişti);
-  editor rolünün başka yönetici oluşturamaması güvenlik açısından daha tutarlı görüldü.
-- **Sipariş iptali stoğu geri yüklemez.** `PATCH /admin/orders/:id` durumu `cancelled` yapabilir
-  ama `product_stock` satırlarını artırmaz; gerekiyorsa ayrı bir "iade/iptal" akışı eklenmeli.
-- **Origin kontrolü tam eşleşmedir** (`req.get('origin') === CORS_ORIGIN`). Site hem `teshvikiye.com`
-  hem `www.teshvikiye.com` üzerinden erişilebilirse, biri üzerinden gelen tüm mutasyon istekleri
-  403 alır. Süpervizörün ya `www` → apex yönlendirmesi yapması ya da `CORS_ORIGIN`'i
-  virgülle ayrılmış çoklu köken destekleyecek şekilde genişletmemizi istemesi gerekir.
+- **`GET /orders/:id` erişimi** (24.09.2026 güvenlik denetimi): sipariş id'si tek başına yeterli
+  değildir; 32 baytlık rastgele `accessToken` (yalnızca oluşturma yanıtında döner, DB'de SHA-256
+  hash'i) ya da sahibi müşteri oturumu gerekir. Bulunamayan/yetkisiz durumlar aynı 404'ü döner.
+  Bu migration'dan önce oluşturulmuş siparişlerin `access_token_hash` alanı NULL'dır; onlara yalnızca
+  sahibi müşteri veya yönetici erişebilir.
+- **`/admin/export` ve `/admin/import` kapsamı** (yalnızca owner): ürün katalogu + içerik alanları +
+  ayarlar + marka görselleri. `admin_users`, `customers`, `orders`/`order_items` bilinçli olarak
+  DIŞARIDA (kişisel veri / parola hash'i / muhasebe geçmişi toplu JSON'da dolaşmasın).
+- `POST /admin/users` ve `PATCH /admin/users/:id` yalnızca owner.
+- **Sipariş iptali stoğu geri yükler** (`cancelled` → transaction içinde `FOR UPDATE`, idempotent).
+  İptalin geri alınması (cancelled → new/paid) stoğu otomatik tekrar düşürmez.
+- **Origin/Referer kontrolü**: `CORS_ORIGIN` virgülle ayrılmış birden çok köken alabilir
+  (apex + www). Çerezle kimliği doğrulanan mutasyon isteklerinde Origin ya da Referer zorunludur.
+- **Parola sıfırlama mevcut oturumları düşürmez**: müşteri JWT'leri durumsuzdur; başka cihazlardaki
+  oturumlar süresi dolana kadar geçerli kalır. Gerekirse `customers` tablosuna bir `token_version`
+  sütunu eklenip JWT'ye yazılarak zorla çıkış sağlanabilir.
+- **`POST /account/register`** `409 email_taken` döndürür (hesap numaralandırmasına açık; 10/15 dk
+  hız sınırı var). Login/forgot uç noktaları hesap var/yok farkını sızdırmaz.
+- **E-posta sağlayıcı yok** (`MAIL_PROVIDER=none`): tüm e-postalar `mail_log` tablosuna
+  `skipped` olarak yazılır, gönderilmez. SMTP hesabı gelince `.env`'de `MAIL_PROVIDER=smtp` +
+  `SMTP_*`/`MAIL_FROM` tanımlanır; `nodemailer` yalnızca bu modda dinamik olarak yüklenir.
+  Sıfırlama/doğrulama bağlantılarının hedef sayfaları (`/sifre-sifirla`, `/hesap/dogrula`)
+  mağaza tarafında henüz yok; API hazır.
 - **Passenger'ın `server.js`'i `require()` ile yükleme ihtimali**: Node ≥22.12 bunu ESM için
-  destekler; daha eski bir Node yama sürümünde `ERR_REQUIRE_ESM` alınırsa, başlangıç dosyasını
-  `import('./server.js')` içeren küçük bir `server.cjs`'e çevirmek yeterli olur (bu depoda yok,
-  yalnızca ihtiyaç halinde eklenecek bir yedek plan).
-  `server.js`/`src/env.js`/`src/db.js` bu yüzden bilinçli olarak top-level await KULLANMAZ.
-- **Passenger arkasında `req.ip` her ziyaretçi için aynı çıkabilir** (ters proxy IP'yi iletmezse);
-  bu durumda `express-rate-limit` limiti IP başına değil global olarak uygulanmış olur. Yayından
-  sonra gerçek bir istemci IP'siyle doğrulanmalı; gerekirse Passenger/Apache'nin `X-Forwarded-For`
-  ilettiğinden emin olunup `trust proxy` ayarı buna göre kalibre edilmeli (şu an `1`).
-- `express-rate-limit`'in bellek içi sayacı Passenger'ın her worker sürecine özeldir (paylaşılan
-  değildir); çoklu process/worker kurulumunda etkin limit, worker sayısı × ilgili limit olabilir.
-- **SVG yüklemeleri** (`POST /admin/upload`) betik çalıştırabilir; spesifikasyon SVG'yi açıkça izin
-  verilenler arasında listelediği ve yükleme yalnızca yönetici tarafından yapılabildiği için
-  olduğu gibi bırakıldı, ancak halka açık kullanıcı yüklemesi olsaydı kabul edilmezdi.
-- **`GET /settings` herkese açıktır** ve `memberDiscount.code` gibi alanları da döner (kampanya
-  modu `code` ise indirim kodu herkese görünür olur). Şu anki varsayılan `mode: 'automatic'` bu
-  riski taşımaz; `mode: 'code'`e geçilirse bu endpoint'in filtrelenmesi gerekebilir.
+  destekler; `ERR_REQUIRE_ESM` alınırsa `import('./server.js')` içeren küçük bir `server.cjs`
+  yeterli olur. `server.js`/`src/env.js`/`src/db.js` bu yüzden top-level await KULLANMAZ.
+- **`trust proxy 1`**: Apache/Passenger'ın `X-Forwarded-For`'u tek güvenilir hop olarak set
+  ettiği varsayılır; yerel testte doğrulandı, üretimde gerçek istemci IP'siyle teyit edilmeli.
+- `express-rate-limit`'in bellek içi sayacı Passenger'ın her worker sürecine özeldir; çoklu
+  worker kurulumunda etkin limit, worker sayısı × ilgili limit olabilir.
+- **SVG yüklemesi reddedilir** (`POST /admin/upload`; magic-byte doğrulaması: jpeg/png/webp/avif/
+  mp4/webm). Gerekirse ileride yalnızca sunucu tarafında temizlenmiş ayrı bir uç noktada.
+- **`GET /settings`** beyaz listelidir (`brand.*`, `memberDiscount` [code/usageLimit hariç],
+  `shipping.amount`, `support.*`, `social`, `offerPanel.*`); diğer anahtarlar yalnızca
+  `GET /admin/settings` ile görünür.
 - Ayar/içerik değerlerinin tam şekli (`memberDiscount`, `social` vb.) `src/config/settings.ts` ve
   `src/data/content.ts` okunarak birebir alınmıştır; `scripts/seed.js` bu varsayılanları yükler.
 - MariaDB uyumluluğu: `settings.value` sütunu MySQL 8'de `JSON` tipindedir; MariaDB'de bu, düz metin
   (`LONGTEXT`) olarak davranabilir — `src/services/settings.js` okurken güvenli `JSON.parse`
   denemesi yapar.
-- Ürün görselleri (`product_media`) seed sırasında BOŞ bırakılır (hiç satır eklenmez); yönetici panel
-  görsel yükleyip `PUT /admin/products/:id` ile `media` alanını doldurana kadar `GET /products` her
-  görsel yuvası için `src: null` döner (mağazanın yer tutucu davranışıyla birebir).
 
 ## Doğrulama (yerelde MySQL olmadan)
 

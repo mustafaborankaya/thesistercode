@@ -25,6 +25,9 @@ ServerSignature Off
   # HTTP → HTTPS (Let's Encrypt sertifikası cPanel AutoSSL ile yönetilir)
   RewriteCond %{HTTPS} !=on
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+  # www → apex: tek kanonik köken (API Origin kontrolü ve çerezler tek alan adında kalsın)
+  RewriteCond %{HTTP_HOST} ^www\.(.+)$ [NC]
+  RewriteRule ^ https://%1%{REQUEST_URI} [L,R=301]
   # Gerçek dosya ve dizinlere dokunma
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d

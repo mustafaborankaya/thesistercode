@@ -8,6 +8,7 @@ import cookieParser from 'cookie-parser'
 import helmet from 'helmet'
 import { env, corsOrigins } from './env.js'
 import { pingDb } from './db.js'
+import { mailStatus } from './services/mail.js'
 import { errorHandler, notFoundHandler } from './errors.js'
 import { originCheck } from './auth.js'
 
@@ -70,7 +71,7 @@ export function createApp() {
 
   router.get('/health', async (req, res) => {
     const db = await pingDb()
-    res.json({ ok: true, db, version: PKG_VERSION })
+    res.json({ ok: true, db, version: PKG_VERSION, mail: mailStatus() })
   })
 
   router.use('/auth', authRoutes)
