@@ -189,6 +189,10 @@ async function stageMode() {
  * Değer: [unsplash foto id, raw taban URL, fotoğrafçı adı, fotoğrafçı profili, foto bağlantısı]
  */
 const PICKS = {
+  "urun-02-on": ["wkcZ5BPFyAk", "https://images.unsplash.com/photo-1666358054407-9ea933dadf41", "Or Hakim", "https://unsplash.com/@orhakim", "https://unsplash.com/photos/wkcZ5BPFyAk"],
+  "urun-02-arka": ["SGWunndRloY", "https://images.unsplash.com/photo-1666358059751-3accf39c2d95", "Or Hakim", "https://unsplash.com/@orhakim", "https://unsplash.com/photos/SGWunndRloY"],
+  "urun-03-on": ["9yoXrG6Er_g", "https://images.unsplash.com/photo-1714143136372-ddaf8b606da7", "TuanAnh Blue", "https://unsplash.com/@blueeyeaa", "https://unsplash.com/photos/9yoXrG6Er_g"],
+  "urun-03-arka": ["UinXCaBz44A", "https://images.unsplash.com/photo-1714143136367-7bb68f3f0669", "TuanAnh Blue", "https://unsplash.com/@blueeyeaa", "https://unsplash.com/photos/UinXCaBz44A"],
 }
 
 async function applyMode() {
