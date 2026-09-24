@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { siteSettings } from '../../config/settings'
 import { categories } from '../../data/catalog'
-import { S } from '../../i18n'
+import { S, locale, pathForLocale } from '../../i18n'
 import { useAccount } from '../../state/AccountContext'
 import { useFavorites } from '../../state/FavoritesContext'
 import { usePanels } from '../../state/PanelContext'
@@ -10,35 +10,47 @@ import { Drawer } from '../ui/Drawer'
 import { Icon } from '../ui/Icon'
 import styles from './MobileMenu.module.css'
 
-/** Hamburger menü: kategoriler dokunarak açılır/kapanır; hesap, favoriler ve destek kolay erişilir. */
+/**
+ * Site menüsü (masaüstü + mobil): header'daki 3 çizgi ikonuyla soldan kayan tam yükseklikli panel.
+ * Kategoriler dokunarak açılır/kapanır; koleksiyonlar, üretim, hesap, favoriler, destek ve TR|EN kolay erişilir.
+ * Escape, dış perde ve kapatma butonu kapatır; odak Drawer içinde tutulur ve kapanınca açan kontrole döner.
+ */
 export function MobileMenu() {
   const { isOpen, closePanel, openPanel } = usePanels()
-  const { isLoggedIn, account } = useAccount()
+  const { isLoggedIn, account, discountEligible } = useAccount()
   const { count } = useFavorites()
   const [shopOpen, setShopOpen] = useState(true)
   const close = () => closePanel('menu')
+  const campaign = siteSettings.memberDiscount
 
   return (
     <Drawer open={isOpen('menu')} onClose={close} title={S.common.menu} side="left" closeLabel={S.header.closeMenu}>
       <nav aria-label={S.common.menu}>
         <ul className={styles.list}>
           <li>
-            <button type="button" className={styles.item} aria-expanded={shopOpen} aria-controls="mobile-shop-list" onClick={() => setShopOpen((v) => !v)}>
+            <button type="button" className={styles.item} aria-expanded={shopOpen} aria-controls="site-menu-shop-list" onClick={() => setShopOpen((v) => !v)}>
               <span>{S.header.shop}</span>
               <Icon name={shopOpen ? 'minus' : 'plus'} size={16} />
             </button>
-            <ul id="mobile-shop-list" className={styles.sub} hidden={!shopOpen}>
-              {categories.map((c) => (
-                <li key={c.id}>
-                  <NavLink
-                    to={`/koleksiyon/${c.id}`}
-                    className={({ isActive }) => [styles.subLink, isActive ? styles.subLinkActive : ''].join(' ').trim()}
-                    onClick={close}
-                  >
-                    {c.label}
-                  </NavLink>
-                </li>
-              ))}
+            <ul id="site-menu-shop-list" className={styles.sub} hidden={!shopOpen}>
+              <li>
+                <NavLink to="/koleksiyon" end className={({ isActive }) => [styles.subLink, isActive ? styles.subLinkActive : ''].join(' ').trim()} onClick={close}>
+                  {S.header.allProducts}
+                </NavLink>
+              </li>
+              {categories
+                .filter((c) => c.id !== 'tum-urunler')
+                .map((c) => (
+                  <li key={c.id}>
+                    <NavLink
+                      to={`/koleksiyon/${c.id}`}
+                      className={({ isActive }) => [styles.subLink, isActive ? styles.subLinkActive : ''].join(' ').trim()}
+                      onClick={close}
+                    >
+                      {c.label}
+                    </NavLink>
+                  </li>
+                ))}
             </ul>
           </li>
           <li>
@@ -73,14 +85,6 @@ export function MobileMenu() {
                 <Icon name="heart" size={18} />
               </Link>
             </li>
-            {!isLoggedIn ? (
-              <li>
-                <Link to="/kayit" className={styles.item} onClick={close}>
-                  <span>{S.header.createAccountOffer}</span>
-                  <Icon name="chevron-right" size={16} />
-                </Link>
-              </li>
-            ) : null}
             <li>
               <button
                 type="button"
@@ -97,7 +101,26 @@ export function MobileMenu() {
           </ul>
         </div>
 
-        <div className={styles.meta}>{S.footer.languageCurrency(S.footer.languageLabel, siteSettings.currency.symbol)}</div>
+        <div className={styles.meta}>
+          <div className={styles.lang} role="group" aria-label={S.locale.switchLabel}>
+            <a href={pathForLocale('tr')} aria-current={locale === 'tr' ? 'true' : undefined} lang="tr" hrefLang="tr">
+              {S.locale.tr}
+            </a>
+            <span aria-hidden="true">|</span>
+            <a href={pathForLocale('en')} aria-current={locale === 'en' ? 'true' : undefined} lang="en" hrefLang="en">
+              {S.locale.en}
+            </a>
+          </div>
+          <span>{siteSettings.currency.symbol}</span>
+        </div>
+
+        {campaign.enabled && !isLoggedIn ? (
+          <Link to="/kayit" className={styles.offer} onClick={close}>
+            {S.account.topStripOffer} — <u>{S.account.topStripAction}</u>
+          </Link>
+        ) : campaign.enabled && discountEligible ? (
+          <p className={styles.offer}>{S.account.topStripMember}</p>
+        ) : null}
       </nav>
     </Drawer>
   )

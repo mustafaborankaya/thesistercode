@@ -4,6 +4,7 @@
  * paylaşılır — iki farklı "Sepete Ekle" tetikleyicisi aynı durumu görür.
  */
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { isLowStock, variantStock } from '../../lib/cart'
 import type { Product, SizeId } from '../../data/types'
 import { useCart } from '../../state/CartContext'
@@ -30,10 +31,25 @@ interface UseVariantSelectionResult {
 const ADDED_VISIBLE_MS = 2000
 const PENDING_MS = 600
 
+/**
+ * Liste kartındaki hızlı beden şeridinden gelen ön seçim: `/urun/:slug?beden=M`.
+ * Beden ürünün bedenlerindense seçilir; ilk renk o bedende tükendiyse stoğu olan ilk renge geçilir
+ * (hiçbir renkte stok yoksa ön seçim yapılmaz).
+ */
+function initialSelection(product: Product, bedenParam: string | null): { colorId: string; size: SizeId | null } {
+  const firstColor = product.colors[0]?.id ?? ''
+  const wanted = bedenParam?.toUpperCase() as SizeId | undefined
+  if (!wanted || !product.sizes.includes(wanted)) return { colorId: firstColor, size: null }
+  const inStock = product.colors.find((c) => variantStock(product, c.id, wanted) > 0)
+  return inStock ? { colorId: inStock.id, size: wanted } : { colorId: firstColor, size: null }
+}
+
 export function useVariantSelection(product: Product): UseVariantSelectionResult {
   const { addLine } = useCart()
-  const [colorId, setColorIdState] = useState(product.colors[0]?.id ?? '')
-  const [size, setSizeState] = useState<SizeId | null>(null)
+  const [searchParams] = useSearchParams()
+  const bedenParam = searchParams.get('beden')
+  const [colorId, setColorIdState] = useState(() => initialSelection(product, bedenParam).colorId)
+  const [size, setSizeState] = useState<SizeId | null>(() => initialSelection(product, bedenParam).size)
   const [error, setError] = useState<VariantError>(null)
   const [pending, setPending] = useState(false)
   const [added, setAdded] = useState(false)
@@ -41,14 +57,16 @@ export function useVariantSelection(product: Product): UseVariantSelectionResult
   const pendingTimer = useRef<number | null>(null)
   const addedTimer = useRef<number | null>(null)
 
-  // Farklı bir ürüne geçilince seçimleri sıfırla.
+  // Farklı bir ürüne geçilince (ya da ?beden= değişince) seçimleri sıfırla / ön seçimi uygula.
   useEffect(() => {
-    setColorIdState(product.colors[0]?.id ?? '')
-    setSizeState(null)
+    const initial = initialSelection(product, bedenParam)
+    setColorIdState(initial.colorId)
+    setSizeState(initial.size)
     setError(null)
     setAdded(false)
     setPending(false)
-  }, [product.id, product.colors])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- yalnızca ürün kimliği/renkleri ve beden parametresi değişince
+  }, [product.id, product.colors, bedenParam])
 
   const stockForSize = useCallback((s: SizeId) => variantStock(product, colorId, s), [product, colorId])
 

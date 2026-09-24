@@ -5,9 +5,14 @@
   background: var(--color-bg);
   border: 1px solid var(--color-line);
   overflow: hidden;
+  /* Gerçek görsel geldiğinde çerçeve yok (müşteri isteği); yalnızca yer tutucu çerçeveli kalır. */
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.slot[data-filled='true'] {
+  border-color: transparent;
 }
 
 .slot img,

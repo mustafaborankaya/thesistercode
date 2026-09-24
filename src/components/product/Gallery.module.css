@@ -13,8 +13,13 @@
 }
 
 .thumb {
-  border: 1px solid transparent;
   cursor: pointer;
+  opacity: 0.45;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.thumb:hover {
+  opacity: 0.8;
 }
 
 .thumb:focus-visible {
@@ -22,8 +27,9 @@
   outline-offset: 2px;
 }
 
-.thumbActive {
-  border-color: var(--color-ink);
+.thumbActive,
+.thumbActive:hover {
+  opacity: 1;
 }
 
 .main {

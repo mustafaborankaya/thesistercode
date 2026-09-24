@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigationType, useSearchParams } from 'react-router-dom'
 import { siteSettings } from '../../config/settings'
 import { categories } from '../../data/catalog'
 import { brandContent } from '../../data/content'
 import type { CategoryId, CollectionFilters, SizeId, SortId } from '../../data/types'
+import { useIsDesktop } from '../../hooks/useMediaQuery'
 import { S } from '../../i18n'
+import { readJSON, writeJSON } from '../../lib/storage'
 import { activeFilterCount, emptyFilters, getCollection } from '../../lib/catalog'
 import { ProductGrid } from '../product/ProductCard'
 import { Button } from '../ui/Button'
@@ -25,6 +27,34 @@ import { FilterPanel } from './FilterPanel'
 import { ListingTools } from './ListingTools'
 import { usePanels } from '../../state/PanelContext'
 
+/** Sütun seçenekleri (−/+): masaüstü 3/4/6, mobil 1/2/3. Tercih cihaz sınıfı başına localStorage'da saklanır. */
+const COLUMN_STEPS = { desktop: [3, 4, 6], mobile: [1, 2, 3] } as const
+const COLUMN_DEFAULT = { desktop: 4, mobile: 2 } as const
+const columnsKey = (kind: 'desktop' | 'mobile') => `tsc.gridColumns.${kind}`
+
+function useGridColumns() {
+  const kind = useIsDesktop() ? 'desktop' : 'mobile'
+  const steps: readonly number[] = COLUMN_STEPS[kind]
+  const read = (k: 'desktop' | 'mobile') => {
+    const v = readJSON<number>(columnsKey(k), COLUMN_DEFAULT[k])
+    return (COLUMN_STEPS[k] as readonly number[]).includes(v) ? v : COLUMN_DEFAULT[k]
+  }
+  const [byKind, setByKind] = useState(() => ({ desktop: read('desktop'), mobile: read('mobile') }))
+  const columns = byKind[kind]
+  const i = steps.indexOf(columns)
+  const set = (n: number) => {
+    setByKind((prev) => ({ ...prev, [kind]: n }))
+    writeJSON(columnsKey(kind), n)
+  }
+  return {
+    columns,
+    canFewer: i > 0,
+    canMore: i < steps.length - 1,
+    fewer: () => i > 0 && set(steps[i - 1]),
+    more: () => i < steps.length - 1 && set(steps[i + 1]),
+  }
+}
+
 interface CollectionViewProps {
   categoryId?: CategoryId
 }
@@ -36,6 +66,7 @@ export function CollectionView({ categoryId = 'tum-urunler' }: CollectionViewPro
   const location = useLocation()
   const navigationType = useNavigationType()
   const { isOpen, openPanel, closePanel } = usePanels()
+  const grid = useGridColumns()
 
   const filters = useMemo(() => filtersFromSearchParams(searchParams), [searchParams])
   const sort = useMemo(() => sortFromSearchParams(searchParams), [searchParams])
@@ -115,6 +146,11 @@ export function CollectionView({ categoryId = 'tum-urunler' }: CollectionViewPro
         sort={sort}
         onSortChange={updateSort}
         resultCount={all.length}
+        columns={grid.columns}
+        canFewer={grid.canFewer}
+        canMore={grid.canMore}
+        onFewer={grid.fewer}
+        onMore={grid.more}
       />
 
       <ActiveFilters
@@ -135,7 +171,7 @@ export function CollectionView({ categoryId = 'tum-urunler' }: CollectionViewPro
         </div>
       ) : (
         <>
-          <ProductGrid products={visible} />
+          <ProductGrid products={visible} columns={grid.columns} />
           <div className={styles.footerRow}>
             {shown < all.length ? (
               <Button variant="secondary" onClick={showMore}>

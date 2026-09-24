@@ -19,3 +19,8 @@
   flex: 1 0 auto;
   outline: none;
 }
+
+/* Ana sayfa: açılış görseli sayfanın en üstünden başlar; header (yükseklik + 1px alt çizgi) üstünde şeffaf durur. */
+.main[data-under-header='true'] {
+  margin-top: calc(-1 * var(--header-h) - 1px);
+}

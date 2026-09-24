@@ -21,6 +21,7 @@ export const tr = {
     heroTitle: 'Koleksiyon',
     heroCta: 'Koleksiyonu keşfet',
     heroPhotoPending: 'Açılış fotoğrafı bekleniyor',
+    heroDiscover: 'Koleksiyonu keşfet',
     homeFeaturedTitle: 'Yeni Gelenler',
     homeSeeAll: 'Tüm ürünleri gör',
     demoPrice: 'Demo fiyat',
@@ -52,6 +53,7 @@ export const tr = {
     logoSlot: 'Logo alanı',
     shopMenuTitle: 'Kategoriler',
     shopMenuAll: 'Tüm ürünleri gör',
+    allProducts: 'Tüm Ürünler',
     support: 'Destek',
     createAccountOffer: 'Hesap oluştur, ilk siparişe %10 indirim kazan',
     login: 'Giriş Yap',
@@ -70,6 +72,11 @@ export const tr = {
     seeAll: 'Tüm sonuçları gör',
     submit: 'Ara',
     recentless: 'Ürün numarası (örn. 01) ya da kategori adı yazın.',
+    popularTitle: 'Popüler aramalar',
+    popularDefault: 'Elbise, Pantolon, Ceket, Yeni Gelenler, Takım',
+    featuredTitle: 'Sizin için',
+    clearQuery: 'Aramayı temizle',
+    closeSearch: 'Aramayı kapat',
   },
 
   collection: {
@@ -104,6 +111,13 @@ export const tr = {
     removeFromFavorites: 'Favorilerden çıkar',
     quickView: 'Ürünü gör',
     categoryStripLabel: 'Kategoriler',
+    quickAdd: (name: string) => `${name} — beden seç ve sepete ekle`,
+    quickSizes: 'Beden seç',
+    addSize: (name: string, size: string) => `${name}, ${size} beden — sepete ekle`,
+    pickSize: (name: string, size: string) => `${name}, ${size} beden — renk seçmek için ürün sayfasına git`,
+    columnsFewer: 'Daha az sütun',
+    columnsMore: 'Daha fazla sütun',
+    columnsNow: (n: number) => `${n} sütun`,
   },
 
   product: {
@@ -218,6 +232,26 @@ export const tr = {
     selectAddress: 'Adres seçin',
     savedAddressHint: 'Adres seçtikten sonra teslimat bilgilerini bu sipariş için düzenleyebilirsiniz.',
     defaultTag: 'Varsayılan',
+    /** Çevrim içi ödeme (iyzico) — /settings → payment.provider ≠ 'none' iken. */
+    paymentCard: 'Kredi / banka kartı (iyzico güvenli ödeme)',
+    paymentCardNote: (installments: number[]) =>
+      `Kart bilgileriniz iyzico'nun güvenli ödeme sayfasında girilir, bu siteye iletilmez ve 3D Secure ile doğrulanır.${installments.some((n) => n > 1) ? ` Taksit seçenekleri (${installments.filter((n) => n > 1).join(', ')} taksit) kartınıza göre ödeme sayfasında gösterilir.` : ' Tek çekim.'}`,
+    onlineBanner: 'Siparişinizi onayladığınızda iyzico güvenli ödeme sayfasına yönlendirilirsiniz. Kart bilgileriniz bu siteye iletilmez.',
+    placeOrderPay: 'Ödemeye geç',
+    redirecting: 'Güvenli ödeme sayfasına yönlendiriliyorsunuz…',
+    orderNumberReal: 'Sipariş numarası',
+    paidTitle: 'Ödemeniz alındı',
+    paidText: 'Siparişiniz onaylandı; onay e-postası adresinize gönderildi.',
+    paymentFailedTitle: 'Ödeme tamamlanamadı',
+    paymentFailedText: 'Kartınızdan tahsilat yapılmadı. Bilgilerinizi kontrol edip tekrar deneyebilirsiniz.',
+    paymentPendingTitle: 'Ödeme bekleniyor',
+    paymentPendingText: 'Bu siparişin ödemesi henüz alınmadı.',
+    paymentExpiryNote: 'Sipariş 30 dakika içinde ödenmezse otomatik olarak iptal edilir ve ürünler yeniden satışa açılır.',
+    paymentInitFailed: 'Ödeme sayfası açılamadı. Siparişiniz sizin için ayrıldı; aşağıdan tekrar deneyebilirsiniz.',
+    paymentLastError: (message: string) => `Son deneme: ${message}`,
+    retryPayment: 'Tekrar dene',
+    orderCancelledTitle: 'Sipariş iptal edildi',
+    orderCancelledText: 'Ödeme süresi dolduğu ya da sipariş iptal edildiği için bu siparişin ödemesi alınamaz. Sepetinizdeki ürünlerle yeniden sipariş verebilirsiniz.',
   },
 
   account: {
@@ -275,7 +309,7 @@ export const tr = {
     orderView: 'Siparişi görüntüle',
     orderDetailTitle: 'Sipariş Detayı',
     orderViewAria: (id: string) => `${id} numaralı siparişi görüntüle`,
-    orderStatus: { demo: 'Demo', new: 'Alındı', paid: 'Ödendi', shipped: 'Kargoya verildi', cancelled: 'İptal edildi' } as Record<string, string>,
+    orderStatus: { demo: 'Demo', new: 'Alındı', paid: 'Ödendi', shipped: 'Kargoya verildi', cancelled: 'İptal edildi', pending_payment: 'Ödeme bekleniyor' } as Record<string, string>,
     addressBook: {
       noteLocal: 'Adresleriniz bu tarayıcıda saklanır.',
       noteServer: 'Adresleriniz hesabınızda saklanır; ödeme adımında seçebilirsiniz.',
@@ -462,6 +496,12 @@ export const tr = {
     checkoutBanner: 'Bu adımda gerçek kart bilgisi istenmez ve tahsilat yapılmaz; sipariş kaydınız oluşturulur ve ödeme sonradan alınır.',
     resultText: 'Siparişiniz oluşturuldu. Bu demo sürümde gerçek bir tahsilat yapılmadı.',
     orderNotFound: 'Sipariş bulunamadı.',
+    /** Çevrim içi ödeme hata kodları (api/src/services/payments/service.js). */
+    payment_init_failed: 'Ödeme sayfası başlatılamadı. Lütfen biraz sonra tekrar deneyin.',
+    payments_disabled: 'Çevrim içi ödeme şu an kullanılamıyor.',
+    already_paid: 'Bu siparişin ödemesi zaten alındı.',
+    order_not_payable: 'Bu sipariş için ödeme alınamaz (süresi dolmuş ya da iptal edilmiş).',
+    too_many_attempts: 'Bu sipariş için çok fazla ödeme denemesi yapıldı. Lütfen yeni bir sipariş oluşturun.',
     /** Giriş/kayıt sayfaları — "yalnızca bu tarayıcıda saklanır" demo notunun API modu karşılığı. */
     accountNote: 'Hesap bilgileriniz sunucuda saklanır; parolanız asla düz metin olarak loglanmaz.',
   },

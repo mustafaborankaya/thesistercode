@@ -55,6 +55,8 @@ function flattenForm(form: ContentForm): Record<string, string> {
   const flat: Record<string, string> = {
     'brand.collectionTitle': form.brand.collectionTitle,
     'brand.collectionIntro': form.brand.collectionIntro,
+    'brand.heroCta': form.brand.heroCta,
+    'brand.popularSearches': form.brand.popularSearches,
     'brand.companyName': form.brand.companyName,
     'brand.address': form.brand.address,
     'brand.phone': form.brand.phone,
@@ -146,6 +148,8 @@ function buildFormFromFields(fields: Record<string, string | null>): ContentForm
     brand: {
       collectionTitle: resolveField(fields['brand.collectionTitle'], b.collectionTitle, contentTexts['brand.collectionTitle']),
       collectionIntro: resolveField(fields['brand.collectionIntro'], b.collectionIntro, contentTexts['brand.collectionIntro']),
+      heroCta: resolveField(fields['brand.heroCta'], b.heroCta, contentTexts['brand.heroCta']),
+      popularSearches: resolveField(fields['brand.popularSearches'], b.popularSearches, contentTexts['brand.popularSearches']),
       companyName: resolveField(fields['brand.companyName'], b.companyName, contentTexts['brand.companyName']),
       address: resolveField(fields['brand.address'], b.address, contentTexts['brand.address']),
       phone: resolveField(fields['brand.phone'], b.phone, contentTexts['brand.phone']),

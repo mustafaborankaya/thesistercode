@@ -6,7 +6,7 @@
  */
 
 import { readAdminData } from '../admin/adminStore'
-import { locale } from '../i18n'
+import { S, locale } from '../i18n'
 import { brandMedia } from './media'
 import { remote } from './remote'
 import { contentTexts, contentTextsEn, infoSectionTexts, infoSectionTextsEn } from './contentTexts'
@@ -45,7 +45,7 @@ const ov = (value: string | null | undefined, key: string): string | undefined =
   (isEn ? enValue(key) : null) ?? clean(remote?.content.fields[key]) ?? clean(value) ?? contentTexts[key]
 
 /** brandContent alan anahtarları — yönetici panelindeki "Marka bilgileri" formu bu listeyi kullanır. */
-export const brandContentKeys = ['collectionTitle', 'collectionIntro', 'companyName', 'address', 'phone', 'email', 'workingHours'] as const
+export const brandContentKeys = ['collectionTitle', 'collectionIntro', 'heroCta', 'popularSearches', 'companyName', 'address', 'phone', 'email', 'workingHours'] as const
 export type BrandContentKey = (typeof brandContentKeys)[number]
 
 const b = overrides.brand ?? {}
@@ -55,6 +55,10 @@ export const brandContent = {
   collectionTitle: field(tl('Koleksiyon adı alanı', 'Collection name field'), ov(b.collectionTitle, 'brand.collectionTitle')),
   collectionIntro: field(tl('Koleksiyon tanıtım metni alanı', 'Collection introduction text field'), ov(b.collectionIntro, 'brand.collectionIntro')),
   collectionVisual: field(tl('Koleksiyon tanıtım görseli', 'Collection introduction image')),
+  /** Ana sayfa açılış görselinin altındaki tek bağlantı yazısı; boşsa S.common.heroDiscover. */
+  heroCta: field(tl('Açılış görseli üzerindeki yazı', 'Text on the opening image'), ov(b.heroCta, 'brand.heroCta')),
+  /** Arama panelindeki "Popüler aramalar" listesi (virgülle ayrılır); boşsa S.search.popularDefault. */
+  popularSearches: field(tl('Popüler aramalar (virgülle ayır)', 'Popular searches (comma separated)'), ov(b.popularSearches, 'brand.popularSearches')),
   // companyName/address/phone/email: gerçek işletme bilgisi gerektirir, contentTexts.ts'te tanımlı değildir — API ya da panel override'ı ile dolar.
   companyName: field(tl('Şirket unvanı alanı', 'Company name field'), ov(b.companyName, 'brand.companyName')),
   address: field(tl('Şirket adresi alanı', 'Company address field'), ov(b.address, 'brand.address')),
@@ -184,7 +188,7 @@ export const footerGroups: FooterGroup[] = [
     links: [
       { label: tl('Giriş Yap', 'Log In'), to: '/giris' },
       { label: tl('Hesap Oluştur', 'Create Account'), to: '/kayit' },
-      { label: tl('Hesap oluştur, %10 indirim kazan', 'Create an account, get 10% off'), action: 'discount-offer' },
+      { label: S.header.createAccountOffer, action: 'discount-offer' },
       { label: tl('Favoriler', 'Wishlist'), to: '/favoriler' },
       { label: tl('Sepet', 'Cart'), to: '/sepet' },
     ],

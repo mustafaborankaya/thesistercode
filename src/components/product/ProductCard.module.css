@@ -1,3 +1,4 @@
+/* Liste kartı — çerçevesiz, gölgesiz: görsel doğrudan beyaz sayfa üzerinde (referans: nocturne.com.tr). */
 .card {
   position: relative;
   display: flex;
@@ -5,8 +6,11 @@
   gap: var(--sp-3);
 }
 
-.media {
+.mediaWrap {
   position: relative;
+}
+
+.media {
   display: block;
 }
 
@@ -14,47 +18,207 @@
   text-decoration: none;
 }
 
-.back {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  transition: opacity var(--dur) var(--ease);
+/* Yatay carousel: dokunmatikte parmakla kaydırma + snap. touch-action varsayılan bırakılır —
+   `pan-y` yatay kaydırmayı kapatırdı; dikey sayfa kaydırması tarayıcıda zaten korunur. */
+.track {
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .card:hover .back,
-  .media:focus-visible .back {
-    opacity: 1;
-  }
+.track::-webkit-scrollbar {
+  display: none;
 }
 
+.slide {
+  flex: 0 0 100%;
+  min-width: 0;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+/* ---- "Yeni" — kutusuz, küçük soluk metin ---- */
 .badge {
   position: absolute;
   top: var(--sp-2);
   left: var(--sp-2);
-  padding: 2px var(--sp-2);
-  background: var(--color-bg);
-  border: 1px solid var(--color-line);
   font-size: 0.625rem;
   letter-spacing: var(--ls-caps);
   text-transform: uppercase;
+  color: var(--color-ink-soft);
+  pointer-events: none;
 }
 
+/* ---- Favori: masaüstünde hover'da ince; mobilde küçük ve soluk ---- */
 .fav {
   position: absolute;
-  top: 2px;
-  right: 2px;
+  top: 0;
+  right: 0;
   width: var(--tap);
   height: var(--tap);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--color-ink);
+  opacity: 0.5;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.fav[data-active='true'] {
+  opacity: 1;
+}
+
+/* ---- Carousel okları ve noktalar ---- */
+.arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 56px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-ink);
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.arrowPrev {
+  left: 0;
+}
+
+.arrowNext {
+  right: 0;
+}
+
+.arrow:disabled {
+  visibility: hidden;
+}
+
+.dots {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: var(--sp-2);
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  pointer-events: none;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--color-ink-faint);
+}
+
+.dotActive {
+  background: var(--color-ink);
+}
+
+/* ---- Hızlı beden şeridi ---- */
+.sizes {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0 var(--sp-1);
+  padding: var(--sp-1);
+  background: rgba(255, 255, 255, 0.94);
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--dur) var(--ease),
+    visibility 0s linear var(--dur);
+}
+
+.card[data-strip-open='true'] .sizes {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.card[data-strip-open='true'] .dots {
+  opacity: 0;
+}
+
+.size {
+  min-width: 36px;
+  min-height: 36px;
+  padding-inline: var(--sp-1);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  color: var(--color-ink);
+}
+
+.size:hover:not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.size:disabled {
+  color: var(--color-ink-faint);
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+
+.size:focus-visible {
+  outline: 1px solid var(--color-ink);
+  outline-offset: -2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .fav {
+    opacity: 0;
+  }
+  .fav[data-active='true'],
+  .fav:focus-visible,
+  .card:hover .fav {
+    opacity: 1;
+  }
+  .arrow {
+    display: inline-flex;
+  }
+  .card:hover .arrow {
+    opacity: 0.8;
+  }
+  .card:hover .arrow:hover {
+    opacity: 1;
+  }
+  .card:hover .sizes {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+    transition: opacity var(--dur) var(--ease);
+  }
+  .card:hover .dots {
+    opacity: 0;
+  }
+}
+
+/* ---- Alt bilgi satırı: ad/fiyat solda, çanta sağda ---- */
+.infoRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-2);
 }
 
 .info {
   display: grid;
   gap: 2px;
+  min-width: 0;
 }
 
 .name {
@@ -75,6 +239,31 @@
   letter-spacing: var(--ls-wide);
 }
 
+.message {
+  font-size: var(--fs-2xs);
+  color: var(--color-ink-soft);
+}
+
+.message:empty {
+  display: none;
+}
+
+.bag {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  margin: -8px -8px 0 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-ink);
+}
+
+.bag[aria-expanded='true'] {
+  opacity: 0.55;
+}
+
+/* ---- Izgara ---- */
 .grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -93,6 +282,15 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--sp-6) var(--grid-gap);
   }
+}
+
+/* Koleksiyon sayfasında kullanıcı seçimi (−/+): kırılım varsayılanlarını ezer. */
+.grid.gridCols {
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+}
+
+.grid.gridCols[data-cols='6'] {
+  column-gap: var(--sp-3);
 }
 
 .gridCompact {

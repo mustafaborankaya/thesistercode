@@ -82,6 +82,9 @@
 }
 
 .locale {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
   font-size: var(--fs-xs);
   letter-spacing: var(--ls-wide);
   text-transform: uppercase;
@@ -114,6 +117,34 @@
 
 .copy {
   color: var(--color-ink-soft);
+}
+
+.demo {
+  margin-left: var(--sp-3);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  color: var(--color-ink-faint);
+}
+
+.langSwitch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.langSwitch a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  min-width: 24px;
+  justify-content: center;
+  color: var(--color-ink-soft);
+}
+
+.langSwitch a[aria-current='true'] {
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 
 .top {

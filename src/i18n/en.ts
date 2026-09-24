@@ -18,6 +18,7 @@ export const en: Strings = {
     demoShort: 'Demo prototype',
     demoTiny: 'Demo',
     heroEyebrow: 'New season',
+    heroDiscover: 'Discover the collection',
     heroTitle: 'Collection',
     heroCta: 'Explore the collection',
     heroPhotoPending: 'Hero photo coming soon',
@@ -52,6 +53,7 @@ export const en: Strings = {
     logoSlot: 'Logo area',
     shopMenuTitle: 'Categories',
     shopMenuAll: 'See all products',
+    allProducts: 'All Products',
     support: 'Support',
     createAccountOffer: 'Create an account, get 10% off your first order',
     login: 'Log in',
@@ -70,6 +72,11 @@ export const en: Strings = {
     seeAll: 'See all results',
     submit: 'Search',
     recentless: 'Type a product number (e.g. 01) or a category name.',
+    popularTitle: 'Popular searches',
+    popularDefault: 'Dress, Trousers, Jacket, New In, Suit',
+    featuredTitle: 'For you',
+    clearQuery: 'Clear search',
+    closeSearch: 'Close search',
   },
 
   collection: {
@@ -104,6 +111,13 @@ export const en: Strings = {
     removeFromFavorites: 'Remove from wishlist',
     quickView: 'View product',
     categoryStripLabel: 'Categories',
+    quickAdd: (name: string) => `${name} — choose a size and add to cart`,
+    quickSizes: 'Choose size',
+    addSize: (name: string, size: string) => `${name}, size ${size} — add to cart`,
+    pickSize: (name: string, size: string) => `${name}, size ${size} — go to product page to choose a colour`,
+    columnsFewer: 'Fewer columns',
+    columnsMore: 'More columns',
+    columnsNow: (n: number) => `${n} columns`,
   },
 
   product: {
@@ -218,6 +232,26 @@ export const en: Strings = {
     selectAddress: 'Choose an address',
     savedAddressHint: 'After choosing an address you can still edit the delivery details for this order.',
     defaultTag: 'Default',
+    /** Online payment (iyzico) — when /settings → payment.provider ≠ 'none'. */
+    paymentCard: 'Credit / debit card (iyzico secure payment)',
+    paymentCardNote: (installments: number[]) =>
+      `You enter your card details on iyzico's secure payment page; they are never sent to this site and are verified with 3D Secure.${installments.some((n) => n > 1) ? ` Instalment options (${installments.filter((n) => n > 1).join(', ')}) are shown on the payment page depending on your card.` : ' Single payment.'}`,
+    onlineBanner: 'When you confirm your order you will be redirected to the iyzico secure payment page. Your card details are never sent to this site.',
+    placeOrderPay: 'Continue to payment',
+    redirecting: 'Redirecting to the secure payment page…',
+    orderNumberReal: 'Order number',
+    paidTitle: 'Payment received',
+    paidText: 'Your order is confirmed; a confirmation email has been sent to you.',
+    paymentFailedTitle: 'Payment not completed',
+    paymentFailedText: 'Your card was not charged. Please check your details and try again.',
+    paymentPendingTitle: 'Awaiting payment',
+    paymentPendingText: 'Payment for this order has not been received yet.',
+    paymentExpiryNote: 'If the order is not paid within 30 minutes it is cancelled automatically and the items are released.',
+    paymentInitFailed: 'The payment page could not be opened. Your order is reserved for you; you can try again below.',
+    paymentLastError: (message: string) => `Last attempt: ${message}`,
+    retryPayment: 'Try again',
+    orderCancelledTitle: 'Order cancelled',
+    orderCancelledText: 'This order can no longer be paid because the payment window expired or the order was cancelled. You can place a new order with the items in your cart.',
   },
 
   account: {
@@ -275,7 +309,7 @@ export const en: Strings = {
     orderView: 'View order',
     orderDetailTitle: 'Order Details',
     orderViewAria: (id: string) => `View order ${id}`,
-    orderStatus: { demo: 'Demo', new: 'Received', paid: 'Paid', shipped: 'Shipped', cancelled: 'Cancelled' } as Record<string, string>,
+    orderStatus: { demo: 'Demo', new: 'Received', paid: 'Paid', shipped: 'Shipped', cancelled: 'Cancelled', pending_payment: 'Awaiting payment' } as Record<string, string>,
     addressBook: {
       noteLocal: 'Your addresses are stored in this browser.',
       noteServer: 'Your addresses are stored in your account; you can pick one at checkout.',
@@ -460,6 +494,12 @@ export const en: Strings = {
     checkoutBanner: 'This step never asks for real card details or takes payment; your order is recorded and payment is collected afterwards.',
     resultText: 'Your order has been placed. No real payment was taken in this demo build.',
     orderNotFound: 'Order not found.',
+    /** Online payment error codes (api/src/services/payments/service.js). */
+    payment_init_failed: 'The payment page could not be started. Please try again shortly.',
+    payments_disabled: 'Online payment is currently unavailable.',
+    already_paid: 'This order has already been paid.',
+    order_not_payable: 'This order can no longer be paid (expired or cancelled).',
+    too_many_attempts: 'Too many payment attempts for this order. Please place a new order.',
     accountNote: 'Your account details are stored on the server; your password is never logged in plain text.',
   },
 }

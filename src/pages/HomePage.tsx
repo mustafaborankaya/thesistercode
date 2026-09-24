@@ -15,8 +15,9 @@ import styles from './HomePage.module.css'
 const FEATURED_COUNT = 8
 
 /**
- * Açılış fotoğrafı (src/assets/media/acilis-masaustu.jpg + acilis-mobil.jpg) ile koleksiyona giriş.
- * Fotoğraf sağlanana kadar alan açık gri kalır ve bekleyen dosya adları köşede belirtilir.
+ * Tam ekran açılış fotoğrafı (src/assets/media/acilis-masaustu.jpg + acilis-mobil.jpg). Header bu alanın
+ * üstünde şeffaf durur (Layout → data-under-header). Görselin alt ortasında yalnızca yazıdan oluşan tek bağlantı:
+ * panelden `brand.heroCta` doluysa o, boşsa "Koleksiyonu keşfet". Fotoğraf yokken alan açık gri kalır.
  */
 function Hero() {
   const desktop = brandMedia.heroDesktop
@@ -36,15 +37,12 @@ function Hero() {
           <code>acilis-masaustu.jpg</code> · <code>acilis-mobil.jpg</code>
         </p>
       )}
-      <div className={styles.heroContent}>
-        <p className={styles.heroEyebrow}>{S.common.heroEyebrow}</p>
-        <h1 id="hero-title" className={styles.heroTitle}>
-          {brandContent.collectionTitle.value ?? S.common.heroTitle}
-        </h1>
-        <Button variant="primary" to="/koleksiyon" className={styles.heroCta}>
-          {S.common.heroCta}
-        </Button>
-      </div>
+      <h1 id="hero-title" className="sr-only">
+        {brandContent.collectionTitle.value ?? S.common.heroTitle}
+      </h1>
+      <Link to="/koleksiyon" className={styles.heroLink}>
+        {brandContent.heroCta.value ?? S.common.heroDiscover}
+      </Link>
     </section>
   )
 }

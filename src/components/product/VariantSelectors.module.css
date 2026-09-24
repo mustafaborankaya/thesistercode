@@ -84,6 +84,12 @@
   letter-spacing: var(--ls-wide);
 }
 
+/* .sizeOption, .optionActive'tan sonra tanımlı olduğu için seçili beden görünmüyordu — özgüllükle düzeltildi. */
+.sizeOption.optionActive {
+  background: var(--color-ink);
+  color: var(--color-on-ink);
+}
+
 .sizeOption:hover:not(.optionActive):not(:disabled) {
   background: var(--color-surface);
 }

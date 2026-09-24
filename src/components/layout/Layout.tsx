@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Outlet, useLocation, useNavigationType } from 'react-router-dom'
+import { brandMedia } from '../../data/media'
 import { S } from '../../i18n'
 import { usePanels } from '../../state/PanelContext'
 import { CartDrawer } from '../cart/CartDrawer'
@@ -9,7 +10,7 @@ import { DiscountOffer } from '../panels/DiscountOffer'
 import { SearchOverlay } from '../panels/SearchOverlay'
 import { SupportButton, SupportPanel } from '../panels/SupportPanel'
 import { Footer } from './Footer'
-import { Header, TopStrip } from './Header'
+import { Header, type HeaderMode } from './Header'
 import { MobileMenu } from './MobileMenu'
 import styles from './Layout.module.css'
 
@@ -50,16 +51,42 @@ function RouteEffects() {
   return null
 }
 
+/** Header bu kaydırma eşiğini (px) geçince şeffaftan beyaza döner. */
+const OVERLAY_SCROLL_LIMIT = 40
+
+/**
+ * Ana sayfada, açılış fotoğrafı varken ve sayfa en üstteyken header şeffaf (`overlay`) durur.
+ * Kaydırma eşiği geçilince, menü/arama/sepet paneli açılınca ya da ana sayfa dışında `solid`.
+ * (Teklif/çerez panelleri kasıtlı olarak sayılmaz — ana sayfada kendiliğinden açılabilirler.)
+ */
+function useHeaderMode(isHeroPage: boolean): HeaderMode {
+  const { open } = usePanels()
+  const [atTop, setAtTop] = useState(() => typeof window === 'undefined' || window.scrollY <= OVERLAY_SCROLL_LIMIT)
+
+  useEffect(() => {
+    if (!isHeroPage) return
+    const onScroll = () => setAtTop(window.scrollY <= OVERLAY_SCROLL_LIMIT)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [isHeroPage])
+
+  const panelForcesSolid = open === 'menu' || open === 'search' || open === 'cart'
+  return isHeroPage && atTop && !panelForcesSolid ? 'overlay' : 'solid'
+}
+
 export function Layout() {
+  const { pathname } = useLocation()
+  const isHeroPage = pathname === '/' && !!(brandMedia.heroDesktop || brandMedia.heroMobile)
+  const headerMode = useHeaderMode(isHeroPage)
   return (
     <>
       <a href="#main" className={styles.skip}>
         {S.common.skipToContent}
       </a>
       <RouteEffects />
-      <TopStrip />
-      <Header />
-      <main id="main" className={styles.main} tabIndex={-1}>
+      <Header mode={headerMode} />
+      <main id="main" className={styles.main} tabIndex={-1} data-under-header={isHeroPage ? 'true' : undefined}>
         <Outlet />
       </main>
       <Footer />

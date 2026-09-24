@@ -44,7 +44,7 @@ function useInfoFits(isDesktop: boolean): [React.RefObject<HTMLDivElement | null
     const cssPx = (name: string) => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || 0
 
     const measure = () => {
-      const available = window.innerHeight - cssPx('--header-h') - cssPx('--demo-bar-h') - 48
+      const available = window.innerHeight - cssPx('--header-h') - 48
       const next = el.offsetHeight <= available
       setFits((prev) => (prev === next ? prev : next))
     }

@@ -1,5 +1,5 @@
 .page {
-  min-height: calc(100dvh - var(--header-h) - var(--demo-bar-h));
+  min-height: calc(100dvh - var(--header-h));
   display: grid;
   grid-template-columns: 1fr;
 }

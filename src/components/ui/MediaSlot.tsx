@@ -21,7 +21,7 @@ interface MediaSlotProps {
 export function MediaSlot({ label, ratio = '3 / 4', src, kind = 'image', captionSize = 'md', className, style, children, alt }: MediaSlotProps) {
   const captionClass = [styles.caption, captionSize === 'lg' ? styles.captionLg : '', captionSize === 'sm' ? styles.captionSm : ''].join(' ').trim()
   return (
-    <div className={[styles.slot, className ?? ''].join(' ').trim()} style={{ aspectRatio: ratio, ...style }} data-media-slot={label}>
+    <div className={[styles.slot, className ?? ''].join(' ').trim()} style={{ aspectRatio: ratio, ...style }} data-media-slot={label} data-filled={src ? 'true' : undefined}>
       {src ? (
         kind === 'video' ? (
           <video src={src} playsInline preload="metadata" aria-label={alt ?? label} />

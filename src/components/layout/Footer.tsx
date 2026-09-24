@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { siteSettings } from '../../config/settings'
 import { footerGroups, type FooterLink } from '../../data/content'
 import { useIsDesktop, useReducedMotion } from '../../hooks/useMediaQuery'
-import { S } from '../../i18n'
+import { S, locale, pathForLocale } from '../../i18n'
 import { usePanels } from '../../state/PanelContext'
 import { AccordionItem } from '../ui/Accordion'
 import { Icon } from '../ui/Icon'
@@ -86,11 +86,30 @@ export function Footer() {
             )
           })}
         </ul>
-        <div className={styles.locale}>{S.footer.languageCurrency(S.footer.languageLabel, siteSettings.currency.symbol)}</div>
+        <div className={styles.locale}>
+          <span className={styles.langSwitch} role="group" aria-label={S.locale.switchLabel}>
+            <a href={pathForLocale('tr')} aria-current={locale === 'tr' ? 'true' : undefined} lang="tr" hrefLang="tr">
+              {S.locale.tr}
+            </a>
+            <span aria-hidden="true">|</span>
+            <a href={pathForLocale('en')} aria-current={locale === 'en' ? 'true' : undefined} lang="en" hrefLang="en">
+              {S.locale.en}
+            </a>
+          </span>
+          <span aria-hidden="true">·</span>
+          <span>{siteSettings.currency.symbol}</span>
+        </div>
       </div>
 
       <div className={styles.bottom}>
-        <span className={styles.copy}>{S.footer.copyright(year)}</span>
+        <span className={styles.copy}>
+          {S.footer.copyright(year)}
+          {siteSettings.demo.enabled ? (
+            <span className={styles.demo} title={S.common.demoBar}>
+              {S.common.demoShort}
+            </span>
+          ) : null}
+        </span>
         <div className={styles.bottomLinks}>
           <Link to="/bilgi/gizlilik" className={styles.bottomLink}>
             {S.footer.privacy}
