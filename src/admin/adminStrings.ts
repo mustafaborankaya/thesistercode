@@ -18,12 +18,24 @@ export const AS = {
     content: 'İçerik',
     settings: 'Ayarlar',
     orders: 'Siparişler',
+    users: 'Kullanıcılar',
     data: 'Veri',
   },
 
   common: {
     yes: 'Evet',
     no: 'Hayır',
+    loading: 'Yükleniyor…',
+    retry: 'Tekrar dene',
+  },
+
+  /** API bağlı modda kullanılan ortak bildirimler (bkz. src/admin/adminApi.ts → useApiMode). */
+  apiNotice: {
+    saved: 'Kaydedildi.',
+    saveError: 'Kaydedilemedi. Lütfen tekrar deneyin.',
+    loadError: 'Veriler yüklenemedi.',
+    ownerOnly: 'Bu işlem yalnızca hesap sahibi (owner) tarafından yapılabilir.',
+    refresh: 'Yenile',
   },
 
   login: {
@@ -75,6 +87,8 @@ export const AS = {
     hidden: 'Gizli',
     hasImage: 'Görsel',
     edit: 'Düzenle',
+    add: 'Yeni ürün ekle',
+    addCategoryLabel: 'Kategori seçin',
   },
 
   productEdit: {
@@ -202,5 +216,42 @@ export const AS = {
     replace: 'Değiştir',
     remove: 'Kaldır',
     largeFile: "Dosya 2 MB'tan büyük — yine de yüklenebilir.",
+    removeUnavailable: 'Bu görsel için kaldırma API uç noktası henüz yok; yeni bir görsel yükleyerek değiştirebilirsiniz.',
+  },
+
+  /** API bağlı modda sipariş durumları (demo/new/paid/shipped/cancelled) — yerel demo durumlarından farklıdır. */
+  ordersApi: {
+    statusLabels: { demo: 'Demo', new: 'Yeni', paid: 'Ödendi', shipped: 'Kargoda', cancelled: 'İptal' } as Record<string, string>,
+    statusLabel: 'Durum',
+    changeStatus: 'Durumu güncelle',
+    statusUpdated: 'Sipariş durumu güncellendi.',
+    missingFeatures: 'İade/iptal/değişim talep akışı ve kargo takip numarası için API uç noktası henüz yok.',
+  },
+
+  /** `/admin/kullanicilar` — yalnızca API modunda gösterilir (GET/POST/PATCH /admin/users). */
+  users: {
+    title: 'Kullanıcılar',
+    empty: 'Henüz yönetici kullanıcı yok.',
+    username: 'Kullanıcı adı',
+    role: 'Rol',
+    roleOwner: 'Sahip (owner)',
+    roleEditor: 'Editör',
+    active: 'Aktif',
+    inactive: 'Pasif',
+    lastLogin: 'Son giriş',
+    never: 'Hiç',
+    createTitle: 'Yeni kullanıcı ekle',
+    usernameLabel: 'Kullanıcı adı',
+    passwordLabel: 'Parola',
+    roleLabel: 'Rol',
+    createButton: 'Kullanıcı ekle',
+    created: 'Kullanıcı oluşturuldu.',
+    changePasswordTitle: 'Parolayı değiştir',
+    newPasswordLabel: 'Yeni parola',
+    changePasswordButton: 'Parolayı güncelle',
+    passwordChanged: 'Parola güncellendi.',
+    deactivate: 'Pasifleştir',
+    activate: 'Etkinleştir',
+    ownerOnlyNote: 'Kullanıcı ekleme/düzenleme işlemleri yalnızca hesap sahibi (owner) tarafından yapılabilir.',
   },
 } as const

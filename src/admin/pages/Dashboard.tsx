@@ -1,8 +1,10 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon } from '../../components/ui/Icon'
 import { allProducts } from '../../data/catalog'
 import { missingBrandMedia } from '../../data/media'
 import { listDemoOrders } from '../../services/checkout'
+import { listAdminOrders, useApiMode } from '../adminApi'
 import { readAdminData } from '../adminStore'
 import { AS } from '../adminStrings'
 import styles from '../admin.module.css'
@@ -11,16 +13,25 @@ import styles from '../admin.module.css'
 export function Dashboard() {
   const hiddenCount = allProducts.filter((p) => p.hidden).length
   const visibleCount = allProducts.length - hiddenCount
-  const orderCount = listDemoOrders().length
   const missing = missingBrandMedia()
   const updatedAt = readAdminData().updatedAt
+
+  // API modunda sipariş sayısı için ayrı bir istek gerekir (yerel demo sipariş deposu API modunda kullanılmaz).
+  const [apiOrderCount, setApiOrderCount] = useState<number | null>(null)
+  useEffect(() => {
+    if (!useApiMode) return
+    listAdminOrders()
+      .then((orders) => setApiOrderCount(orders.length))
+      .catch(() => setApiOrderCount(null))
+  }, [])
+  const orderCount = useApiMode ? apiOrderCount : listDemoOrders().length
 
   return (
     <div>
       <div className={styles.pageHead}>
         <h1 className={styles.pageTitle}>{AS.dashboard.title}</h1>
       </div>
-      <p className={styles.demoNotice}>{AS.demoNotice}</p>
+      {useApiMode ? null : <p className={styles.demoNotice}>{AS.demoNotice}</p>}
 
       <div className={styles.grid}>
         <div className={styles.card}>
@@ -33,8 +44,8 @@ export function Dashboard() {
         </div>
 
         <div className={styles.card}>
-          <div className={styles.sectionTitle}>{AS.dashboard.ordersCard}</div>
-          <p>{AS.dashboard.orderCount(orderCount)}</p>
+          <div className={styles.sectionTitle}>{useApiMode ? AS.nav.orders : AS.dashboard.ordersCard}</div>
+          <p>{orderCount == null ? AS.common.loading : AS.dashboard.orderCount(orderCount)}</p>
           <Link className="link" to="/admin/siparisler">
             {AS.dashboard.viewOrders}
           </Link>
@@ -60,10 +71,12 @@ export function Dashboard() {
           </Link>
         </div>
 
-        <div className={styles.card}>
-          <div className={styles.sectionTitle}>{AS.dashboard.lastUpdate}</div>
-          <p>{updatedAt ? new Date(updatedAt).toLocaleString('tr-TR') : AS.dashboard.neverUpdated}</p>
-        </div>
+        {useApiMode ? null : (
+          <div className={styles.card}>
+            <div className={styles.sectionTitle}>{AS.dashboard.lastUpdate}</div>
+            <p>{updatedAt ? new Date(updatedAt).toLocaleString('tr-TR') : AS.dashboard.neverUpdated}</p>
+          </div>
+        )}
       </div>
 
       <div className={styles.section}>
@@ -81,6 +94,11 @@ export function Dashboard() {
           <Link className="link" to="/admin/siparisler">
             {AS.nav.orders}
           </Link>
+          {useApiMode ? (
+            <Link className="link" to="/admin/kullanicilar">
+              {AS.nav.users}
+            </Link>
+          ) : null}
           <Link className="link" to="/admin/veri">
             {AS.nav.data}
           </Link>

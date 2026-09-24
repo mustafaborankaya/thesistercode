@@ -1,13 +1,18 @@
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Button } from '../../components/ui/Button'
 import { Field, SelectField } from '../../components/ui/Field'
 import { Icon } from '../../components/ui/Icon'
 import { allProducts, categories } from '../../data/catalog'
 import { mediaByName, productMediaName } from '../../data/media'
 import type { Product } from '../../data/types'
+import { apiErrorMessage } from '../../i18n/apiMessages'
 import { formatPrice } from '../../lib/format'
+import { createAdminProduct, listAdminProducts, useApiMode } from '../adminApi'
 import { AS } from '../adminStrings'
 import styles from '../admin.module.css'
+
+const creatableCategories = categories.filter((c) => !c.virtual)
 
 const filterableCategories = categories.filter((c) => !c.virtual)
 
@@ -19,26 +24,78 @@ function totalStock(product: Product): number {
   return total
 }
 
+function hasImage(product: Product): boolean {
+  // API modunda ürün doğrudan sunucudan gelir; ön görsel media[0] olarak sabittir (bkz. api/src/services/products.js).
+  if (useApiMode) return product.media[0]?.src != null
+  return mediaByName(productMediaName(product.number, 'front')) != null
+}
+
 /** `/admin/urunler` — tüm ürünler (gizlenenler dahil), arama ve kategori filtresi. */
 export function ProductsPage() {
+  const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('')
+  const [apiProducts, setApiProducts] = useState<Product[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(useApiMode)
+  const [addCategory, setAddCategory] = useState<string>(creatableCategories[0]?.id ?? '')
+  const [addPending, setAddPending] = useState(false)
+
+  async function handleAdd() {
+    if (!addCategory) return
+    setAddPending(true)
+    setError(null)
+    try {
+      // Yeni ürün admin doldurana kadar mağazada GİZLİ kalır — aksi halde 0 TL fiyatlı, adı/görseli
+      // olmayan bir ürün anında müşterilere görünür olurdu (stok 0 olsa bile listede/kategori sayfasında görünür).
+      const product = await createAdminProduct({ category: addCategory as Product['category'], price: 0, hidden: true })
+      navigate(`/admin/urunler/${product.id}`)
+    } catch (e) {
+      setError(apiErrorMessage(e))
+    } finally {
+      setAddPending(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!useApiMode) return
+    let cancelled = false
+    setLoading(true)
+    listAdminProducts()
+      .then((products) => {
+        if (cancelled) return
+        setApiProducts(products)
+        setError(null)
+      })
+      .catch((e) => {
+        if (cancelled) return
+        setError(apiErrorMessage(e))
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const source = useApiMode ? (apiProducts ?? []) : allProducts
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return allProducts.filter((p) => {
+    return source.filter((p) => {
       if (category && p.category !== category) return false
       if (!q) return true
       return p.name.toLowerCase().includes(q) || p.number.includes(q)
     })
-  }, [query, category])
+  }, [source, query, category])
 
   return (
     <div>
       <div className={styles.pageHead}>
         <h1 className={styles.pageTitle}>{AS.products.title}</h1>
       </div>
-      <p className={styles.demoNotice}>{AS.demoNotice}</p>
+      {useApiMode ? null : <p className={styles.demoNotice}>{AS.demoNotice}</p>}
 
       <div className={styles.filters}>
         <Field
@@ -59,7 +116,28 @@ export function ProductsPage() {
         </SelectField>
       </div>
 
-      {filtered.length === 0 ? (
+      {useApiMode ? (
+        <div className={styles.filters} style={{ alignItems: 'flex-end' }}>
+          <SelectField className={styles.filterField} label={AS.products.addCategoryLabel} value={addCategory} onChange={(e) => setAddCategory(e.target.value)}>
+            {creatableCategories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.label}
+              </option>
+            ))}
+          </SelectField>
+          <Button variant="secondary" disabled={addPending} onClick={() => void handleAdd()}>
+            {AS.products.add}
+          </Button>
+        </div>
+      ) : null}
+
+      {loading ? (
+        <p className={styles.empty}>{AS.common.loading}</p>
+      ) : error ? (
+        <p className={styles.empty} role="alert">
+          {error}
+        </p>
+      ) : filtered.length === 0 ? (
         <p className={styles.empty}>{AS.products.empty}</p>
       ) : (
         <div className={styles.tableWrap}>
@@ -82,7 +160,6 @@ export function ProductsPage() {
             <tbody>
               {filtered.map((p) => {
                 const catLabel = categories.find((c) => c.id === p.category)?.label ?? p.category
-                const hasImage = mediaByName(productMediaName(p.number, 'front')) != null
                 return (
                   <tr key={p.id}>
                     <td>{p.number}</td>
@@ -113,7 +190,7 @@ export function ProductsPage() {
                       )}
                     </td>
                     <td>
-                      {hasImage ? (
+                      {hasImage(p) ? (
                         <span className={styles.status}>
                           <Icon name="check" size={14} /> {AS.common.yes}
                         </span>

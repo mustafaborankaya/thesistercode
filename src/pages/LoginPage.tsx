@@ -5,6 +5,7 @@ import { PasswordField } from '../components/account/PasswordField'
 import { Button } from '../components/ui/Button'
 import { Field } from '../components/ui/Field'
 import { Icon } from '../components/ui/Icon'
+import { isApiMode } from '../data/remote'
 import { S } from '../i18n'
 import { useAccount } from '../state/AccountContext'
 import authStyles from './Auth.module.css'
@@ -31,6 +32,8 @@ export function LoginPage() {
   if (isLoggedIn && !justLoggedIn.current) {
     return <Navigate to="/hesap" replace />
   }
+
+  const passwordReset = (location.state as { passwordReset?: boolean } | null)?.passwordReset
 
   function update(field: keyof LoginValues, value: string) {
     setValues((v) => ({ ...v, [field]: value }))
@@ -66,10 +69,13 @@ export function LoginPage() {
         setSubmitError(S.checkout.requiredField)
         break
       case 'not-found':
-        setSubmitError(S.account.loginFailed)
+        setSubmitError(result.message ?? S.account.loginFailed)
+        break
+      case 'rate-limited':
+        setSubmitError(result.message ?? S.account.genericError)
         break
       default:
-        setSubmitError(S.account.genericError)
+        setSubmitError(result.message ?? S.account.genericError)
     }
   }
 
@@ -87,6 +93,12 @@ export function LoginPage() {
       }
     >
       <form className={authStyles.form} onSubmit={handleSubmit} noValidate>
+        {passwordReset ? (
+          <p role="status" className={authStyles.successNote}>
+            <Icon name="check" size={16} />
+            <span>{S.authFlow.resetSuccess}</span>
+          </p>
+        ) : null}
         <Field
           id="login-email"
           label={S.account.email}
@@ -104,6 +116,9 @@ export function LoginPage() {
           error={errors.password}
           onChange={(e) => update('password', e.target.value)}
         />
+        <Link to="/sifre-sifirla" className="link text-sm">
+          {S.authFlow.forgotPasswordLink}
+        </Link>
         {submitError ? (
           <div role="alert" className={authStyles.formError}>
             <Icon name="info" size={14} />
@@ -113,7 +128,7 @@ export function LoginPage() {
         <Button type="submit" variant="primary" block disabled={pending}>
           {pending ? S.common.loading : S.account.login}
         </Button>
-        <p className={authStyles.demoNote}>{S.account.demoNote}</p>
+        <p className={authStyles.demoNote}>{isApiMode() ? S.api.accountNote : S.account.demoNote}</p>
       </form>
     </AuthLayout>
   )

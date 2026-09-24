@@ -7,6 +7,7 @@
 
 import { readAdminData } from '../admin/adminStore'
 import { brandMedia } from './media'
+import { remote } from './remote'
 import { contentTexts, infoSectionTexts } from './contentTexts'
 
 export interface ContentField {
@@ -19,8 +20,8 @@ export interface ContentField {
 const overrides = readAdminData().content
 const clean = (v: string | null | undefined): string | null => (v && v.trim() ? v : null)
 const field = (label: string, value: string | null = null): ContentField => ({ label, value: clean(value) })
-/** Öncelik: yönetici paneli override'ı (boş/undefined ise yok sayılır) > contentTexts.ts metni > null. */
-const ov = (value: string | null | undefined, key: string): string | undefined => clean(value) ?? contentTexts[key]
+/** Öncelik: API (content_fields) > yönetici paneli override'ı (localStorage) > contentTexts.ts metni > null. */
+const ov = (value: string | null | undefined, key: string): string | undefined => clean(remote?.content.fields[key]) ?? clean(value) ?? contentTexts[key]
 
 /** brandContent alan anahtarları — yönetici panelindeki "Marka bilgileri" formu bu listeyi kullanır. */
 export const brandContentKeys = ['collectionTitle', 'collectionIntro', 'companyName', 'address', 'phone', 'email', 'workingHours'] as const
@@ -33,11 +34,11 @@ export const brandContent = {
   collectionTitle: field('Koleksiyon adı alanı', ov(b.collectionTitle, 'brand.collectionTitle')),
   collectionIntro: field('Koleksiyon tanıtım metni alanı', ov(b.collectionIntro, 'brand.collectionIntro')),
   collectionVisual: field('Koleksiyon tanıtım görseli'),
-  // companyName/address/phone/email: gerçek işletme bilgisi gerektirir, contentTexts.ts'te tanımlı değildir — yalnızca panel override'ı ile dolar.
-  companyName: field('Şirket unvanı alanı', b.companyName),
-  address: field('Şirket adresi alanı', b.address),
-  phone: field('Telefon numarası alanı', b.phone),
-  email: field('E-posta adresi alanı', b.email),
+  // companyName/address/phone/email: gerçek işletme bilgisi gerektirir, contentTexts.ts'te tanımlı değildir — API ya da panel override'ı ile dolar.
+  companyName: field('Şirket unvanı alanı', ov(b.companyName, 'brand.companyName')),
+  address: field('Şirket adresi alanı', ov(b.address, 'brand.address')),
+  phone: field('Telefon numarası alanı', ov(b.phone, 'brand.phone')),
+  email: field('E-posta adresi alanı', ov(b.email, 'brand.email')),
   workingHours: field('Çalışma saatleri alanı', ov(b.workingHours, 'brand.workingHours')),
 }
 
@@ -93,10 +94,16 @@ const infoDefs: { slug: string; title: string; labels: string[] }[] = [
   { slug: 'alisveris-kosullari', title: 'Alışveriş Koşulları', labels: ['Mesafeli satış sözleşmesi metni', 'Kullanım koşulları metni'] },
 ]
 
+// Öncelik: API (content_fields anahtarı `info.<slug>.<i>`) > panel override'ı > infoSectionTexts.ts metni > null.
+// NOT: önceki sürüm burada `ov()`'u atlayıp doğrudan `clean(overrides...) ?? infoSectionTexts[...]` kullanıyordu —
+// bu, yönetici panelinin API'ye kaydettiği bilgi sayfası metinlerinin mağazada HİÇ görünmemesine yol açan bir
+// hataydı (remote hiç okunmuyordu).
+const infoField = (label: string, slug: string, i: number, fallback: string | undefined) => field(label, ov(clean(overrides.infoPages?.[slug]?.[i]), `info.${slug}.${i}`) ?? fallback)
+
 export const infoPages: InfoPageDef[] = [
-  ...infoDefs.slice(0, 1).map((d) => ({ slug: d.slug, title: d.title, sections: d.labels.map((l, i) => field(l, clean(overrides.infoPages?.[d.slug]?.[i]) ?? infoSectionTexts[d.slug]?.[i])) })),
+  ...infoDefs.slice(0, 1).map((d) => ({ slug: d.slug, title: d.title, sections: d.labels.map((l, i) => infoField(l, d.slug, i, infoSectionTexts[d.slug]?.[i])) })),
   { slug: 'iletisim', title: 'İletişim', sections: [brandContent.companyName, brandContent.address, brandContent.phone, brandContent.email, brandContent.workingHours] },
-  ...infoDefs.slice(1).map((d) => ({ slug: d.slug, title: d.title, sections: d.labels.map((l, i) => field(l, clean(overrides.infoPages?.[d.slug]?.[i]) ?? infoSectionTexts[d.slug]?.[i])) })),
+  ...infoDefs.slice(1).map((d) => ({ slug: d.slug, title: d.title, sections: d.labels.map((l, i) => infoField(l, d.slug, i, infoSectionTexts[d.slug]?.[i])) })),
 ]
 
 export const infoPageBySlug: Record<string, InfoPageDef> = Object.fromEntries(infoPages.map((pg) => [pg.slug, pg]))

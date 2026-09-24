@@ -6,9 +6,12 @@ import { focusFirstCheckoutError, initialCheckoutValues, validateCheckout, type 
 import { AccordionItem } from '../components/ui/Accordion'
 import { Button } from '../components/ui/Button'
 import { Icon } from '../components/ui/Icon'
+import { isApiMode } from '../data/remote'
 import { S } from '../i18n'
+import { apiErrorMessage } from '../i18n/apiMessages'
 import { formatPrice } from '../lib/format'
 import { paymentProvider } from '../services/checkout'
+import { createApiOrder } from '../services/ordersApi'
 import { useAccount } from '../state/AccountContext'
 import { useCart } from '../state/CartContext'
 import styles from './CheckoutPage.module.css'
@@ -57,18 +60,37 @@ export function CheckoutPage() {
     }
     setSubmitError(null)
     setPending(true)
+    const delivery = {
+      firstName: values.firstName.trim(),
+      lastName: values.lastName.trim(),
+      address: values.address.trim(),
+      district: values.district.trim(),
+      city: values.city.trim(),
+      postalCode: values.postalCode.trim(),
+      country: values.country.trim(),
+      note: values.note.trim() || undefined,
+    }
+    const contact = { email: values.email.trim(), phone: values.phone.trim() }
+
+    // API modundaysak (bkz. src/data/remote.ts → isApiMode) gerçek sipariş oluşturulur (fiyat/stok/
+    // toplamlar sunucuda doğrulanır); yalnızca yerel geliştirmede API gerçekten kapalıyken demo
+    // sağlayıcıya düşülür — üretimde asla sessizce yerel demo siparişe düşülmez.
+    if (isApiMode()) {
+      const result = await createApiOrder({ contact, delivery, lines })
+      setPending(false)
+      if (result.ok) {
+        placedRef.current = true
+        clear()
+        navigate(`/odeme/sonuc/${result.order.id}`, { replace: true })
+        return
+      }
+      setSubmitError(apiErrorMessage(result.error))
+      return
+    }
+
     const result = await paymentProvider.createOrder({
-      contact: { email: values.email.trim(), phone: values.phone.trim() },
-      delivery: {
-        firstName: values.firstName.trim(),
-        lastName: values.lastName.trim(),
-        address: values.address.trim(),
-        district: values.district.trim(),
-        city: values.city.trim(),
-        postalCode: values.postalCode.trim(),
-        country: values.country.trim(),
-        note: values.note.trim() || undefined,
-      },
+      contact,
+      delivery,
       lines,
       totals,
       accountEmail: isLoggedIn && account ? account.email : null,
@@ -89,7 +111,7 @@ export function CheckoutPage() {
 
       <div className={styles.demoBanner} role="note">
         <Icon name="info" size={18} />
-        <span>{S.checkout.demoBanner}</span>
+        <span>{isApiMode() ? S.api.checkoutBanner : S.checkout.demoBanner}</span>
       </div>
 
       <div className={styles.mobileSummary}>

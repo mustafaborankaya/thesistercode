@@ -14,11 +14,16 @@ export interface AdminUser {
 
 export type AdminLoginResult = { ok: true; user: AdminUser | null; source: 'api' | 'local' } | { ok: false; message: string }
 
+/** Girişli yöneticinin bilgisi (rol dahil) — sayfa/panel bileşenleri owner-only işlemleri buna göre gizler. */
+export let currentAdmin: AdminUser | null = null
+
 export async function loginAdmin(username: string, password: string): Promise<AdminLoginResult> {
   try {
-    const res = await api<{ user: AdminUser }>('/auth/login', { method: 'POST', body: { username, password } })
+    // API `{ admin: {...} }` döner (`{ user }` değil) — bkz. api/src/routes/auth.js.
+    const res = await api<{ admin: AdminUser }>('/auth/login', { method: 'POST', body: { username, password } })
     setAdminSession(true)
-    return { ok: true, user: res.user, source: 'api' }
+    currentAdmin = res.admin
+    return { ok: true, user: res.admin, source: 'api' }
   } catch (e) {
     const err = e instanceof ApiError ? e : null
     // API yok/ulaşılamıyor → yalnızca geliştirme ortamında yerel kontrol
@@ -41,14 +46,16 @@ export async function loginAdmin(username: string, password: string): Promise<Ad
 /** Sayfa açılışında sunucu oturumunu doğrular; API yoksa yerel oturum bayrağı (yalnızca DEV) geçerli sayılır. */
 export async function verifyAdminSession(localFlag: boolean): Promise<boolean> {
   try {
-    const res = await api<{ user: AdminUser | null }>('/auth/me')
-    const ok = !!res.user
+    const res = await api<{ admin: AdminUser }>('/auth/me')
+    const ok = !!res.admin
     setAdminSession(ok)
+    currentAdmin = ok ? res.admin : null
     return ok
   } catch (e) {
     const err = e instanceof ApiError ? e : null
     if (err && err.status === 401) {
       setAdminSession(false)
+      currentAdmin = null
       return false
     }
     return import.meta.env.DEV ? localFlag : false
@@ -62,4 +69,5 @@ export async function logoutAdmin(): Promise<void> {
     /* sunucuya ulaşılamasa da yerel oturum kapanır */
   }
   setAdminSession(false)
+  currentAdmin = null
 }

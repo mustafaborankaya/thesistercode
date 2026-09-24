@@ -22,6 +22,7 @@
  */
 
 import { mediaOverrideUrls } from '../admin/adminStore'
+import { remote } from './remote'
 import type { MediaKind } from './types'
 
 const files = import.meta.glob('../assets/media/*.{jpg,jpeg,png,webp,avif,svg,mp4,webm}', {
@@ -36,8 +37,14 @@ for (const [path, url] of Object.entries(files)) {
   byBaseName[base] = url
 }
 
-/** Dosya adına göre (uzantısız) kaynak URL'si; yönetici override'ı önceliklidir; yoksa null. */
+/**
+ * Dosya adına göre (uzantısız) kaynak URL'si. Öncelik: API (brand_media, yalnızca marka görselleri
+ * için anlamlı — ürün adları için remote sözlükte karşılık yoktur ve zincir sessizce devam eder) >
+ * yönetici panel override'ı (IndexedDB → object URL) > src/assets/media/ dosyası > null.
+ */
 export function mediaByName(name: string): string | null {
+  const fromRemote = remote?.content.brandMedia[name]
+  if (fromRemote) return fromRemote
   const override = mediaOverrideUrls[name]
   if (override) return override.startsWith('blob:') || override.startsWith('http') || override.startsWith('data:') || override.startsWith('/') ? override : (byBaseName[override] ?? null)
   return byBaseName[name] ?? null

@@ -22,10 +22,12 @@ interface RequestOptions {
   /** multipart yükleme için FormData; JSON gövdesiyle birlikte kullanılmaz. */
   form?: FormData
   signal?: AbortSignal
+  /** Ek istek başlıkları (örn. `Authorization: Bearer <token>`) — asla URL sorgu parametresine token koyma. */
+  headers?: Record<string, string>
 }
 
 export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T> {
-  const headers: Record<string, string> = { Accept: 'application/json' }
+  const headers: Record<string, string> = { Accept: 'application/json', ...opts.headers }
   let body: BodyInit | undefined
   if (opts.form) body = opts.form
   else if (opts.body !== undefined) {

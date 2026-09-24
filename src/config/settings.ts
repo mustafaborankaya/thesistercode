@@ -7,6 +7,7 @@
  */
 
 import { readAdminData } from '../admin/adminStore'
+import { remote } from '../data/remote'
 
 export const defaultSettings = {
   brand: {
@@ -106,4 +107,29 @@ export function mergeSettings<T>(base: T, patch: unknown): T {
   return out as T
 }
 
-export const siteSettings: SiteSettings = mergeSettings(defaultSettings as unknown as SiteSettings, readAdminData().settings)
+/**
+ * API'nin `GET /settings` yanıtı nokta ayraçlı düz anahtarlarla (`"brand.name"`, `"shipping.amount"`,
+ * `"offerPanel.delayAfterConsentMs"`) ve zaten iç içe nesnelerle (`memberDiscount`, `social`) karışık
+ * döner (bkz. api/src/routes/admin-settings.js → KNOWN_SETTINGS_SCHEMAS). Nokta ayraçlı anahtarları
+ * `mergeSettings` ile birleştirilebilmesi için iç içe nesneye çevirir; zaten iç içe olan anahtarlar
+ * (nokta içermeyen) olduğu gibi tek seviyeli bir alan olarak kalır.
+ */
+function unflattenSettings(flat: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(flat)) {
+    const parts = key.split('.')
+    let node = out
+    for (let i = 0; i < parts.length - 1; i++) {
+      const part = parts[i]
+      if (typeof node[part] !== 'object' || node[part] === null) node[part] = {}
+      node = node[part] as Record<string, unknown>
+    }
+    node[parts[parts.length - 1]] = value
+  }
+  return out
+}
+
+const withLocalOverrides = mergeSettings(defaultSettings as unknown as SiteSettings, readAdminData().settings)
+
+/** Öncelik: API (settings tablosu) > yönetici paneli override'ı (localStorage) > varsayılanlar. */
+export const siteSettings: SiteSettings = remote ? mergeSettings(withLocalOverrides, unflattenSettings(remote.settings)) : withLocalOverrides

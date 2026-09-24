@@ -1,9 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Field, SelectField, Switch } from '../../components/ui/Field'
-import { siteSettings } from '../../config/settings'
-import { brandMediaNames } from '../../data/media'
+import { defaultSettings, siteSettings } from '../../config/settings'
+import { brandMedia, brandMediaNames } from '../../data/media'
+import { apiErrorMessage } from '../../i18n/apiMessages'
+import { getAdminContent, getAdminSettings, updateAdminBrandMedia, updateAdminSettings, useApiMode } from '../adminApi'
 import { updateAdminData } from '../adminStore'
 import { AS } from '../adminStrings'
+import { ApiMediaField } from '../components/ApiMediaField'
 import { MediaField } from '../components/MediaField'
 import { SaveBar } from '../components/SaveBar'
 import styles from '../admin.module.css'
@@ -49,6 +52,38 @@ function buildInitialForm(): SettingsForm {
   }
 }
 
+/**
+ * Yönetici `GET /admin/settings` yanıtından form doldurur — herkese açık `GET /settings` artık beyaz
+ * listeli bir alt küme döner (`memberDiscount.code`/`usageLimit` hariç tutulur), bu yüzden panel
+ * gerçek (redaksiyonsuz) değerler için ayrı uç noktayı kullanır. Eksik anahtar varsayılana düşer.
+ */
+function buildFormFromAdminSettings(raw: Record<string, unknown>): SettingsForm {
+  const brandName = typeof raw['brand.name'] === 'string' ? (raw['brand.name'] as string) : defaultSettings.brand.name
+  const brandShortName = typeof raw['brand.shortName'] === 'string' ? (raw['brand.shortName'] as string) : defaultSettings.brand.shortName
+  const md = { ...defaultSettings.memberDiscount, ...(raw.memberDiscount as Partial<typeof defaultSettings.memberDiscount> | undefined) }
+  const social = { ...defaultSettings.social, ...(raw.social as Partial<typeof defaultSettings.social> | undefined) }
+  const shippingAmount = raw['shipping.amount']
+  const offerDelay = raw['offerPanel.delayAfterConsentMs']
+  return {
+    brandName,
+    brandShortName,
+    discountEnabled: md.enabled,
+    discountPercent: String(md.percent),
+    discountMode: md.mode,
+    discountCode: md.code ?? '',
+    discountMinSubtotal: md.minSubtotal == null ? '' : String(md.minSubtotal),
+    discountUsageLimit: md.usageLimit == null ? '' : String(md.usageLimit),
+    discountExpiresAt: md.expiresAt ? md.expiresAt.slice(0, 10) : '',
+    shippingAmount: typeof shippingAmount === 'number' ? String(shippingAmount) : '',
+    whatsapp: typeof raw['support.whatsappNumber'] === 'string' ? (raw['support.whatsappNumber'] as string) : '',
+    supportEmail: typeof raw['support.email'] === 'string' ? (raw['support.email'] as string) : '',
+    instagram: social.instagram ?? '',
+    tiktok: social.tiktok ?? '',
+    pinterest: social.pinterest ?? '',
+    offerDelayMs: String(typeof offerDelay === 'number' ? offerDelay : defaultSettings.offerPanel.delayAfterConsentMs),
+  }
+}
+
 function toNullableNumber(v: string): number | null {
   const t = v.trim()
   if (!t) return null
@@ -78,13 +113,69 @@ const mediaFields: { key: keyof typeof brandMediaNames; ratio: string; kind: 'im
 export function SettingsPage() {
   const [form, setForm] = useState<SettingsForm>(buildInitialForm)
   const [message, setMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [pending, setPending] = useState(false)
+  // API modunda marka görsellerinin en son yüklenen URL'leri. `data/media.ts`'teki `brandMedia` yalnızca
+  // AÇILIŞ ANI anlık görüntüsüdür — sayfa yeniden monte edildiğinde (başka sayfaya gidip geri dönünce)
+  // güncel olmayabilir, bu yüzden aşağıdaki useEffect'te `GET /admin/content`'ten taze doldurulur.
+  const [mediaOverrides, setMediaOverrides] = useState<Partial<Record<keyof typeof brandMediaNames, string | null>>>({})
+
+  // Herkese açık `GET /settings` beyaz listeli bir alt küme döner (bkz. buildFormFromAdminSettings);
+  // panel için gerçek değerler `GET /admin/settings`'ten ayrıca yüklenir. Marka görselleri de aynı
+  // nedenle (taze veri) `GET /admin/content`'ten ayrıca yüklenir.
+  useEffect(() => {
+    if (!useApiMode) return
+    getAdminSettings()
+      .then((raw) => setForm(buildFormFromAdminSettings(raw)))
+      .catch((e) => setError(apiErrorMessage(e)))
+    getAdminContent()
+      .then((content) => {
+        const fresh: Partial<Record<keyof typeof brandMediaNames, string | null>> = {}
+        for (const key of Object.keys(brandMediaNames) as (keyof typeof brandMediaNames)[]) {
+          const name = brandMediaNames[key]
+          if (name in content.brandMedia) fresh[key] = content.brandMedia[name]
+        }
+        setMediaOverrides(fresh)
+      })
+      .catch((e) => setError(apiErrorMessage(e)))
+  }, [])
 
   function set<K extends keyof SettingsForm>(key: K, value: SettingsForm[K]) {
     setForm((f) => ({ ...f, [key]: value }))
     setMessage(null)
   }
 
-  function handleSave() {
+  async function handleSave() {
+    if (useApiMode) {
+      setPending(true)
+      setError(null)
+      try {
+        await updateAdminSettings({
+          'brand.name': form.brandName.trim() || siteSettings.brand.name,
+          'brand.shortName': form.brandShortName.trim() || siteSettings.brand.shortName,
+          memberDiscount: {
+            enabled: form.discountEnabled,
+            percent: toNullableNumber(form.discountPercent) ?? 0,
+            mode: form.discountMode,
+            code: form.discountMode === 'code' ? toNullableString(form.discountCode) : null,
+            minSubtotal: toNullableNumber(form.discountMinSubtotal),
+            usageLimit: toNullableNumber(form.discountUsageLimit),
+            expiresAt: toNullableString(form.discountExpiresAt),
+          },
+          'shipping.amount': toNullableNumber(form.shippingAmount),
+          'support.whatsappNumber': toNullableString(form.whatsapp),
+          'support.email': toNullableString(form.supportEmail),
+          social: { instagram: toNullableString(form.instagram), tiktok: toNullableString(form.tiktok), pinterest: toNullableString(form.pinterest) },
+          'offerPanel.delayAfterConsentMs': toNullableNumber(form.offerDelayMs) ?? siteSettings.offerPanel.delayAfterConsentMs,
+        })
+        setMessage(AS.apiNotice.saved)
+      } catch (e) {
+        setError(apiErrorMessage(e))
+      } finally {
+        setPending(false)
+      }
+      return
+    }
     updateAdminData((current) => ({
       ...current,
       settings: {
@@ -108,12 +199,24 @@ export function SettingsPage() {
     setMessage(AS.save.saved)
   }
 
+  // Hata olursa ApiMediaField kendi alanının yanında gösterir (throw edilir); burada yalnızca başarı işlenir.
+  async function handleBrandMediaUpload(key: keyof typeof brandMediaNames, url: string | null) {
+    await updateAdminBrandMedia({ [brandMediaNames[key]]: url })
+    setMediaOverrides((m) => ({ ...m, [key]: url }))
+    setMessage(AS.apiNotice.saved)
+  }
+
   return (
     <div>
       <div className={styles.pageHead}>
         <h1 className={styles.pageTitle}>{AS.settings.title}</h1>
       </div>
-      <p className={styles.demoNotice}>{AS.demoNotice}</p>
+      {useApiMode ? null : <p className={styles.demoNotice}>{AS.demoNotice}</p>}
+      {error ? (
+        <p className={styles.empty} role="alert">
+          {error}
+        </p>
+      ) : null}
 
       <div className={styles.section}>
         <div className={styles.sectionTitle}>{AS.settings.brandTitle}</div>
@@ -173,21 +276,39 @@ export function SettingsPage() {
       <div className={styles.section}>
         <div className={styles.sectionTitle}>{AS.settings.mediaTitle}</div>
         <div className={styles.mediaGrid}>
-          {mediaFields.map((m) => (
-            <MediaField
-              key={m.key}
-              name={brandMediaNames[m.key]}
-              label={AS.settings.mediaLabels[m.key]}
-              ratio={m.ratio}
-              kind={m.kind}
-              accept={m.accept}
-              onChange={() => setMessage(AS.save.saved)}
-            />
-          ))}
+          {useApiMode
+            ? mediaFields.map((m) => {
+                const override = mediaOverrides[m.key]
+                const src = override !== undefined ? override : brandMedia[m.key]
+                return (
+                  <ApiMediaField
+                    key={m.key}
+                    name={brandMediaNames[m.key]}
+                    label={AS.settings.mediaLabels[m.key]}
+                    src={src}
+                    ratio={m.ratio}
+                    kind={m.kind}
+                    accept={m.accept}
+                    onUpload={(url) => handleBrandMediaUpload(m.key, url)}
+                    onRemove={() => handleBrandMediaUpload(m.key, null)}
+                  />
+                )
+              })
+            : mediaFields.map((m) => (
+                <MediaField
+                  key={m.key}
+                  name={brandMediaNames[m.key]}
+                  label={AS.settings.mediaLabels[m.key]}
+                  ratio={m.ratio}
+                  kind={m.kind}
+                  accept={m.accept}
+                  onChange={() => setMessage(AS.save.saved)}
+                />
+              ))}
         </div>
       </div>
 
-      <SaveBar onSave={handleSave} message={message} />
+      <SaveBar onSave={() => void handleSave()} message={message} pending={pending} />
     </div>
   )
 }

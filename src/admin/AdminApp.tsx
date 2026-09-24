@@ -12,6 +12,7 @@ import { OrdersPage } from './pages/OrdersPage'
 import { ProductEditPage } from './pages/ProductEditPage'
 import { ProductsPage } from './pages/ProductsPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { UsersPage } from './pages/UsersPage'
 
 /**
  * Yönetici paneli kök bileşeni — mağaza `<Layout>` düzeninin dışında, `/admin/*` altında ayrı bir
@@ -45,6 +46,7 @@ export function AdminApp() {
         <Route path="icerik" element={<ContentPage />} />
         <Route path="ayarlar" element={<SettingsPage />} />
         <Route path="siparisler" element={<OrdersPage />} />
+        <Route path="kullanicilar" element={<UsersPage />} />
         <Route path="veri" element={<DataPage />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Route>

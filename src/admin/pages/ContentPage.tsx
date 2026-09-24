@@ -1,8 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AccordionItem } from '../../components/ui/Accordion'
 import { TextareaField } from '../../components/ui/Field'
 import { brandContent, brandContentKeys, cookieContent, infoPages, productionContent, sizeGuideContent, type BrandContentKey } from '../../data/content'
-import { updateAdminData } from '../adminStore'
+import { contentTexts, infoSectionTexts } from '../../data/contentTexts'
+import { apiErrorMessage } from '../../i18n/apiMessages'
+import { getAdminContent, updateAdminContentFields, useApiMode, type AdminContent } from '../adminApi'
+import { readAdminData, updateAdminData } from '../adminStore'
 import { AS } from '../adminStrings'
 import { SaveBar } from '../components/SaveBar'
 import styles from '../admin.module.css'
@@ -44,12 +47,168 @@ function buildInitialForm(): ContentForm {
   }
 }
 
+/** ContentForm'u API alan anahtarlarına (bkz. api/seed/content.json) düzleştirir — hem patch üretimi hem taban karşılaştırması için ortak kullanılır. */
+function flattenForm(form: ContentForm): Record<string, string> {
+  const flat: Record<string, string> = {
+    'brand.collectionTitle': form.brand.collectionTitle,
+    'brand.collectionIntro': form.brand.collectionIntro,
+    'brand.companyName': form.brand.companyName,
+    'brand.address': form.brand.address,
+    'brand.phone': form.brand.phone,
+    'brand.email': form.brand.email,
+    'brand.workingHours': form.brand.workingHours,
+    'cookie.bannerText': form.cookieText,
+    'cookie.necessary': form.cookieCategories.necessary,
+    'cookie.analytics': form.cookieCategories.analytics,
+    'cookie.marketing': form.cookieCategories.marketing,
+    'production.intro': form.production.intro,
+    'production.kesim.title': form.production.steps.kesim.title,
+    'production.kesim.text': form.production.steps.kesim.text,
+    'production.dikim.title': form.production.steps.dikim.title,
+    'production.dikim.text': form.production.steps.dikim.text,
+    'production.kalite.title': form.production.steps.kalite.title,
+    'production.kalite.text': form.production.steps.kalite.text,
+    'sizeGuide.table': form.sizeGuide.table,
+    'sizeGuide.note': form.sizeGuide.note,
+  }
+  for (const [slug, sections] of Object.entries(form.infoPages)) {
+    sections.forEach((value, i) => {
+      flat[`info.${slug}.${i}`] = value
+    })
+  }
+  return flat
+}
+
+/**
+ * `form` ile `baseline` (son yüklenen/kaydedilen durum) arasındaki FARKI üretir — yalnızca gerçekten
+ * değişen alanlar gönderilir. Bunun aksi (her zaman tüm alanları göndermek) `contentTexts.ts`'teki
+ * yer tutucu varsayılan metinleri hiç dokunulmamış alanlara bile gerçek içerikmiş gibi DB'ye yazardı.
+ */
+function buildFieldsPatch(form: ContentForm, baseline: ContentForm): Record<string, string | null> {
+  const current = flattenForm(form)
+  const before = flattenForm(baseline)
+  const patch: Record<string, string | null> = {}
+  for (const [key, value] of Object.entries(current)) {
+    const trimmed = value.trim()
+    if (trimmed === before[key].trim()) continue
+    patch[key] = trimmed ? trimmed : null
+  }
+  return patch
+}
+
+const clean = (v: string | null | undefined): string | null => (v && v.trim() ? v : null)
+
+/** Tek bir alan için değer çözümler: API (taze) > yönetici paneli localStorage override'ı > contentTexts.ts metni > boş. */
+function resolveField(fresh: string | null | undefined, local: string | null | undefined, fallback: string | undefined): string {
+  return clean(fresh) ?? clean(local) ?? fallback ?? ''
+}
+
+/**
+ * `GET /admin/content`'in TAZE yanıtından formu yeniden kurar (bkz. api/README.md). ContentPage
+ * yeniden monte edildiğinde (örn. başka sayfaya gidip geri dönünce) `data/content.ts`'in AÇILIŞ ANI
+ * anlık görüntüsü artık güncel olmayabilir — bu fonksiyon aynı öncelik zincirini taze veriyle uygular.
+ */
+function buildFormFromFields(fields: Record<string, string | null>): ContentForm {
+  const overrides = readAdminData().content
+  const b = overrides.brand ?? {}
+  const p = overrides.production ?? {}
+  const cc = overrides.cookieCategories ?? {}
+  return {
+    brand: {
+      collectionTitle: resolveField(fields['brand.collectionTitle'], b.collectionTitle, contentTexts['brand.collectionTitle']),
+      collectionIntro: resolveField(fields['brand.collectionIntro'], b.collectionIntro, contentTexts['brand.collectionIntro']),
+      companyName: resolveField(fields['brand.companyName'], b.companyName, contentTexts['brand.companyName']),
+      address: resolveField(fields['brand.address'], b.address, contentTexts['brand.address']),
+      phone: resolveField(fields['brand.phone'], b.phone, contentTexts['brand.phone']),
+      email: resolveField(fields['brand.email'], b.email, contentTexts['brand.email']),
+      workingHours: resolveField(fields['brand.workingHours'], b.workingHours, contentTexts['brand.workingHours']),
+    },
+    infoPages: Object.fromEntries(
+      editableInfoPages.map((page) => [
+        page.slug,
+        page.sections.map((_, i) => resolveField(fields[`info.${page.slug}.${i}`], overrides.infoPages?.[page.slug]?.[i], infoSectionTexts[page.slug]?.[i])),
+      ]),
+    ),
+    cookieText: resolveField(fields['cookie.bannerText'], overrides.cookieText, contentTexts['cookie.bannerText']),
+    cookieCategories: {
+      necessary: resolveField(fields['cookie.necessary'], cc.necessary, contentTexts['cookie.necessary']),
+      analytics: resolveField(fields['cookie.analytics'], cc.analytics, contentTexts['cookie.analytics']),
+      marketing: resolveField(fields['cookie.marketing'], cc.marketing, contentTexts['cookie.marketing']),
+    },
+    production: {
+      intro: resolveField(fields['production.intro'], p.intro, contentTexts['production.intro']),
+      steps: {
+        kesim: {
+          title: resolveField(fields['production.kesim.title'], p.steps?.kesim?.title, contentTexts['production.kesim.title']),
+          text: resolveField(fields['production.kesim.text'], p.steps?.kesim?.text, contentTexts['production.kesim.text']),
+        },
+        dikim: {
+          title: resolveField(fields['production.dikim.title'], p.steps?.dikim?.title, contentTexts['production.dikim.title']),
+          text: resolveField(fields['production.dikim.text'], p.steps?.dikim?.text, contentTexts['production.dikim.text']),
+        },
+        kalite: {
+          title: resolveField(fields['production.kalite.title'], p.steps?.kalite?.title, contentTexts['production.kalite.title']),
+          text: resolveField(fields['production.kalite.text'], p.steps?.kalite?.text, contentTexts['production.kalite.text']),
+        },
+      },
+    },
+    sizeGuide: {
+      table: resolveField(fields['sizeGuide.table'], overrides.sizeGuide?.table, contentTexts['sizeGuide.table']),
+      note: resolveField(fields['sizeGuide.note'], overrides.sizeGuide?.note, contentTexts['sizeGuide.note']),
+    },
+  }
+}
+
 /** `/admin/icerik` — marka bilgileri, bilgi sayfaları, çerez metinleri, üretim, beden rehberi. */
 export function ContentPage() {
   const [form, setForm] = useState<ContentForm>(buildInitialForm)
+  // Kaydetme anında yalnızca gerçekten DEĞİŞEN alanları göndermek için taban — bkz. buildFieldsPatch.
+  const [baseline, setBaseline] = useState<ContentForm>(buildInitialForm)
   const [message, setMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [pending, setPending] = useState(false)
 
-  function handleSave() {
+  // `data/content.ts`'in modül yüklenirken aldığı anlık görüntü, sayfa yeniden monte edildiğinde
+  // (başka panel sayfasına gidip geri dönünce) artık güncel olmayabilir — API modunda her montajda
+  // taze veri çekilir (bkz. buildFormFromFields).
+  useEffect(() => {
+    if (!useApiMode) return
+    let cancelled = false
+    getAdminContent()
+      .then((content: AdminContent) => {
+        if (cancelled) return
+        const fresh = buildFormFromFields(content.fields)
+        setForm(fresh)
+        setBaseline(fresh)
+      })
+      .catch((e) => {
+        if (!cancelled) setError(apiErrorMessage(e))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  async function handleSave() {
+    if (useApiMode) {
+      const patch = buildFieldsPatch(form, baseline)
+      if (Object.keys(patch).length === 0) {
+        setMessage(AS.apiNotice.saved)
+        return
+      }
+      setPending(true)
+      setError(null)
+      try {
+        await updateAdminContentFields(patch)
+        setBaseline(form)
+        setMessage(AS.apiNotice.saved)
+      } catch (e) {
+        setError(apiErrorMessage(e))
+      } finally {
+        setPending(false)
+      }
+      return
+    }
     updateAdminData((current) => ({
       ...current,
       content: {
@@ -76,7 +235,12 @@ export function ContentPage() {
       <div className={styles.pageHead}>
         <h1 className={styles.pageTitle}>{AS.content.title}</h1>
       </div>
-      <p className={styles.demoNotice}>{AS.demoNotice}</p>
+      {useApiMode ? null : <p className={styles.demoNotice}>{AS.demoNotice}</p>}
+      {error ? (
+        <p className={styles.empty} role="alert">
+          {error}
+        </p>
+      ) : null}
 
       <div className={styles.accordionGroup}>
         <AccordionItem title={AS.content.brandTitle} defaultOpen>
@@ -224,7 +388,7 @@ export function ContentPage() {
         </AccordionItem>
       </div>
 
-      <SaveBar onSave={handleSave} message={message} />
+      <SaveBar onSave={() => void handleSave()} message={message} pending={pending} />
     </div>
   )
 }

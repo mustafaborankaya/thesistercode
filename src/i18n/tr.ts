@@ -354,6 +354,57 @@ export const tr = {
     en: 'EN',
     switchTo: (name: string) => `${name} diline geç`,
   },
+
+  /** Parola sıfırlama / e-posta doğrulama akışı (`/sifre-sifirla`, `/hesap/dogrula`). */
+  authFlow: {
+    forgotTitle: 'Parolamı unuttum',
+    forgotLead: 'E-posta adresinizi girin, parola sıfırlama bağlantısını gönderelim.',
+    forgotSubmit: 'Sıfırlama bağlantısı gönder',
+    forgotSentTitle: 'E-postanızı kontrol edin',
+    forgotSentText: 'Bu e-posta adresine kayıtlı bir hesap varsa, parola sıfırlama bağlantısı gönderildi.',
+    forgotPasswordLink: 'Parolamı unuttum',
+    resetTitle: 'Yeni parola belirle',
+    resetLead: 'Hesabınız için yeni bir parola belirleyin.',
+    resetSubmit: 'Parolayı güncelle',
+    resetSuccess: 'Parolanız güncellendi. Şimdi giriş yapabilirsiniz.',
+    resetInvalidToken: 'Bu bağlantının süresi dolmuş ya da geçersiz. Yeni bir bağlantı isteyin.',
+    requestNewLink: 'Yeni bağlantı iste',
+    backToLogin: 'Girişe dön',
+    verifyTitle: 'Hesap doğrulama',
+    verifyPending: 'Hesabınız doğrulanıyor…',
+    verifySuccess: 'Hesabınız doğrulandı. Artık giriş yapabilirsiniz.',
+    verifyFailure: 'Doğrulama bağlantısı geçersiz ya da süresi dolmuş.',
+    newPasswordLabel: 'Yeni parola',
+  },
+
+  /** Backend API hata/durum mesajları (bkz. src/i18n/apiMessages.ts → apiErrorMessage). Kod adları `api/src/errors.js`'teki `code` alanıyla eşleşir. */
+  api: {
+    network: 'Sunucuya ulaşılamadı. Lütfen bağlantınızı kontrol edip tekrar deneyin.',
+    invalid_credentials: 'Kullanıcı adı/e-posta veya parola hatalı.',
+    email_taken: 'Bu e-posta ile zaten bir hesap var.',
+    username_taken: 'Bu kullanıcı adı zaten kullanılıyor.',
+    rate_limited: 'Çok fazla deneme yapıldı. Lütfen birkaç dakika sonra tekrar deneyin.',
+    insufficient_stock: 'Seçtiğiniz üründe yeterli stok kalmadı.',
+    invalid_product: 'Sepetteki bir ürün artık satışta değil.',
+    invalid_variant: 'Sepetteki bir ürün seçeneği artık geçerli değil.',
+    not_found: 'Kayıt bulunamadı.',
+    forbidden: 'Bu işlem için yetkiniz yok.',
+    last_owner: 'En az bir aktif hesap sahibi (owner) kalmalı.',
+    validation_error: 'Girdiğiniz bilgileri kontrol edin.',
+    unauthorized: 'Bu işlem için giriş yapmalısınız.',
+    invalid_token: 'Bu bağlantının süresi dolmuş ya da geçersiz.',
+    origin_mismatch: 'İstek reddedildi. Sayfayı yenileyip tekrar deneyin.',
+    default: 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.',
+    /** Hesap sayfası — API'de müşteri sipariş listesi uç noktası yok; bkz. src/pages/AccountPage.tsx. */
+    ordersListNote: 'Bu liste yalnızca bu tarayıcıda oluşturulan demo siparişleri gösterir. Sipariş geçmişiniz için sipariş onay sayfanızdaki bağlantıyı saklayın.',
+    /** Checkout demoBanner/resultText/resultNotFound'ın API modu karşılığı — API modunda gerçek bir sipariş kaydı oluşturulur. */
+    checkoutBanner: 'Bu adımda gerçek kart bilgisi istenmez ve tahsilat yapılmaz; sipariş kaydınız oluşturulur ve ödeme sonradan alınır.',
+    resultText: 'Siparişiniz oluşturuldu. Bu demo sürümde gerçek bir tahsilat yapılmadı.',
+    orderNotFound: 'Sipariş bulunamadı.',
+    /** Giriş/kayıt sayfaları — "yalnızca bu tarayıcıda saklanır" demo notunun API modu karşılığı. */
+    accountNote: 'Hesap bilgileriniz sunucuda saklanır; parolanız asla düz metin olarak loglanmaz.',
+    accountPageNote: 'Siparişleriniz sunucuda saklanır. Adresleriniz ve talepleriniz ise şimdilik yalnızca bu tarayıcıda tutulur (bkz. bilinen sınırlar).',
+  },
 }
 
 export type Strings = typeof tr

@@ -1,44 +1,76 @@
 /**
- * DEMO KATALOG VERİSİ
- * Ürün adları, renkler, fiyatlar ve stoklar gerçek marka verisi değildir; sepet hesaplamalarını
- * ve listeleme davranışlarını denemek için hazırlanmış örneklerdir. Gerçek katalog bağlandığında
- * bu dosya yerine servis katmanı kullanılacaktır (bkz. src/services/catalog.ts).
+ * KATALOG VERİSİ
+ * `remote.products` doluysa (backend API'ye ulaşıldıysa) katalog doğrudan API'den kurulur — DB gerçek
+ * kaynaktır. API'ye ulaşılamazsa (yerel geliştirme, kesinti) aşağıdaki DEMO tohum veriye düşülür; ürün
+ * adları, renkler, fiyatlar ve stoklar bu durumda gerçek marka verisi değildir.
+ * Yönetici panelinin localStorage override katmanı (readAdminData) yalnızca remote YOKKEN uygulanır;
+ * remote varken panel doğrudan API'ye yazar (bkz. src/admin/adminApi.ts).
  */
 
 import { readAdminData, type ProductOverride } from '../admin/adminStore'
+import { S } from '../i18n'
 import { mediaByName, resolveProductMedia } from './media'
-import type { Category, ColorOption, MediaSlotData, Product, SizeId } from './types'
+import { remote } from './remote'
+import type { Category, ColorOption, MediaKind, MediaSlotData, Product, SizeId } from './types'
 
-/** Yönetici panelinden gelen ürün override'ları (localStorage) — modül yüklenirken uygulanır. */
-const productOverrides: Record<string, ProductOverride> = readAdminData().products
+/** Yönetici panelinden gelen ürün override'ları (localStorage) — yalnızca remote yokken uygulanır. */
+const productOverrides: Record<string, ProductOverride> = remote ? {} : readAdminData().products
 
 export const categories: Category[] = [
-  { id: 'tum-urunler', label: 'Tüm Ürünler', virtual: 'all' },
-  { id: 'yeni-gelenler', label: 'Yeni Gelenler', virtual: 'new' },
-  { id: 'elbiseler', label: 'Elbiseler' },
-  { id: 'ust-giyim', label: 'Üst Giyim' },
-  { id: 'alt-giyim', label: 'Alt Giyim' },
-  { id: 'takimlar', label: 'Takımlar' },
-  { id: 'dis-giyim', label: 'Dış Giyim' },
+  { id: 'tum-urunler', label: S.data.categories['tum-urunler'], virtual: 'all' },
+  { id: 'yeni-gelenler', label: S.data.categories['yeni-gelenler'], virtual: 'new' },
+  { id: 'elbiseler', label: S.data.categories.elbiseler },
+  { id: 'ust-giyim', label: S.data.categories['ust-giyim'] },
+  { id: 'alt-giyim', label: S.data.categories['alt-giyim'] },
+  { id: 'takimlar', label: S.data.categories.takimlar },
+  { id: 'dis-giyim', label: S.data.categories['dis-giyim'] },
 ]
 
 export const allSizes: SizeId[] = ['XS', 'S', 'M', 'L', 'XL']
 
-/** Demo renk seçenekleri — gerçek renk adları kesinleşince güncellenir. */
+/** Demo/API renk seçenekleri — gerçek renk adları kesinleşince (API'den) güncellenir. */
 export const colorOptions: ColorOption[] = [
-  { id: 'renk-1', label: 'Renk 1' },
-  { id: 'renk-2', label: 'Renk 2' },
-  { id: 'renk-3', label: 'Renk 3' },
+  { id: 'renk-1', label: S.data.colorLabel(1) },
+  { id: 'renk-2', label: S.data.colorLabel(2) },
+  { id: 'renk-3', label: S.data.colorLabel(3) },
 ]
 
 const colorById = Object.fromEntries(colorOptions.map((c) => [c.id, c]))
 
-const mediaKinds: { kind: MediaSlotData['kind']; label: string }[] = [
-  { kind: 'front', label: 'Ön görünüş fotoğrafı' },
-  { kind: 'back', label: 'Arka görünüş fotoğrafı' },
-  { kind: 'model', label: 'Model üzerindeki fotoğraf' },
-  { kind: 'fabric', label: 'Kumaş detay fotoğrafı' },
-]
+const mediaKinds: MediaKind[] = ['front', 'back', 'model', 'fabric']
+
+function mediaSlotLabel(number: string, kind: MediaKind): string {
+  return S.data.productMediaLabel(number, S.data.media[kind])
+}
+
+/* ---------------- Yer tutucu desenleri (yalnızca API/demo yer tutucusu eşleşirse yerelleştirilir; gerçek marka metni olduğu gibi kalır) ---------------- */
+
+const PRODUCT_NAME_PLACEHOLDER_RE = /^Ürün (\d+) — Ürün adı$/
+const COLOR_LABEL_PLACEHOLDER_RE = /^Renk (\d+)$/
+const DESCRIPTION_PLACEHOLDER_RE = /^Ürün (\d+) — Ürün açıklaması alanı$/
+const FABRIC_CARE_PLACEHOLDER_RE = /^Ürün (\d+) — Kumaş ve bakım bilgisi alanı$/
+const DELIVERY_RETURNS_PLACEHOLDER = 'Teslimat ve iade bilgisi alanı'
+
+function localizeProductName(name: string, number: string): string {
+  return PRODUCT_NAME_PLACEHOLDER_RE.test(name) ? S.data.productName(number) : name
+}
+
+function localizeColorLabel(label: string): string {
+  const m = COLOR_LABEL_PLACEHOLDER_RE.exec(label)
+  return m ? S.data.colorLabel(Number(m[1])) : label
+}
+
+function localizeDescription(text: string, number: string): string {
+  return DESCRIPTION_PLACEHOLDER_RE.test(text) ? S.data.productContent.description(number) : text
+}
+
+function localizeFabricCare(text: string, number: string): string {
+  return FABRIC_CARE_PLACEHOLDER_RE.test(text) ? S.data.productContent.fabricCare(number) : text
+}
+
+function localizeDeliveryReturns(text: string): string {
+  return text === DELIVERY_RETURNS_PLACEHOLDER ? S.data.productContent.deliveryReturns : text
+}
 
 interface ProductSeed {
   n: number
@@ -68,11 +100,12 @@ function buildProduct(seed: ProductSeed): Product {
     Object.assign(base, seed.stock ?? {}, seed.stockByColor?.[colorId] ?? {}, o.stock?.[colorId] ?? {})
     stock[colorId] = base
   }
+  const colorCount = colorIds.length
   return {
     id,
     number,
     slug: id,
-    name: o.name?.trim() || `Ürün ${number} — Ürün adı`,
+    name: o.name?.trim() || S.data.productName(number),
     category: o.category ?? seed.category,
     isNew: o.isNew ?? seed.isNew ?? false,
     price: typeof o.price === 'number' && o.price >= 0 ? o.price : seed.price,
@@ -80,20 +113,43 @@ function buildProduct(seed: ProductSeed): Product {
     sizes: allSizes,
     stock,
     // Gerçek fotoğraf: yönetici panelinden yüklenen görsel > src/assets/media/urun-XX-on.jpg > etiketli alan.
-    media: mediaKinds.map((m) => ({
-      kind: m.kind,
-      label: `Ürün ${number} — ${m.label}`,
-      src: o.media?.[m.kind] ? (mediaByName(o.media[m.kind]!) ?? o.media[m.kind]!) : resolveProductMedia(number, m.kind),
+    media: mediaKinds.map((kind) => ({
+      kind,
+      label: mediaSlotLabel(number, kind),
+      src: o.media?.[kind] ? (mediaByName(o.media[kind]!) ?? o.media[kind]!) : resolveProductMedia(number, kind),
     })),
     content: {
-      description: o.description?.trim() || `Ürün ${number} — Ürün açıklaması alanı`,
-      fabricCare: o.fabricCare?.trim() || `Ürün ${number} — Kumaş ve bakım bilgisi alanı`,
-      deliveryReturns: o.deliveryReturns?.trim() || 'Teslimat ve iade bilgisi alanı',
+      description: o.description?.trim() || S.data.productContent.description(number),
+      fabricCare: o.fabricCare?.trim() || S.data.productContent.fabricCare(number),
+      deliveryReturns: o.deliveryReturns?.trim() || S.data.productContent.deliveryReturns,
     },
-    colorNote: colorIds.length > 1 ? `${colorIds.length} renk seçeneği` : undefined,
+    colorNote: colorCount > 1 ? S.data.colorNote(colorCount) : undefined,
     similarProductIds: o.similarProductIds ?? seed.similarProductIds,
     completeLookProductIds: o.completeLookProductIds ?? seed.completeLookProductIds,
     hidden: o.hidden ?? false,
+  }
+}
+
+/** API'den gelen ürünü mağaza şekline dönüştürür: yer tutucu desenleri yerelleştirir, görselleri tamamlar. */
+function buildProductFromRemote(row: Product): Product {
+  const colors = row.colors.map((c) => ({ id: c.id, label: localizeColorLabel(c.label) }))
+  const media: MediaSlotData[] = row.media.map((m) => ({
+    kind: m.kind,
+    // API etiketleri her zaman Türkçe üretilir (bkz. api/src/services/products.js) — burada yeniden üretilir.
+    label: mediaSlotLabel(row.number, m.kind),
+    src: m.src ?? resolveProductMedia(row.number, m.kind),
+  }))
+  return {
+    ...row,
+    name: localizeProductName(row.name, row.number),
+    colors,
+    media,
+    content: {
+      description: localizeDescription(row.content.description, row.number),
+      fabricCare: localizeFabricCare(row.content.fabricCare, row.number),
+      deliveryReturns: localizeDeliveryReturns(row.content.deliveryReturns),
+    },
+    colorNote: colors.length > 1 ? S.data.colorNote(colors.length) : undefined,
   }
 }
 
@@ -170,8 +226,8 @@ const seeds: ProductSeed[] = [
   { n: 24, category: 'alt-giyim', price: 2540, colors: ['renk-2'] },
 ]
 
-/** Gizlenmiş ürünler dahil tüm katalog — yönetici paneli için. */
-export const allProducts: Product[] = seeds.map(buildProduct)
+/** Gizlenmiş ürünler dahil tüm katalog — yönetici paneli için. API varsa doğrudan API'den, yoksa demo tohumdan. */
+export const allProducts: Product[] = remote ? remote.products.map(buildProductFromRemote) : seeds.map(buildProduct)
 
 /** Mağazada görünen ürünler (yönetici panelinden gizlenenler hariç). */
 export const products: Product[] = allProducts.filter((p) => !p.hidden)
@@ -179,11 +235,11 @@ export const products: Product[] = allProducts.filter((p) => !p.hidden)
 export const productById: Record<string, Product> = Object.fromEntries(products.map((p) => [p.id, p]))
 export const productBySlug: Record<string, Product> = Object.fromEntries(products.map((p) => [p.slug, p]))
 
-/** Kaynak katalogdaki (override'sız) değerler — panelde "varsayılana dön" için. */
+/** Kaynak katalogdaki (override'sız) değerler — yalnızca remote yokken panelde "varsayılana dön" için anlamlı. */
 export const baseSeeds = seeds.map((s) => ({ id: `urun-${String(s.n).padStart(2, '0')}`, ...s }))
 
-/** Demo fiyat aralığı — filtre kaydırıcılarının sınırları için. */
+/** Fiyat aralığı — filtre kaydırıcılarının sınırları için. */
 export const priceBounds = {
-  min: Math.min(...products.map((p) => p.price)),
-  max: Math.max(...products.map((p) => p.price)),
+  min: products.length ? Math.min(...products.map((p) => p.price)) : 0,
+  max: products.length ? Math.max(...products.map((p) => p.price)) : 0,
 }

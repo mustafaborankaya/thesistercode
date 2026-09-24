@@ -5,6 +5,7 @@ import { PasswordField } from '../components/account/PasswordField'
 import { Button } from '../components/ui/Button'
 import { Field } from '../components/ui/Field'
 import { Icon } from '../components/ui/Icon'
+import { isApiMode } from '../data/remote'
 import { S } from '../i18n'
 import { EMAIL_RE, MIN_PASSWORD } from '../services/auth'
 import { useAccount } from '../state/AccountContext'
@@ -70,8 +71,14 @@ export function RegisterPage() {
       case 'password-short':
         setSubmitError(S.account.passwordShort)
         break
+      case 'email-taken':
+        setSubmitError(result.message ?? S.account.genericError)
+        break
+      case 'rate-limited':
+        setSubmitError(result.message ?? S.account.genericError)
+        break
       default:
-        setSubmitError(S.account.genericError)
+        setSubmitError(result.message ?? S.account.genericError)
     }
   }
 
@@ -124,7 +131,7 @@ export function RegisterPage() {
         <Button type="submit" variant="primary" block disabled={pending}>
           {pending ? S.common.loading : S.account.register}
         </Button>
-        <p className={authStyles.demoNote}>{S.account.demoNote}</p>
+        <p className={authStyles.demoNote}>{isApiMode() ? S.api.accountNote : S.account.demoNote}</p>
       </form>
     </AuthLayout>
   )

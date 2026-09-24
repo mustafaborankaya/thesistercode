@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
+import { useApiMode } from './adminApi'
 import { logoutAdmin } from './adminAuth'
 import { AS } from './adminStrings'
 import styles from './AdminLayout.module.css'
@@ -9,6 +10,8 @@ const navItems: { to: string; label: string; end?: boolean }[] = [
   { to: '/admin/icerik', label: AS.nav.content },
   { to: '/admin/ayarlar', label: AS.nav.settings },
   { to: '/admin/siparisler', label: AS.nav.orders },
+  // Kullanıcı yönetimi yalnızca API modunda anlamlı (GET/POST/PATCH /admin/users) — yerel modda gösterilmez.
+  ...(useApiMode ? [{ to: '/admin/kullanicilar', label: AS.nav.users }] : []),
   { to: '/admin/veri', label: AS.nav.data },
 ]
 
@@ -30,7 +33,7 @@ export function AdminLayout({ onLogout }: AdminLayoutProps) {
       <header className={styles.topbar}>
         <div>
           <div className={styles.brand}>{AS.headerTitle}</div>
-          <p className={styles.demoNotice}>{AS.demoNotice}</p>
+          {useApiMode ? null : <p className={styles.demoNotice}>{AS.demoNotice}</p>}
         </div>
         <div className={styles.topActions}>
           <a className="link" href="/" target="_blank" rel="noopener noreferrer">

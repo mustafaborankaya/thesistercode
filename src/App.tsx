@@ -14,9 +14,11 @@ import { HomePage } from './pages/HomePage'
 import { InfoPage } from './pages/InfoPage'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
+import { PasswordResetPage } from './pages/PasswordResetPage'
 import { ProductPage } from './pages/ProductPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { SearchPage } from './pages/SearchPage'
+import { VerifyEmailPage } from './pages/VerifyEmailPage'
 
 export function App() {
   return (
@@ -41,6 +43,8 @@ export function App() {
         <Route path="/odeme/sonuc/:orderId" element={<CheckoutResultPage />} />
         <Route path="/giris" element={<LoginPage />} />
         <Route path="/kayit" element={<RegisterPage />} />
+        <Route path="/sifre-sifirla" element={<PasswordResetPage />} />
+        <Route path="/hesap/dogrula" element={<VerifyEmailPage />} />
         <Route path="/hesap" element={<AccountPage />} />
         <Route path="/favoriler" element={<FavoritesPage />} />
         <Route path="/arama" element={<SearchPage />} />

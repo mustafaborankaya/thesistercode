@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { isApiMode } from '../data/remote'
 import { readJSON, storageKeys, writeJSON } from '../lib/storage'
 import { authProvider, type AuthResult } from '../services/auth'
 import { CUSTOMER_CHANGED } from '../lib/customerStorage'
@@ -38,17 +39,48 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     window.dispatchEvent(new Event(CUSTOMER_CHANGED))
   }, [store])
 
+  // API modunda gerçek oturum kaynağı sunucu çerezidir (tsc_customer); sayfa açılışında `GET /account/me`
+  // ile doğrulanır/tazelenir — yerel önbellek (localStorage) yalnızca AdminApp'teki gibi ilk an için
+  // iyimser bir tahmindir (bkz. src/admin/AdminApp.tsx aynı desen).
+  useEffect(() => {
+    if (!isApiMode()) return
+    let cancelled = false
+    authProvider.me().then((info) => {
+      if (cancelled) return
+      setStore((s) => ({
+        ...s,
+        current: info ? { name: info.name, email: info.email, createdAt: s.current?.email === info.email ? s.current.createdAt : new Date().toISOString(), discountEligible: info.discountEligible } : null,
+      }))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const register = useCallback(async (input: { name: string; email: string; password: string }) => {
     const result = await authProvider.register(input)
     if (result.ok) {
-      const account: Account = { name: input.name.trim(), email: input.email.trim().toLowerCase(), createdAt: new Date().toISOString(), discountEligible: true }
-      setStore((s) => ({ current: account, known: [...s.known.filter((k) => k.email !== account.email), account] }))
+      if (isApiMode()) {
+        const info = await authProvider.me()
+        if (info) setStore((s) => ({ ...s, current: { name: info.name, email: info.email, createdAt: new Date().toISOString(), discountEligible: info.discountEligible } }))
+      } else {
+        const account: Account = { name: input.name.trim(), email: input.email.trim().toLowerCase(), createdAt: new Date().toISOString(), discountEligible: true }
+        setStore((s) => ({ current: account, known: [...s.known.filter((k) => k.email !== account.email), account] }))
+      }
     }
     return result
   }, [])
 
   const login = useCallback(
     async (input: { email: string; password: string }) => {
+      if (isApiMode()) {
+        const result = await authProvider.login({ ...input, knownAccount: true })
+        if (result.ok) {
+          const info = await authProvider.me()
+          if (info) setStore((s) => ({ ...s, current: { name: info.name, email: info.email, createdAt: new Date().toISOString(), discountEligible: info.discountEligible } }))
+        }
+        return result
+      }
       const email = input.email.trim().toLowerCase()
       const known = store.known.find((k) => k.email === email)
       const result = await authProvider.login({ ...input, knownAccount: !!known })
@@ -58,7 +90,10 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     [store.known],
   )
 
-  const logout = useCallback(() => setStore((s) => ({ ...s, current: null })), [])
+  const logout = useCallback(() => {
+    setStore((s) => ({ ...s, current: null }))
+    void authProvider.logout()
+  }, [])
 
   const value = useMemo<AccountContextValue>(
     () => ({
