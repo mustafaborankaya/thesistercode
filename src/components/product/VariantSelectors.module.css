@@ -103,7 +103,8 @@
 
 .lowStock {
   font-size: var(--fs-xs);
-  color: var(--color-ink-soft);
+  font-weight: var(--fw-medium);
+  color: var(--color-alert);
 }
 
 .error {

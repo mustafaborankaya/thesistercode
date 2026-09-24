@@ -8,6 +8,8 @@
   --color-ink-faint: rgba(0, 0, 0, 0.38);
   --color-scrim: rgba(0, 0, 0, 0.32);
   --color-on-ink: #ffffff;
+  /* Tek istisna vurgu: düşük stok ("Son N adet") uyarısı — kullanıcı isteği (24.09.2026). */
+  --color-alert: #c1121f;
 
   /* Tipografi — Cabin (bkz. fonts.css); yüklenemezse Gill Sans zinciri */
   --font-family: "Cabin", "Gill Sans Nova", "Gill Sans", "Gill Sans MT", sans-serif;
