@@ -171,8 +171,8 @@ async function seedContentFields() {
 
 // bkz. src/config/settings.ts → defaultSettings (mağazanın istemci tarafı varsayılanlarıyla birebir)
 const DEFAULT_SETTINGS = {
-  'brand.name': 'Teşvikiye',
-  'brand.shortName': 'Teşvikiye',
+  'brand.name': 'Teshvikiye',
+  'brand.shortName': 'Teshvikiye',
   memberDiscount: {
     enabled: true,
     percent: 10,

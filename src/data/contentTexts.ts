@@ -44,7 +44,7 @@ export const contentTexts: Record<string, string> = {
   // --- Marka ---
   'brand.collectionTitle': 'Sonbahar / Kış 2026 Koleksiyonu',
   'brand.collectionIntro':
-    'Bu sonbahar-kış sezonunda Teşvikiye, günün her anına eşlik eden sade ve zamansız parçaları bir araya getiriyor. Yumuşak dokular, dengeli kesimler ve nötr bir renk paleti, kışın soğuğuna hazırlanırken şıklıktan ödün vermek istemeyenler için tasarlandı. Koleksiyondaki her parça, gardırobunuzda uzun süre yer bulacak şekilde düşünüldü.',
+    'Bu sonbahar-kış sezonunda Teshvikiye, günün her anına eşlik eden sade ve zamansız parçaları bir araya getiriyor. Yumuşak dokular, dengeli kesimler ve nötr bir renk paleti, kışın soğuğuna hazırlanırken şıklıktan ödün vermek istemeyenler için tasarlandı. Koleksiyondaki her parça, gardırobunuzda uzun süre yer bulacak şekilde düşünüldü.',
   'brand.workingHours': 'Hafta içi 09.00 – 18.00 saatleri arasında hizmetinizdeyiz.',
   // brand.companyName / brand.address / brand.phone / brand.email: gerçek işletme bilgisi gerektirdiği için
   // burada TANIMLANMAMIŞTIR — bkz. rapor: "marka tarafından doldurulacak".
@@ -76,7 +76,7 @@ export const contentTexts: Record<string, string> = {
 
 export const infoSectionTexts: Record<string, string[]> = {
   hakkimizda: [
-    "Teşvikiye ismini, İstanbul'un uzun yıllardır moda ve zarafetle anılan semti Teşvikiye'den alır. Bu isim, markanın sade ve şık duruşuna ilham veren bir referans noktasıdır. Teşvikiye, günlük hayatın temposuna uyum sağlayan, aynı zamanda özenli bir işçilikle üretilen kadın giyim parçaları sunar. Koleksiyonlar hazırlanırken kısa ömürlü trendler yerine uzun süre giyilebilecek tasarımlar ön planda tutulur. Amacımız, her kadının kendi tarzını rahatça yansıtabileceği bir gardırop sunmaktır.",
+    "Teshvikiye ismini, İstanbul'un uzun yıllardır moda ve zarafetle anılan semti Teşvikiye'den alır. Bu isim, markanın sade ve şık duruşuna ilham veren bir referans noktasıdır. Teşvikiye, günlük hayatın temposuna uyum sağlayan, aynı zamanda özenli bir işçilikle üretilen kadın giyim parçaları sunar. Koleksiyonlar hazırlanırken kısa ömürlü trendler yerine uzun süre giyilebilecek tasarımlar ön planda tutulur. Amacımız, her kadının kendi tarzını rahatça yansıtabileceği bir gardırop sunmaktır.",
     'Tasarım sürecimizde sade çizgiler ve dengeli kesimler öncelik taşır. Kaliteli kumaşlar seçilerek hem konfor hem de dayanıklılık bir arada gözetilir. Renk paletimiz, birbiriyle kolayca kombinlenebilen ve zamana direnen tonlardan oluşur. Bu yaklaşım sayesinde ortaya çıkan parçalar, sezon değişse de gardırobunuzda yerini korur.',
   ],
 
