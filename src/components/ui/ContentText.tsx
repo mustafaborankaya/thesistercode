@@ -12,7 +12,13 @@ interface ContentTextProps {
 /** İçerik alanı: gerçek metin varsa onu, yoksa alan adını gösterir. */
 export function ContentText({ field, as = 'p', className, short }: ContentTextProps) {
   const Tag = as
-  if (field.value) return <Tag className={className}>{field.value}</Tag>
+  // Satır sonları korunur (ölçü tablosu, SSS, adım listeleri).
+  if (field.value)
+    return (
+      <Tag className={className} style={{ whiteSpace: 'pre-line' }}>
+        {field.value}
+      </Tag>
+    )
   return (
     <Tag className={[className ?? '', 'text-soft'].join(' ').trim()} data-content-field={field.label}>
       {short ? field.label : S.info.pendingField(field.label)}
