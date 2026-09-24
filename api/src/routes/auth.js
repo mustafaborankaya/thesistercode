@@ -9,6 +9,10 @@ import { parseBody, unauthorized } from '../errors.js'
 
 const router = Router()
 
+// Kullanıcı adı var/yok farkını zamanlama yoluyla sızdırmamak için: kullanıcı bulunamadığında da
+// bcrypt.compare sabit bir dummy hash'e karşı çalıştırılır (gerçek bir hesaba ait değildir).
+const DUMMY_BCRYPT_HASH = '$2a$12$oWcBklGjt/lEvHodTlzNN.Ocym9eOM4mqoPGQGEA27kG/atloM1uW'
+
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
@@ -31,10 +35,12 @@ router.post('/login', loginLimiter, async (req, res, next) => {
       [username],
     )
     const user = rows[0]
-    if (!user || !user.is_active) return next(unauthorized('Kullanıcı adı veya parola hatalı', 'invalid_credentials'))
-
-    const ok = await bcrypt.compare(password, user.password_hash)
-    if (!ok) return next(unauthorized('Kullanıcı adı veya parola hatalı', 'invalid_credentials'))
+    // Kullanıcı yoksa/pasifse de bcrypt.compare çalıştırılır (dummy hash'e karşı) — böylece yanıt
+    // süresi var olan/olmayan kullanıcı adı için ayırt edilemez kalır (kullanıcı adı numaralandırması önlenir).
+    const ok = await bcrypt.compare(password, user?.password_hash ?? DUMMY_BCRYPT_HASH)
+    if (!user || !user.is_active || !ok) {
+      return next(unauthorized('Kullanıcı adı veya parola hatalı', 'invalid_credentials'))
+    }
 
     await pool.query('UPDATE admin_users SET last_login_at = NOW() WHERE id = ?', [user.id])
 

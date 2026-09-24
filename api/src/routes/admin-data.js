@@ -20,7 +20,9 @@ import { parseBody } from '../errors.js'
 const router = Router()
 router.use(requireAdmin)
 
-router.get('/export', async (req, res, next) => {
+// Export/import yalnızca owner'a özeldir (spesifikasyon gereği) — bir editor hesabı ele geçirilse
+// bile tüm katalog/içerik/ayarları tek istekte dışa aktaramaz.
+router.get('/export', requireOwner, async (req, res, next) => {
   try {
     const [products, fields, brandMedia, settings] = await Promise.all([
       productsService.listProducts({ includeHidden: true }),
@@ -39,17 +41,48 @@ router.get('/export', async (req, res, next) => {
   }
 })
 
+// Ürün girdileri, katalog uç noktalarının (admin-products.js) kabul ettiği alanlarla tutarlı ve
+// sıkı biçimde doğrulanır — genel `z.record(unknown)` yerine: bozuk/kötü niyetli bir içe aktarma
+// dosyasının şema dışı alanlarla veritabanını bozmasını (ör. eksik id, geçersiz kategori) önler.
+const productImportSchema = z.object({
+  id: z.string().regex(/^urun-\d{2,4}$/, "id 'urun-NN' biçiminde olmalı"),
+  number: z.string().min(1).max(8),
+  slug: z.string().min(1).max(80).optional(),
+  name: z.string().min(1).max(200),
+  category: z.enum(productsService.CATEGORIES),
+  isNew: z.boolean().optional(),
+  price: z.number().min(0),
+  hidden: z.boolean().optional(),
+  content: z
+    .object({
+      description: z.string().nullable().optional(),
+      fabricCare: z.string().nullable().optional(),
+      deliveryReturns: z.string().nullable().optional(),
+    })
+    .optional(),
+  colors: z.array(z.object({ id: z.string().min(1).max(32), label: z.string().min(1).max(64) })).max(20).optional(),
+  stock: z.record(z.string(), z.record(z.string(), z.number().int().min(0).max(100000))).optional(),
+  media: z
+    .array(z.object({ kind: z.enum(productsService.MEDIA_KINDS), src: z.string().max(500).nullable().optional() }))
+    .max(20)
+    .optional(),
+  similarProductIds: z.array(z.string().max(32)).max(50).optional(),
+  completeLookProductIds: z.array(z.string().max(32)).max(50).optional(),
+})
+
 const importSchema = z.object({
   format: z.literal('teshvikiye-api-export').optional(),
   data: z.object({
-    products: z.array(z.record(z.string(), z.unknown())).optional(),
+    // Boyut sınırı: tek bir istekte en fazla 2000 ürün — hem patolojik/DoS amaçlı çok satırlı
+    // yüklerin önüne geçer hem de genel JSON gövde limitiyle (1 MB) birlikte savunma derinliği sağlar.
+    products: z.array(productImportSchema).max(2000).optional(),
     content: z
       .object({
-        fields: z.record(z.string(), z.string().nullable()).optional(),
-        brandMedia: z.record(z.string(), z.string().nullable()).optional(),
+        fields: z.record(z.string().max(120), z.string().nullable()).optional(),
+        brandMedia: z.record(z.string().max(64), z.string().nullable()).optional(),
       })
       .optional(),
-    settings: z.record(z.string(), z.unknown()).optional(),
+    settings: z.record(z.string().max(120), z.unknown()).optional(),
   }),
 })
 

@@ -6,7 +6,7 @@
 import express from 'express'
 import cookieParser from 'cookie-parser'
 import helmet from 'helmet'
-import { env } from './env.js'
+import { env, corsOrigins } from './env.js'
 import { pingDb } from './db.js'
 import { errorHandler, notFoundHandler } from './errors.js'
 import { originCheck } from './auth.js'
@@ -36,24 +36,33 @@ export function createApp() {
       // gereksiz kısıtlamalar getirmesin diye devre dışı bırakılır (public_html Apache tarafından sunuluyor).
       contentSecurityPolicy: false,
       crossOriginResourcePolicy: { policy: 'cross-origin' },
+      // HSTS Apache seviyesinde zaten ayarlanıyor; burada tekrar set edip çakışma/kısa max-age
+      // yaratmamak için helmet'in HSTS başlığı devre dışı bırakılır.
+      hsts: false,
     }),
   )
 
-  // Basit CORS: yalnızca CORS_ORIGIN'e izin verir, kimlik bilgili (cookie) isteklere izin verir.
+  // API yanıtları hiçbir zaman ara belleğe (tarayıcı/proxy) alınmamalı — özellikle auth/admin.
+  app.use((req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store')
+    next()
+  })
+
+  // Basit CORS: yalnızca CORS_ORIGIN listesindeki kaynaklara izin verir, kimlik bilgili (cookie) isteklere izin verir.
   app.use((req, res, next) => {
     const origin = req.get('origin')
-    if (origin && origin === env.CORS_ORIGIN) {
+    if (origin && corsOrigins.includes(origin)) {
       res.setHeader('Access-Control-Allow-Origin', origin)
       res.setHeader('Vary', 'Origin')
       res.setHeader('Access-Control-Allow-Credentials', 'true')
       res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS')
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
     }
     if (req.method === 'OPTIONS') return res.sendStatus(204)
     next()
   })
 
-  app.use(express.json({ limit: '2mb' }))
+  app.use(express.json({ limit: '1mb' }))
   app.use(cookieParser())
   app.use(originCheck)
 

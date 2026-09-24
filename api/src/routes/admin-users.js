@@ -65,6 +65,12 @@ router.post('/', requireOwner, async (req, res, next) => {
 router.patch('/:id', requireOwner, async (req, res, next) => {
   const conn = await pool.getConnection()
   try {
+    // Route parametresi her zaman string'dir; burada BİR KEZ Number'a çevrilip (id sütunu INT)
+    // aşağıdaki TÜM sorgularda aynı değer kullanılır — aksi halde `assertActiveOwnerRemains`
+    // (Number) ile UPDATE/SELECT (ham string) farklı temsillerle çalışıp tutarsız davranabilirdi.
+    if (!/^\d+$/.test(req.params.id)) throw badRequest('Geçersiz kullanıcı id biçimi', 'validation_error')
+    const targetId = Number(req.params.id)
+
     const patch = parseBody(updateSchema, req.body)
     const fields = []
     const values = []
@@ -84,17 +90,17 @@ router.patch('/:id', requireOwner, async (req, res, next) => {
     if (!fields.length) throw badRequest('Güncellenecek alan belirtilmedi', 'no_fields')
 
     await conn.beginTransaction()
-    await assertActiveOwnerRemains(conn, Number(req.params.id), patch)
+    await assertActiveOwnerRemains(conn, targetId, patch)
 
     const [result] = await conn.query(`UPDATE admin_users SET ${fields.join(', ')} WHERE id = ?`, [
       ...values,
-      req.params.id,
+      targetId,
     ])
     if (result.affectedRows === 0) throw notFound('Kullanıcı bulunamadı')
 
     const [rows] = await conn.query(
       'SELECT id, username, role, is_active, last_login_at, created_at FROM admin_users WHERE id = ? LIMIT 1',
-      [req.params.id],
+      [targetId],
     )
     await conn.commit()
     res.json({ user: rows[0] })

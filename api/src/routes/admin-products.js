@@ -3,10 +3,13 @@ import { Router } from 'express'
 import { z } from 'zod'
 import * as productsService from '../services/products.js'
 import { requireAdmin } from '../auth.js'
-import { parseBody } from '../errors.js'
+import { parseBody, badRequest } from '../errors.js'
 
 const router = Router()
 router.use(requireAdmin)
+
+/** Ürün id biçimi: `urun-NN` (bkz. services/products.js createProduct). */
+const PRODUCT_ID_RE = /^urun-\d{2,4}$/
 
 const colorSchema = z.object({ id: z.string().min(1), label: z.string().min(1) })
 const stockSchema = z.record(z.string(), z.record(z.string(), z.number().int().min(0)))
@@ -52,6 +55,7 @@ router.get('/', async (req, res, next) => {
 
 router.put('/:id', async (req, res, next) => {
   try {
+    if (!PRODUCT_ID_RE.test(req.params.id)) throw badRequest('Geçersiz ürün id biçimi', 'validation_error')
     const patch = parseBody(updateSchema, req.body)
     const product = await productsService.updateProduct(req.params.id, patch)
     res.json({ product })

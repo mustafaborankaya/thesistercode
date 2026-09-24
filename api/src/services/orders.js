@@ -1,4 +1,5 @@
 /** Sipariş oluşturma, sorgulama ve durum güncelleme — fiyat/stok/toplamlar sunucuda hesaplanır. */
+import crypto from 'node:crypto'
 import { pool } from '../db.js'
 import { badRequest, conflict, notFound } from '../errors.js'
 import { getSetting } from './settings.js'
@@ -7,6 +8,31 @@ export const ORDER_STATUSES = ['demo', 'new', 'paid', 'shipped', 'cancelled']
 
 function round2(n) {
   return Math.round(n * 100) / 100
+}
+
+/**
+ * Sipariş erişim token'ı: sipariş oluşturulurken üretilir, yalnızca yanıt gövdesinde BİR KEZ
+ * döner (raw), DB'de asla düz metin saklanmaz — yalnızca SHA-256 hash'i (`access_token_hash`)
+ * saklanır. `GET /orders/:id` bu token (query `?token=` veya `Authorization: Bearer`) veya
+ * siparişi oluşturan müşterinin oturumu ile doğrulanmadan sipariş bilgisini döndürmez.
+ */
+function generateAccessToken() {
+  const raw = crypto.randomBytes(32).toString('hex') // 256 bit rastgelelik, 64 hex karakter
+  return { raw, hash: hashAccessToken(raw) }
+}
+
+function hashAccessToken(raw) {
+  return crypto.createHash('sha256').update(String(raw)).digest('hex')
+}
+
+/** Zamanlama saldırılarına karşı sabit süreli hex karşılaştırma. */
+function safeEqualHex(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false
+  try {
+    return crypto.timingSafeEqual(Buffer.from(a, 'hex'), Buffer.from(b, 'hex'))
+  } catch {
+    return false
+  }
 }
 
 function istanbulDateStamp(date = new Date()) {
@@ -114,11 +140,13 @@ export async function createOrder(input, customer) {
     }
     if (!orderId) throw new Error('Sipariş numarası üretilemedi')
 
+    const { raw: accessToken, hash: accessTokenHash } = generateAccessToken()
+
     await conn.query(
       `INSERT INTO orders
         (id, customer_id, status, email, phone, first_name, last_name, address, district, city, postal_code, country, note,
-         subtotal, discount_percent, discount_amount, shipping, total)
-       VALUES (?, ?, 'new', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         subtotal, discount_percent, discount_amount, shipping, total, access_token_hash)
+       VALUES (?, ?, 'new', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         orderId,
         customer?.id ?? null,
@@ -137,6 +165,7 @@ export async function createOrder(input, customer) {
         discountAmount,
         shipping,
         total,
+        accessTokenHash,
       ],
     )
 
@@ -157,7 +186,10 @@ export async function createOrder(input, customer) {
     }
 
     await conn.commit()
-    return getOrderById(orderId)
+    const order = await getOrderById(orderId)
+    // accessToken yalnızca burada, oluşturma anında düz metin olarak döner; DB'de yalnızca hash'i
+    // saklanır ve bir daha asla API yanıtında görünmez (kaybedilirse yeniden üretilemez).
+    return { order, accessToken }
   } catch (err) {
     await conn.rollback()
     throw err
@@ -177,6 +209,36 @@ export async function getOrderById(id) {
   return formatOrder(order, itemRows)
 }
 
+/**
+ * Genel (kimlik doğrulamasız/token'sız) `GET /orders/:id` için TEK giriş noktası. Siparişi yalnızca
+ * (a) siparişi oluşturan müşterinin oturumu (customerId eşleşmesi) veya (b) sipariş oluşturulurken
+ * üretilen tek seferlik erişim token'ı (accessToken) doğrulanırsa döndürür. Yetkisiz/bulunamayan
+ * durumlar arasında AYIRT EDİCİ olmayan (her ikisinde de null) bir sonuç döner — böylece yanıt,
+ * sipariş kimliğinin var olup olmadığını sızdırmaz (ID enumeration bilgi sızıntısını önler).
+ */
+export async function getOrderByIdForAccess(id, { customerId, token } = {}) {
+  const [orderRows] = await pool.query('SELECT * FROM orders WHERE id = ? LIMIT 1', [id])
+  const row = orderRows[0]
+  if (!row) return null
+
+  const ownerMatch = customerId != null && row.customer_id === customerId
+  const tokenMatch =
+    !ownerMatch &&
+    typeof token === 'string' &&
+    token.length > 0 &&
+    token.length <= 128 &&
+    row.access_token_hash &&
+    safeEqualHex(hashAccessToken(token), row.access_token_hash)
+
+  if (!ownerMatch && !tokenMatch) return null
+
+  const [itemRows] = await pool.query(
+    'SELECT product_id, product_name, color_id, color_label, size, qty, unit_price FROM order_items WHERE order_id = ? ORDER BY id ASC',
+    [id],
+  )
+  return formatOrder(row, itemRows)
+}
+
 export async function listOrders({ status } = {}) {
   const params = []
   let where = ''
@@ -189,10 +251,47 @@ export async function listOrders({ status } = {}) {
   return rows.map((r) => formatOrder(r, null))
 }
 
+/**
+ * Sipariş durumunu günceller. Bir sipariş 'cancelled' durumuna geçerken (ve daha önce zaten iptal
+ * edilmemişse) satırdaki ürünler için düşülen stok, aynı transaction içinde geri yüklenir — aksi
+ * halde iptal edilen siparişlerin stoğu kalıcı olarak "kilitli" kalır. Bilinen sınır: bir siparişin
+ * iptali GERİ ALINIRSA (cancelled → new/paid/…) stok tekrar OTOMATİK düşülmez; bu, mevcut spesifikasyon
+ * kapsamının dışındadır ve operatörün stoğu manuel doğrulaması gerekir.
+ */
 export async function updateOrderStatus(id, status) {
   if (!ORDER_STATUSES.includes(status)) throw badRequest('Geçersiz sipariş durumu', 'validation_error')
-  const [result] = await pool.query('UPDATE orders SET status = ? WHERE id = ?', [status, id])
-  if (result.affectedRows === 0) throw notFound('Sipariş bulunamadı')
+
+  const conn = await pool.getConnection()
+  try {
+    await conn.beginTransaction()
+
+    const [rows] = await conn.query('SELECT status FROM orders WHERE id = ? LIMIT 1 FOR UPDATE', [id])
+    const current = rows[0]
+    if (!current) throw notFound('Sipariş bulunamadı')
+
+    const becomingCancelled = status === 'cancelled' && current.status !== 'cancelled'
+
+    await conn.query('UPDATE orders SET status = ? WHERE id = ?', [status, id])
+
+    if (becomingCancelled) {
+      const [items] = await conn.query('SELECT product_id, color_id, size, qty FROM order_items WHERE order_id = ?', [id])
+      for (const item of items) {
+        await conn.query(
+          `INSERT INTO product_stock (product_id, color_id, size, qty) VALUES (?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE qty = qty + VALUES(qty)`,
+          [item.product_id, item.color_id, item.size, item.qty],
+        )
+      }
+    }
+
+    await conn.commit()
+  } catch (err) {
+    await conn.rollback()
+    throw err
+  } finally {
+    conn.release()
+  }
+
   return getOrderById(id)
 }
 

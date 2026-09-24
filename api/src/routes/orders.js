@@ -10,11 +10,12 @@ import { optionalCustomer } from '../auth.js'
 const router = Router()
 
 /**
- * GET /:id kimlik doğrulaması gerektirmez (bkz. aşağıdaki not) ve sipariş id'si yalnızca
- * `TSV-YYYYMMDD-XXXX` biçiminde 4 haneli rastgele bir sondan oluşur — günde yalnızca 10.000
- * olası değer. Bu, hız sınırlaması OLMADAN kaba kuvvetle taranabilir (ad/telefon/e-posta/adres
- * sızıntısı riski). Bu limit riski AZALTIR ama TEK BAŞINA yeterli bir koruma DEĞİLDİR — bkz.
- * README "Bilinen sınırlar".
+ * GET /:id sipariş id'si tek başına yeterli DEĞİLDİR (yalnızca `TSV-YYYYMMDD-XXXX` biçiminde 4
+ * haneli rastgele bir sondan oluşur — günde yalnızca 10.000 olası değer, kaba kuvvetle taranabilir).
+ * Bu yüzden erişim (a) siparişi oluşturan müşterinin oturumuna veya (b) sipariş oluşturulurken
+ * üretilen tek seferlik gizli `accessToken`'a (32 byte rastgele, DB'de yalnızca hash'i saklanır)
+ * bağlıdır — bkz. services/orders.js `getOrderByIdForAccess`. Rate limit, kaba kuvvet denemelerine
+ * karşı ek bir savunma katmanıdır (savunma derinliği), tek başına koruma mekanizması değildir.
  */
 const orderLookupLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -23,6 +24,20 @@ const orderLookupLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: { code: 'rate_limited', message: 'Çok fazla deneme yapıldı. Lütfen daha sonra tekrar deneyin.' } },
 })
+
+// Sipariş oluşturma ödeme adımı İÇERMEZ (bkz. services/orders.js) ve stok gerçek zamanlı düşer;
+// limitsiz bırakılırsa tek bir IP art arda sipariş oluşturarak stoğu tüketebilir/sipariş tablosunu
+// şişirebilir. Login/register ile aynı IP başına sınır uygulanır.
+const orderCreateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: { code: 'rate_limited', message: 'Çok fazla deneme yapıldı. Lütfen daha sonra tekrar deneyin.' } },
+})
+
+/** Sipariş id biçimi: `TSV-YYYYMMDD-XXXX` (bkz. services/orders.js randomOrderId). */
+const ORDER_ID_RE = /^TSV-\d{8}-\d{4}$/
 
 const orderSchema = z.object({
   contact: z.object({
@@ -42,29 +57,46 @@ const orderSchema = z.object({
   lines: z
     .array(
       z.object({
-        productId: z.string().min(1),
-        colorId: z.string().min(1),
+        productId: z.string().min(1).max(32),
+        colorId: z.string().min(1).max(32),
         size: z.enum(productsService.SIZES),
-        qty: z.number().int().positive().max(99),
+        qty: z.number().int().min(1).max(20),
       }),
     )
-    .min(1, 'Sepet boş olamaz'),
+    .min(1, 'Sepet boş olamaz')
+    .max(100, 'Sepette en fazla 100 satır olabilir'),
 })
 
-router.post('/', optionalCustomer, async (req, res, next) => {
+router.post('/', orderCreateLimiter, optionalCustomer, async (req, res, next) => {
   try {
     const input = parseBody(orderSchema, req.body)
-    const order = await ordersService.createOrder(input, req.customer ?? null)
-    res.status(201).json({ order })
+    const { order, accessToken } = await ordersService.createOrder(input, req.customer ?? null)
+    // accessToken yalnızca burada döner — istemci (mağaza) bunu saklamalı (ör. sipariş onay
+    // sayfası/e-postası); sunucu bunu bir daha asla düz metin olarak döndürmez.
+    res.status(201).json({ order, accessToken })
   } catch (err) {
     next(err)
   }
 })
 
-// Not: demo amaçlı — e-posta doğrulaması yapılmaz, yalnızca sipariş id'si ile erişilir.
-router.get('/:id', orderLookupLimiter, async (req, res, next) => {
+// Erişim: (a) siparişi oluşturan müşterinin oturumu veya (b) oluşturmada dönen accessToken
+// (yalnızca `Authorization: Bearer <token>` başlığı). Bilinçli olarak `?token=` sorgu parametresi
+// DESTEKLENMEZ: URL'e giren bir token, Apache erişim günlüklerine, tarayıcı geçmişine ve
+// (varsa) giden Referer başlığına sessizce düşerek DB'de hash'lenmiş olsa bile sızma yüzeyini
+// genişletirdi. İstemci (mağaza) token'ı yalnızca Authorization header ile göndermelidir.
+router.get('/:id', orderLookupLimiter, optionalCustomer, async (req, res, next) => {
   try {
-    const order = await ordersService.getOrderById(req.params.id)
+    // Biçimi uymayan id'ler DB'ye hiç gitmez; yanıt yine de generic notFound'dur (bulunamayan bir
+    // id ile yetkisiz bir id arasında ayrım yapılmaz — ID enumeration/bilgi sızıntısı önlenir).
+    if (!ORDER_ID_RE.test(req.params.id)) return next(notFound('Sipariş bulunamadı'))
+
+    const authHeader = req.get('authorization') || ''
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null
+
+    const order = await ordersService.getOrderByIdForAccess(req.params.id, {
+      customerId: req.customer?.id ?? null,
+      token,
+    })
     if (!order) return next(notFound('Sipariş bulunamadı'))
     res.json({ order })
   } catch (err) {

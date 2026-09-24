@@ -9,6 +9,10 @@ import { parseBody, unauthorized, conflict } from '../errors.js'
 
 const router = Router()
 
+// Kullanıcı adı/e-posta var/yok farkını zamanlama yoluyla sızdırmamak için: hesap bulunamadığında
+// da bcrypt.compare sabit bir dummy hash'e karşı çalıştırılır (gerçek bir hesaba ait değildir).
+const DUMMY_BCRYPT_HASH = '$2a$12$oWcBklGjt/lEvHodTlzNN.Ocym9eOM4mqoPGQGEA27kG/atloM1uW'
+
 // Yönetici girişiyle aynı sınır (10/15dk/IP) — spesifikasyondaki "login'e rate limit" isteği
 // müşteri girişi/kaydı için de mantıklı bir genişletmedir (kaba kuvvet/otomatik kayıt önleme).
 const authLimiter = rateLimit({
@@ -62,10 +66,10 @@ router.post('/login', authLimiter, async (req, res, next) => {
       normalizedEmail,
     ])
     const user = rows[0]
-    if (!user) return next(unauthorized('E-posta veya parola hatalı', 'invalid_credentials'))
-
-    const ok = await bcrypt.compare(password, user.password_hash)
-    if (!ok) return next(unauthorized('E-posta veya parola hatalı', 'invalid_credentials'))
+    // Hesap yoksa da bcrypt.compare çalıştırılır (dummy hash'e karşı) — yanıt süresi var olan/olmayan
+    // e-posta için ayırt edilemez kalır (hesap numaralandırması önlenir).
+    const ok = await bcrypt.compare(password, user?.password_hash ?? DUMMY_BCRYPT_HASH)
+    if (!user || !ok) return next(unauthorized('E-posta veya parola hatalı', 'invalid_credentials'))
 
     const token = signCustomerToken(user)
     setCustomerCookie(res, token)
