@@ -36,7 +36,7 @@ if [[ -n "$DRY_RUN" ]]; then
   echo "(dry-run) yükleme atlandı"
 else
   # Eski derleme dosyalarını temizle; cPanel dosyaları (cgi-bin, .well-known, php.ini, .user.ini), api/ (Passenger) ve uploads/ korunur.
-  ssh "${SSH_OPTS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" "cd '$DEPLOY_PATH' && rm -rf assets index.html favicon.svg"
+  ssh "${SSH_OPTS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" "cd '$DEPLOY_PATH' && rm -rf assets fonts index.html favicon.svg"
   COPYFILE_DISABLE=1 tar -C dist -czf - . | ssh "${SSH_OPTS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" "tar -C '$DEPLOY_PATH' -xzf -"
 fi
 

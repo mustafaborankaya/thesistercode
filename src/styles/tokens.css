@@ -9,9 +9,9 @@
   --color-scrim: rgba(0, 0, 0, 0.32);
   --color-on-ink: #ffffff;
 
-  /* Tipografi — tümü Gill Sans Nova (bkz. fonts.css) */
-  --font-family: "Gill Sans Nova", "TR Glyph Fix", "Gill Sans", "Gill Sans MT", sans-serif;
-  --fw-light: 300;
+  /* Tipografi — Cabin (bkz. fonts.css); yüklenemezse Gill Sans zinciri */
+  --font-family: "Cabin", "Gill Sans Nova", "Gill Sans", "Gill Sans MT", sans-serif;
+  --fw-light: 400; /* Cabin 300 içermez; hafif başlıklar 400 ile dizilir */
   --fw-regular: 400;
   --fw-medium: 500;
   --fw-semibold: 600;

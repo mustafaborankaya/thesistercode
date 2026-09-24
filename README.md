@@ -33,7 +33,7 @@ src/
   components/panels       Çerez çubuğu ve tercihleri, WhatsApp destek, %10 indirim teklifi, arama
   components/production   Üretim bölümü (video ve aşama alanları)
   pages/                  Ana sayfa, koleksiyon, ürün, sepet, ödeme, sonuç, giriş, kayıt, hesap, favoriler, arama, bilgi
-public/fonts/             Gill Sans Nova dosyaları buraya eklenir (bkz. src/styles/fonts.css)
+public/fonts/             Cabin font dosyaları (woff2, kendi sunucumuzdan; bkz. src/styles/fonts.css)
 ```
 
 ## Marka görselleri (fotoğraf boru hattı)
@@ -66,7 +66,7 @@ Fotoğraflar `src/assets/media/` altına ad kuralıyla konur ve derlemede otomat
 
 - Renkler yalnızca `#000000`, `#FFFFFF`, `#F5F5F5`, `#EEEEEE` (`src/styles/tokens.css`). Durumlar metin ve ikonla anlatılır.
 - Header'da logo dosyası gelene kadar iki satırlı metin wordmark (`Teşvikiye`) kullanılır.
-- Tipografi: `"Gill Sans Nova", "Gill Sans", "Gill Sans MT", sans-serif`. **Gerçek Gill Sans Nova dosyaları bekleniyor**; dosyalar `public/fonts/` altına konup `src/styles/fonts.css` içindeki `@font-face` blokları açıldığında otomatik devreye girer. Başka bir font Gill Sans Nova adıyla tanıtılmamıştır.
+- Tipografi: `"Cabin", "Gill Sans Nova", "Gill Sans", "Gill Sans MT", sans-serif`. Cabin (SIL OFL) `public/fonts/` altından kendi sunucumuzdan servis edilir; Türkçe İ/ı glifleri düzgündür. Lisanslı Gill Sans Nova dosyaları gelirse `src/styles/fonts.css` içine `@font-face` olarak eklenip zincirin başına alınabilir.
 - Görsel alanları `MediaSlot` bileşeniyle 3:4 (ürün), 16:9 (video) gibi sabit oranlarda tutulur; gerçek görsel `src` verildiğinde yerleşim değişmeden içeriği kaplar.
 - Ürün adları, açıklamalar, şirket bilgileri ve yasal metinler kesinleşene kadar alan adıyla gösterilir (`src/data/content.ts`).
 
@@ -81,4 +81,4 @@ Fotoğraflar `src/assets/media/` altına ad kuralıyla konur ve derlemede otomat
 
 ## Bağlanmayı bekleyen gerçek içerik ve servisler
 
-Logo dosyası, ürün fotoğrafları (ön/arka/model/kumaş), koleksiyon tanıtım görseli ve adı, üretim videosu ve aşama görselleri, ürün adları/açıklamaları/kumaş-bakım bilgileri, gerçek fiyat ve stok, şirket unvanı/adres/telefon/e-posta, teslimat-iade-gizlilik-çerez-alışveriş koşulları metinleri, beden tablosu, WhatsApp numarası, sosyal medya bağlantıları, Gill Sans Nova font dosyaları, üyelik servisi, ödeme sağlayıcısı, kargo ücreti ve kampanya koşulları.
+Logo dosyası, ürün fotoğrafları (ön/arka/model/kumaş), koleksiyon tanıtım görseli ve adı, üretim videosu ve aşama görselleri, ürün adları/açıklamaları/kumaş-bakım bilgileri, gerçek fiyat ve stok, şirket unvanı/adres/telefon/e-posta, teslimat-iade-gizlilik-çerez-alışveriş koşulları metinleri, beden tablosu, WhatsApp numarası, sosyal medya bağlantıları, üyelik servisi, ödeme sağlayıcısı, kargo ücreti ve kampanya koşulları.
