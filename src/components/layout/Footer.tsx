@@ -93,10 +93,10 @@ export function Footer() {
         <span className={styles.copy}>{S.footer.copyright(year)}</span>
         <div className={styles.bottomLinks}>
           <Link to="/bilgi/gizlilik" className={styles.bottomLink}>
-            Gizlilik
+            {S.footer.privacy}
           </Link>
           <Link to="/bilgi/alisveris-kosullari" className={styles.bottomLink}>
-            Alışveriş Koşulları
+            {S.footer.terms}
           </Link>
           <FooterLinkItem link={{ label: S.cookie.title, action: 'cookie-preferences' }} />
         </div>

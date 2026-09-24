@@ -252,6 +252,7 @@ export const tr = {
     offerClose: 'Teklifi kapat',
     topStripOffer: 'Hesap açana %10 indirim',
     topStripAction: 'Hesap oluştur',
+    topStripOfferShort: '%10 indirim',
     topStripMember: 'Üyelik indiriminiz sepette otomatik uygulanır',
     authTabLogin: 'Giriş Yap',
     authTabRegister: 'Hesap Oluştur',
@@ -364,11 +365,15 @@ export const tr = {
     copyright: (year: number) => `© ${year} Teshvikiye`,
     socialPending: (name: string) => `${name} hesabı — bağlantı eklenecek`,
     backToTop: 'Yukarı dön',
+    privacy: 'Gizlilik',
+    terms: 'Alışveriş Koşulları',
     groupToggle: (title: string) => `${title} grubunu aç/kapat`,
   },
 
   info: {
     pendingField: (label: string) => `${label} — içerik eklenecek`,
+    faqLead: 'Sipariş, teslimat, iade ve üyelikle ilgili en sık sorulan soruların yanıtları.',
+    faqSectionsNav: 'SSS bölümleri',
   },
 
   /** Veri katmanındaki görünen etiketler (kategori adları, yer tutucu ürün/renk/görsel adları). */

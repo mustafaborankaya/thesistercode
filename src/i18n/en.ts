@@ -252,6 +252,7 @@ export const en: Strings = {
     offerClose: 'Close offer',
     topStripOffer: 'Get 10% off when you create an account',
     topStripAction: 'Create account',
+    topStripOfferShort: '10% off',
     topStripMember: 'Your member discount applies automatically in your cart',
     authTabLogin: 'Log in',
     authTabRegister: 'Create account',
@@ -364,11 +365,15 @@ export const en: Strings = {
     copyright: (year: number) => `© ${year} Teshvikiye`,
     socialPending: (name: string) => `${name} account — link coming soon`,
     backToTop: 'Back to top',
+    privacy: 'Privacy',
+    terms: 'Terms of Sale',
     groupToggle: (title: string) => `Toggle ${title} group`,
   },
 
   info: {
     pendingField: (label: string) => `${label} — content coming soon`,
+    faqLead: 'Answers to the questions we hear most about orders, delivery, returns and membership.',
+    faqSectionsNav: 'FAQ sections',
   },
 
   /** Labels used in the data layer (category names, placeholder product/colour/photo names). */

@@ -22,6 +22,9 @@ interface ContentForm {
   sizeGuide: { table: string; note: string }
 }
 
+/** SSS alanları mağazada akordeon olarak ayrıştırılır (src/components/info/parseFaq.ts). */
+const SSS_FORMAT_HINT = 'Biçim: soru satırı "S:", cevap satırı "C:" ile başlar (EN alanında "Q:" / "A:"). Cevap birden çok satır olabilir; soruları boş satırla ayırabilirsiniz.'
+
 const editableInfoPages = infoPages.filter((p) => p.slug !== 'iletisim')
 
 function buildInitialForm(): ContentForm {
@@ -332,7 +335,8 @@ export function ContentPage() {
                     <TextareaField
                       key={`${page.slug}-${i}`}
                       label={section.label}
-                      rows={3}
+                      rows={page.slug === 'sss' ? 8 : 3}
+                      hint={page.slug === 'sss' ? SSS_FORMAT_HINT : undefined}
                       value={form.infoPages[page.slug]?.[i] ?? ''}
                       onChange={(e) => {
                         setForm((f) => {

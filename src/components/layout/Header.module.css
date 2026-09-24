@@ -264,7 +264,8 @@
   }
 }
 
-.topDemoShort {
+.topDemoShort,
+.topOfferShort {
   display: none;
 }
 
@@ -301,8 +302,15 @@
   .topDemoLong {
     display: none;
   }
-  .topDemoShort {
+  .topDemoShort,
+  .topOfferShort {
     display: inline;
+  }
+  .topOfferLong {
+    display: none;
+  }
+  .topOffer {
+    overflow: hidden;
   }
   .bar {
     grid-template-columns: 1fr minmax(0, auto) 1fr;
@@ -325,6 +333,13 @@
   .left .navLink:first-child,
   .right .navLink:last-child {
     margin: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Dar ekranda demo etiketi gizlenir; dil anahtarı kalır. */
+  .topDemo {
+    display: none;
   }
 }
 

@@ -23,7 +23,8 @@ export function TopStrip() {
     <div className={styles.topStrip} data-top-strip>
       {campaign.enabled && !isLoggedIn ? (
         <Link to="/kayit" className={styles.topOffer}>
-          <span>{S.account.topStripOffer}</span>
+          <span className={styles.topOfferLong}>{S.account.topStripOffer}</span>
+          <span className={styles.topOfferShort}>{S.account.topStripOfferShort}</span>
           <span aria-hidden="true" className={styles.topSep}>
             —
           </span>
