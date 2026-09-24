@@ -52,6 +52,7 @@ export const tr = {
     logoSlot: 'Logo alanı',
     shopMenuTitle: 'Kategoriler',
     shopMenuAll: 'Tüm ürünleri gör',
+    shopAll: 'Tüm Ürünler',
     support: 'Destek',
     createAccountOffer: 'Hesap oluştur, %10 indirim kazan',
     login: 'Giriş Yap',

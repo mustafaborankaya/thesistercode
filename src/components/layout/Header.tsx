@@ -74,7 +74,7 @@ export function LogoSlot() {
 }
 
 function ShopMenu() {
-  const { isOpen, togglePanel, closePanel, openPanel } = usePanels()
+  const { isOpen, closePanel, openPanel } = usePanels()
   const open = isOpen('shop-menu')
   const wrapRef = useRef<HTMLDivElement>(null)
   const closeTimer = useRef<number | null>(null)
@@ -105,21 +105,33 @@ function ShopMenu() {
 
   return (
     <div ref={wrapRef} className={styles.shopWrap} onMouseEnter={cancelClose} onMouseLeave={scheduleClose}>
-      <button
-        type="button"
-        className={styles.navLink}
+      {/* Tıklama tüm ürünlere gider; açılır panel üzerine gelince/odaklanınca açılır (Escape kapatır). */}
+      <NavLink
+        to="/koleksiyon"
+        className={({ isActive }) => [styles.navLink, isActive ? styles.navLinkActive : ''].join(' ').trim()}
         aria-expanded={open}
         aria-controls="shop-menu-panel"
-        onClick={() => togglePanel('shop-menu')}
         onMouseEnter={() => openPanel('shop-menu')}
+        onFocus={() => openPanel('shop-menu')}
+        onClick={() => closePanel('shop-menu')}
       >
         {S.header.shop}
-      </button>
+      </NavLink>
       {open ? (
         <div id="shop-menu-panel" className={styles.shopPanel}>
           <div>
             <div className={styles.shopTitle}>{S.header.shopMenuTitle}</div>
             <ul className={styles.shopList}>
+              <li>
+                <NavLink
+                  to="/koleksiyon"
+                  end
+                  className={({ isActive }) => [styles.shopLink, isActive ? styles.shopLinkActive : ''].join(' ').trim()}
+                  onClick={() => closePanel('shop-menu')}
+                >
+                  {S.header.shopAll}
+                </NavLink>
+              </li>
               {categories.map((c) => (
                 <li key={c.id}>
                   <NavLink

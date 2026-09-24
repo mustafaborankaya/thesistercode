@@ -51,6 +51,7 @@ export const en: Strings = {
     closeMenu: 'Close menu',
     logoSlot: 'Logo area',
     shopMenuTitle: 'Categories',
+    shopAll: 'All Products',
     shopMenuAll: 'See all products',
     support: 'Support',
     createAccountOffer: 'Create an account, get 10% off',
