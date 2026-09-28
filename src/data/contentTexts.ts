@@ -6,7 +6,7 @@
  * Uydurma bilgi yasağı: şirket unvanı, adres, telefon, vergi no, kargo firması adı ve ücret tutarı gibi
  * gerçek işletme bilgileri BURADA YER ALMAZ. Bu alanlar (brand.companyName, brand.address, brand.phone,
  * brand.email) contentTexts'e dahil edilmemiştir; content.ts'te panel override'ı yoksa "içerik eklenecek"
- * olarak görünmeye devam eder. Yasal metinlerdeki [Şirket unvanı] / [Adres] / [E-posta] köşeli parantezli
+ * olarak görünmeye devam eder. Yasal metinlerdeki Biçeroğlu Tekstil Konfeksiyon Sanayi Dış Ticaret Limited Şirketi / Çağlayan Mahallesi Cihanşah Sokak No:15 K:4 Kağıthane / İstanbul / info@teshvikiye.com köşeli parantezli
  * ifadeler, marka bu bilgileri sağladığında doldurulacak yer tutuculardır.
  *
  * NOT: Bu dosyadaki hukuki nitelikli metinler (gizlilik, aydınlatma, çerez politikası, mesafeli satış
@@ -152,10 +152,10 @@ export const infoSectionTexts: Record<string, string[]> = {
   ],
 
   gizlilik: [
-    '[Şirket unvanı] olarak kişisel verilerinizin güvenliğine önem veriyoruz. Bu gizlilik politikası, sitemizi kullanırken elde edilen kişisel verilerin hangi amaçlarla işlendiğini, nasıl saklandığını ve haklarınızın neler olduğunu açıklamak amacıyla hazırlanmıştır. Sipariş, üyelik ve iletişim süreçlerinde ad-soyad, adres, telefon, e-posta ve sipariş bilgileriniz gibi veriler; siparişlerinizin işlenmesi, müşteri hizmetlerinin sağlanması ve yasal yükümlülüklerin yerine getirilmesi amacıyla işlenir. Verileriniz, işlenme amacının gerektirdiği süre boyunca ve ilgili mevzuatta öngörülen saklama süreleri çerçevesinde saklanır. 6698 sayılı Kişisel Verilerin Korunması Kanunu kapsamında; verilerinize erişme, düzeltilmesini talep etme, silinmesini isteme ve işlenmesine itiraz etme gibi haklara sahipsiniz. Bu haklarınızı kullanmak için [E-posta] adresi üzerinden bizimle iletişime geçebilirsiniz.',
+    'Biçeroğlu Tekstil Konfeksiyon Sanayi Dış Ticaret Limited Şirketi olarak kişisel verilerinizin güvenliğine önem veriyoruz. Bu gizlilik politikası, sitemizi kullanırken elde edilen kişisel verilerin hangi amaçlarla işlendiğini, nasıl saklandığını ve haklarınızın neler olduğunu açıklamak amacıyla hazırlanmıştır. Sipariş, üyelik ve iletişim süreçlerinde ad-soyad, adres, telefon, e-posta ve sipariş bilgileriniz gibi veriler; siparişlerinizin işlenmesi, müşteri hizmetlerinin sağlanması ve yasal yükümlülüklerin yerine getirilmesi amacıyla işlenir. Verileriniz, işlenme amacının gerektirdiği süre boyunca ve ilgili mevzuatta öngörülen saklama süreleri çerçevesinde saklanır. 6698 sayılı Kişisel Verilerin Korunması Kanunu kapsamında; verilerinize erişme, düzeltilmesini talep etme, silinmesini isteme ve işlenmesine itiraz etme gibi haklara sahipsiniz. Bu haklarınızı kullanmak için info@teshvikiye.com adresi üzerinden bizimle iletişime geçebilirsiniz.',
     [
       'Veri Sorumlusunun Kimliği',
-      '6698 sayılı Kişisel Verilerin Korunması Kanunu uyarınca veri sorumlusu sıfatıyla [Şirket unvanı], [Adres] adresinde faaliyet göstermektedir.',
+      '6698 sayılı Kişisel Verilerin Korunması Kanunu uyarınca veri sorumlusu sıfatıyla Biçeroğlu Tekstil Konfeksiyon Sanayi Dış Ticaret Limited Şirketi, Çağlayan Mahallesi Cihanşah Sokak No:15 K:4 Kağıthane / İstanbul adresinde faaliyet göstermektedir.',
       '',
       'İşlenen Kişisel Veriler ve İşlenme Amaçları',
       'Ad-soyad, iletişim bilgileri, teslimat adresi ve sipariş bilgileriniz; siparişlerinizin oluşturulması, teslimatın sağlanması, müşteri hizmetleri sunulması ve yasal yükümlülüklerin yerine getirilmesi amaçlarıyla işlenir.',
@@ -167,7 +167,7 @@ export const infoSectionTexts: Record<string, string[]> = {
       'Verileriniz, sitemiz üzerinden gerçekleştirdiğiniz işlemler sırasında elektronik ortamda; sözleşmenin kurulması ve ifası ile hukuki yükümlülüğün yerine getirilmesi hukuki sebeplerine dayanılarak toplanır.',
       '',
       'Haklarınız',
-      'Kanunun 11. maddesi uyarınca kişisel verilerinizin işlenip işlenmediğini öğrenme, işlenmişse buna ilişkin bilgi talep etme, düzeltilmesini veya silinmesini isteme haklarına sahipsiniz. Taleplerinizi [E-posta] adresine iletebilirsiniz.',
+      'Kanunun 11. maddesi uyarınca kişisel verilerinizin işlenip işlenmediğini öğrenme, işlenmişse buna ilişkin bilgi talep etme, düzeltilmesini veya silinmesini isteme haklarına sahipsiniz. Taleplerinizi info@teshvikiye.com adresine iletebilirsiniz.',
     ].join('\n'),
   ],
 
@@ -181,12 +181,12 @@ export const infoSectionTexts: Record<string, string[]> = {
       '',
       'Çerezler, türlerine göre farklı sürelerde saklanır; oturum çerezleri tarayıcınızı kapattığınızda silinirken, kalıcı çerezler önceden belirlenmiş bir süre boyunca veya siz silene kadar cihazınızda kalır.',
       '',
-      'Çerez politikamızla ilgili sorularınız için [E-posta] adresinden bizimle iletişime geçebilirsiniz.',
+      'Çerez politikamızla ilgili sorularınız için info@teshvikiye.com adresinden bizimle iletişime geçebilirsiniz.',
     ].join('\n'),
   ],
 
   'alisveris-kosullari': [
-    'Bu metin, [Şirket unvanı] ("Satıcı") ile sitemiz üzerinden alışveriş yapan müşteri ("Alıcı") arasında kurulan mesafeli satış sözleşmesinin genel esaslarını özetler. Sözleşmenin konusunu, Alıcı\'nın sitemiz üzerinden elektronik ortamda sipariş verdiği ürünün satışı ve teslimi oluşturur. Alıcı, 14 gün içinde herhangi bir gerekçe göstermeksizin cayma hakkını kullanabilir; cayma hakkına ilişkin ayrıntılar İade ve Değişim sayfamızda yer alır. Sözleşmenin uygulanmasından doğabilecek uyuşmazlıklarda, değeri Ticaret Bakanlığınca ilan edilen parasal sınırlar dahilinde Tüketici Hakem Heyetleri, bu sınırların üzerindeki uyuşmazlıklarda ise Tüketici Mahkemeleri yetkilidir.',
+    'Bu metin, Biçeroğlu Tekstil Konfeksiyon Sanayi Dış Ticaret Limited Şirketi ("Satıcı") ile sitemiz üzerinden alışveriş yapan müşteri ("Alıcı") arasında kurulan mesafeli satış sözleşmesinin genel esaslarını özetler. Sözleşmenin konusunu, Alıcı\'nın sitemiz üzerinden elektronik ortamda sipariş verdiği ürünün satışı ve teslimi oluşturur. Alıcı, 14 gün içinde herhangi bir gerekçe göstermeksizin cayma hakkını kullanabilir; cayma hakkına ilişkin ayrıntılar İade ve Değişim sayfamızda yer alır. Sözleşmenin uygulanmasından doğabilecek uyuşmazlıklarda, değeri Ticaret Bakanlığınca ilan edilen parasal sınırlar dahilinde Tüketici Hakem Heyetleri, bu sınırların üzerindeki uyuşmazlıklarda ise Tüketici Mahkemeleri yetkilidir.',
     "Bu siteyi kullanarak aşağıdaki koşulları kabul etmiş sayılırsınız. Sitedeki ürün görselleri, açıklamaları ve fiyat bilgileri tanıtım amaçlıdır; olası yazım ve sistem hatalarından doğabilecek farklılıklar için sitedeki güncel bilgiler esas alınır. Hesabınızla gerçekleştirdiğiniz tüm işlemlerden ve hesap bilgilerinizin gizliliğinin korunmasından siz sorumlusunuz. Site içeriğinin (metin, görsel, tasarım) izinsiz kopyalanması veya çoğaltılması yasaktır.",
   ],
 }
@@ -195,7 +195,7 @@ export const infoSectionTexts: Record<string, string[]> = {
  * İNGİLİZCE VARSAYILAN METİNLER (`/en` sitesi)
  * Yukarıdaki Türkçe metinlerin karşılıkları; anahtarlar birebir aynıdır. content.ts EN sitede
  * şu sırayla düşer: API `fieldsEn` > panel EN override'ı > buradaki metin > Türkçe zincir.
- * Aynı kurallar geçerlidir: gerçek işletme bilgisi yok, [Company name] / [Address] / [E-mail]
+ * Aynı kurallar geçerlidir: gerçek işletme bilgisi yok, Biçeroğlu Tekstil Konfeksiyon Sanayi Dış Ticaret Limited Şirketi / Çağlayan Mahallesi Cihanşah Sokak No:15 K:4 Kağıthane / İstanbul, Türkiye / info@teshvikiye.com
  * yer tutucuları marka bilgileri gelince doldurulur. Hukuki metinler (privacy notice, cookie policy,
  * distance sales summary, terms of use) şablon niteliğindedir ve Türk mevzuatına (KVKK — Kanun
  * No. 6698, Mesafeli Sözleşmeler Yönetmeliği) atıf yapar; yayına alınmadan önce hukuk danışmanı
@@ -336,10 +336,10 @@ export const infoSectionTextsEn: Record<string, string[]> = {
   ],
 
   gizlilik: [
-    'At [Company name], we care about the security of your personal data. This privacy policy explains for which purposes the personal data obtained while you use our site is processed, how it is stored and what your rights are. During ordering, membership and communication, data such as your name, address, telephone number, e-mail address and order details is processed in order to fulfil your orders, provide customer service and meet our legal obligations. Your data is kept for as long as the purpose of processing requires and within the retention periods set out in the applicable legislation. Under the Turkish Personal Data Protection Law No. 6698 (KVKK), you have the right to access your data, request its correction or deletion and object to its processing. To exercise these rights, you can contact us at [E-mail].',
+    'At Biçeroğlu Tekstil Konfeksiyon Sanayi Dış Ticaret Limited Şirketi, we care about the security of your personal data. This privacy policy explains for which purposes the personal data obtained while you use our site is processed, how it is stored and what your rights are. During ordering, membership and communication, data such as your name, address, telephone number, e-mail address and order details is processed in order to fulfil your orders, provide customer service and meet our legal obligations. Your data is kept for as long as the purpose of processing requires and within the retention periods set out in the applicable legislation. Under the Turkish Personal Data Protection Law No. 6698 (KVKK), you have the right to access your data, request its correction or deletion and object to its processing. To exercise these rights, you can contact us at info@teshvikiye.com.',
     [
       'Identity of the Data Controller',
-      'Pursuant to the Turkish Personal Data Protection Law No. 6698, [Company name], located at [Address], acts as the data controller.',
+      'Pursuant to the Turkish Personal Data Protection Law No. 6698, Biçeroğlu Tekstil Konfeksiyon Sanayi Dış Ticaret Limited Şirketi, located at Çağlayan Mahallesi Cihanşah Sokak No:15 K:4 Kağıthane / İstanbul, Türkiye, acts as the data controller.',
       '',
       'Personal Data Processed and Purposes of Processing',
       'Your name, contact details, delivery address and order details are processed to create your orders, arrange delivery, provide customer service and fulfil our legal obligations.',
@@ -351,7 +351,7 @@ export const infoSectionTextsEn: Record<string, string[]> = {
       'Your data is collected electronically during the transactions you carry out on our site, on the legal grounds of the establishment and performance of a contract and compliance with a legal obligation.',
       '',
       'Your Rights',
-      'Under Article 11 of the Law, you have the right to learn whether your personal data is processed, to request information about such processing, and to request its correction or deletion. You can send your requests to [E-mail].',
+      'Under Article 11 of the Law, you have the right to learn whether your personal data is processed, to request information about such processing, and to request its correction or deletion. You can send your requests to info@teshvikiye.com.',
     ].join('\n'),
   ],
 
@@ -365,12 +365,12 @@ export const infoSectionTextsEn: Record<string, string[]> = {
       '',
       'Cookies are kept for different periods depending on their type: session cookies are deleted when you close your browser, while persistent cookies remain on your device for a predefined period or until you delete them.',
       '',
-      'For any questions about our cookie policy, you can contact us at [E-mail].',
+      'For any questions about our cookie policy, you can contact us at info@teshvikiye.com.',
     ].join('\n'),
   ],
 
   'alisveris-kosullari': [
-    'This text summarises the general principles of the distance sales contract concluded between [Company name] ("Seller") and the customer shopping on our site ("Buyer"). The subject of the contract is the sale and delivery of the product the Buyer orders electronically through our site. The Buyer may exercise the right of withdrawal within 14 days without giving any reason; details of the right of withdrawal can be found on our Returns & Exchanges page. Disputes arising from the performance of the contract fall under the jurisdiction of the Consumer Arbitration Committees within the monetary limits announced by the Turkish Ministry of Trade, and of the Consumer Courts for disputes above those limits.',
+    'This text summarises the general principles of the distance sales contract concluded between Biçeroğlu Tekstil Konfeksiyon Sanayi Dış Ticaret Limited Şirketi ("Seller") and the customer shopping on our site ("Buyer"). The subject of the contract is the sale and delivery of the product the Buyer orders electronically through our site. The Buyer may exercise the right of withdrawal within 14 days without giving any reason; details of the right of withdrawal can be found on our Returns & Exchanges page. Disputes arising from the performance of the contract fall under the jurisdiction of the Consumer Arbitration Committees within the monetary limits announced by the Turkish Ministry of Trade, and of the Consumer Courts for disputes above those limits.',
     'By using this site, you are deemed to have accepted the following terms. Product images, descriptions and prices on the site are provided for promotional purposes; in the event of any discrepancies caused by typing or system errors, the current information on the site prevails. You are responsible for all transactions carried out with your account and for keeping your account details confidential. Copying or reproducing the site content (text, images, design) without permission is prohibited.',
   ],
 }
