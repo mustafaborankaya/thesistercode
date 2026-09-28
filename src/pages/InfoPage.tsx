@@ -19,9 +19,11 @@ export function InfoPage() {
       <div className="stack">
         {page.sections.map((s) => (
           <section key={s.label}>
-            <h2 className="h-block" style={{ marginBottom: 'var(--sp-2)' }}>
-              {s.label}
-            </h2>
+            {page.sections.length > 1 ? (
+              <h2 className="h-block" style={{ marginBottom: 'var(--sp-2)' }}>
+                {s.label}
+              </h2>
+            ) : null}
             <ContentText field={s} />
           </section>
         ))}

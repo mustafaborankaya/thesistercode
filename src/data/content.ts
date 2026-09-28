@@ -110,13 +110,13 @@ export interface InfoPageDef {
 }
 
 const infoDefsTr: { slug: string; title: string; labels: string[] }[] = [
-  { slug: 'hakkimizda', title: 'Hakkımızda', labels: ['Marka hikâyesi metni', 'Tasarım yaklaşımı metni'] },
+  { slug: 'hakkimizda', title: 'Hakkımızda', labels: ['Marka hikâyesi', 'Tasarım yaklaşımı'] },
   { slug: 'teslimat', title: 'Teslimat', labels: ['Teslimat süresi bilgisi', 'Kargo ücreti bilgisi', 'Teslimat bölgeleri bilgisi'] },
-  { slug: 'iade-degisim', title: 'İade ve Değişim', labels: ['İade koşulları metni', 'Değişim koşulları metni', 'İade süreci adımları'] },
+  { slug: 'iade-degisim', title: 'İade ve Değişim', labels: ['İade koşulları', 'Değişim koşulları', 'İade süreci adımları'] },
   { slug: 'beden-rehberi', title: 'Beden Rehberi', labels: ['Beden ölçü tablosu', 'Ölçü alma açıklaması'] },
   { slug: 'sss', title: 'Sıkça Sorulan Sorular', labels: ['Sipariş soruları', 'Teslimat soruları', 'İade soruları', 'Üyelik soruları'] },
-  { slug: 'gizlilik', title: 'Gizlilik Politikası', labels: ['Gizlilik politikası metni', 'Kişisel verilerin korunması aydınlatma metni'] },
-  { slug: 'cerez-politikasi', title: 'Çerez Politikası', labels: ['Çerez açıklama metni'] },
+  { slug: 'gizlilik', title: 'Gizlilik Politikası', labels: ['Gizlilik politikası', 'KVKK aydınlatma bildirimi'] },
+  { slug: 'cerez-politikasi', title: 'Çerez Politikası', labels: ['Çerezler hakkında'] },
   // iyzico üye işyeri kriterleri: mesafeli satış sözleşmesi ve ön bilgilendirme formu ayrı sayfalar olarak yayında olmalı.
   {
     slug: 'mesafeli-satis-sozlesmesi',
@@ -138,7 +138,7 @@ const infoDefsEn: Record<string, { title: string; labels: string[] }> = {
   'iade-degisim': { title: 'Returns & Exchanges', labels: ['Return conditions', 'Exchange conditions', 'How to return'] },
   'beden-rehberi': { title: 'Size Guide', labels: ['Size chart', 'How to measure'] },
   sss: { title: 'Frequently Asked Questions', labels: ['Orders', 'Delivery', 'Returns', 'Membership'] },
-  gizlilik: { title: 'Privacy Policy', labels: ['Privacy policy', 'Personal data protection notice'] },
+  gizlilik: { title: 'Privacy Policy', labels: ['Privacy policy', 'Personal data protection notice (KVKK)'] },
   'cerez-politikasi': { title: 'Cookie Policy', labels: ['About cookies'] },
   'mesafeli-satis-sozlesmesi': {
     title: 'Distance Sales Contract',
