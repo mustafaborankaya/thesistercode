@@ -1,0 +1,50 @@
+.legal {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
+  color: var(--color-ink);
+  max-width: 72ch;
+}
+
+.legal h2 {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  margin: var(--sp-8) 0 var(--sp-3);
+}
+
+.legal h2:first-child {
+  margin-top: 0;
+}
+
+.legal h3 {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--ls-wide);
+  margin: var(--sp-5) 0 var(--sp-2);
+}
+
+.legal p {
+  margin: 0 0 var(--sp-3);
+}
+
+.legal ul {
+  margin: 0 0 var(--sp-3);
+  padding-left: 1.2em;
+  display: grid;
+  gap: var(--sp-1);
+}
+
+.legal hr {
+  border: 0;
+  border-top: 1px solid var(--color-line);
+  margin: var(--sp-6) 0;
+}
+
+.legal strong {
+  font-weight: var(--fw-medium);
+}
+
+.note {
+  color: var(--color-ink-soft);
+}

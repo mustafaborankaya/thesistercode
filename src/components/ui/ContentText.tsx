@@ -1,5 +1,6 @@
 import type { ContentField } from '../../data/content'
 import { S } from '../../i18n'
+import { LegalText, hasLegalMarkup } from './LegalText'
 
 interface ContentTextProps {
   field: ContentField
@@ -13,6 +14,7 @@ interface ContentTextProps {
 export function ContentText({ field, as = 'p', className, short }: ContentTextProps) {
   const Tag = as
   // Satır sonları korunur (ölçü tablosu, SSS, adım listeleri).
+  if (field.value && hasLegalMarkup(field.value)) return <LegalText text={field.value} className={className} />
   if (field.value)
     return (
       <Tag className={className} style={{ whiteSpace: 'pre-line' }}>

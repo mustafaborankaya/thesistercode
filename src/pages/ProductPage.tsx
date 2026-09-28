@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { AccordionItem } from '../components/ui/Accordion'
 import { Button } from '../components/ui/Button'
 import { Icon } from '../components/ui/Icon'
@@ -159,6 +159,11 @@ export function ProductPage() {
             </AccordionItem>
             <AccordionItem title={S.product.deliveryReturns}>
               <p className="text-soft">{withPending(product.content.deliveryReturns, S.data.productContent.deliveryReturns)}</p>
+              <p>
+                <Link to="/bilgi/teslimat-ve-iade" className="link">
+                  {S.product.deliveryPolicyLink}
+                </Link>
+              </p>
             </AccordionItem>
           </div>
 

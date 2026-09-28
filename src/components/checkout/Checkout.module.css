@@ -180,3 +180,10 @@
     height: 18px;
   }
 }
+
+.legalLink {
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

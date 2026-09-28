@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
 import type { CheckoutErrors, CheckoutFormValues } from './validation'
 import { S } from '../../i18n'
 import { Checkbox, Field, TextareaField } from '../ui/Field'
@@ -6,6 +6,7 @@ import { Icon } from '../ui/Icon'
 import { AccountChoice } from './AccountChoice'
 import styles from './Checkout.module.css'
 import { SavedAddressPicker } from './SavedAddressPicker'
+import { LegalDialog, type LegalSlug } from './LegalDialog'
 import { useAccount } from '../../state/AccountContext'
 import { siteSettings } from '../../config/settings'
 import { onlinePaymentEnabled } from '../../services/ordersApi'
@@ -18,6 +19,7 @@ interface CheckoutFormProps {
 
 /** Checkout'un üç adımı: İletişim → Teslimat → Ödeme, tek bir <form> içinde numaralı bölümler. */
 export function CheckoutForm({ values, errors, onChange }: CheckoutFormProps) {
+  const [legal, setLegal] = useState<LegalSlug | null>(null)
   const { account } = useAccount()
   const online = onlinePaymentEnabled()
   return (
@@ -187,13 +189,17 @@ export function CheckoutForm({ values, errors, onChange }: CheckoutFormProps) {
           label={
             <span>
               {S.checkout.agreementPrefix}
-              <Link to="/bilgi/on-bilgilendirme-formu" className="link">
+              <button type="button" className={`link ${styles.legalLink}`} onClick={() => setLegal('on-bilgilendirme-formu')}>
                 {S.checkout.agreementForm}
-              </Link>
+              </button>
               {S.checkout.agreementAnd}
-              <Link to="/bilgi/mesafeli-satis-sozlesmesi" className="link">
+              <button type="button" className={`link ${styles.legalLink}`} onClick={() => setLegal('mesafeli-satis-sozlesmesi')}>
                 {S.checkout.agreementContract}
-              </Link>
+              </button>
+              {S.checkout.agreementAnd2}
+              <button type="button" className={`link ${styles.legalLink}`} onClick={() => setLegal('teslimat-ve-iade')}>
+                {S.checkout.agreementPolicy}
+              </button>
               {S.checkout.agreementSuffix}
             </span>
           }
@@ -202,6 +208,7 @@ export function CheckoutForm({ values, errors, onChange }: CheckoutFormProps) {
           onChange={(e) => onChange('agree', e.target.checked)}
         />
       </section>
+      {legal ? <LegalDialog slug={legal} onClose={() => setLegal(null)} /> : null}
     </>
   )
 }

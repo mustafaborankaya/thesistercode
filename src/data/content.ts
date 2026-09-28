@@ -45,7 +45,7 @@ const ov = (value: string | null | undefined, key: string): string | undefined =
   (isEn ? enValue(key) : null) ?? clean(remote?.content.fields[key]) ?? clean(value) ?? contentTexts[key]
 
 /** brandContent alan anahtarları — yönetici panelindeki "Marka bilgileri" formu bu listeyi kullanır. */
-export const brandContentKeys = ['collectionTitle', 'collectionIntro', 'heroCta', 'popularSearches', 'companyName', 'address', 'phone', 'email', 'workingHours'] as const
+export const brandContentKeys = ['collectionTitle', 'collectionIntro', 'heroCta', 'popularSearches', 'companyName', 'address', 'phone', 'email', 'registry', 'workingHours'] as const
 export type BrandContentKey = (typeof brandContentKeys)[number]
 
 const b = overrides.brand ?? {}
@@ -64,6 +64,7 @@ export const brandContent = {
   address: field(tl('Şirket adresi alanı', 'Company address field'), ov(b.address, 'brand.address')),
   phone: field(tl('Telefon numarası alanı', 'Phone number field'), ov(b.phone, 'brand.phone')),
   email: field(tl('E-posta adresi alanı', 'E-mail address field'), ov(b.email, 'brand.email')),
+  registry: field(tl('Vergi ve MERSİS numarası', 'Tax and MERSIS numbers'), ov(b.registry, 'brand.registry')),
   workingHours: field(tl('Çalışma saatleri alanı', 'Business hours field'), ov(b.workingHours, 'brand.workingHours')),
 }
 
@@ -121,8 +122,9 @@ const infoDefsTr: { slug: string; title: string; labels: string[] }[] = [
   {
     slug: 'mesafeli-satis-sozlesmesi',
     title: 'Mesafeli Satış Sözleşmesi',
-    labels: ['Taraflar', 'Sözleşmenin konusu ve ürün bilgileri', 'Teslimat ve ödeme', 'Cayma hakkı', 'İade ve değişim prosedürü', 'Uyuşmazlıkların çözümü ve yürürlük'],
+    labels: ['Sözleşme metni'],
   },
+  { slug: 'teslimat-ve-iade', title: 'Teslimat ve İade Politikası', labels: ['Politika metni'] },
   {
     slug: 'on-bilgilendirme-formu',
     title: 'Ön Bilgilendirme Formu',
@@ -142,8 +144,9 @@ const infoDefsEn: Record<string, { title: string; labels: string[] }> = {
   'alisveris-kosullari': { title: 'Terms of Sale', labels: ['Distance sales contract', 'Terms of use'] },
   'mesafeli-satis-sozlesmesi': {
     title: 'Distance Sales Contract',
-    labels: ['Parties', 'Subject of the contract and product details', 'Delivery and payment', 'Right of withdrawal', 'Returns and exchanges procedure', 'Disputes and entry into force'],
+    labels: ['Contract text'],
   },
+  'teslimat-ve-iade': { title: 'Delivery and Returns Policy', labels: ['Policy text'] },
   'on-bilgilendirme-formu': {
     title: 'Pre-Information Form',
     labels: ['Seller details', 'Product, price and delivery details', 'Right of withdrawal and returns', 'Complaints and disputes'],
@@ -160,7 +163,7 @@ const infoField = (label: string, slug: string, i: number, fallback: string | un
 
 export const infoPages: InfoPageDef[] = [
   ...infoDefs.slice(0, 1).map((d) => ({ slug: d.slug, title: d.title, sections: d.labels.map((l, i) => infoField(l, d.slug, i, infoSectionTexts[d.slug]?.[i])) })),
-  { slug: 'iletisim', title: tl('İletişim', 'Contact'), sections: [brandContent.companyName, brandContent.address, brandContent.phone, brandContent.email, brandContent.workingHours] },
+  { slug: 'iletisim', title: tl('İletişim', 'Contact'), sections: [brandContent.companyName, brandContent.address, brandContent.phone, brandContent.email, brandContent.registry, brandContent.workingHours] },
   ...infoDefs.slice(1).map((d) => ({ slug: d.slug, title: d.title, sections: d.labels.map((l, i) => infoField(l, d.slug, i, infoSectionTexts[d.slug]?.[i])) })),
 ]
 
@@ -194,8 +197,7 @@ export const footerGroups: FooterGroup[] = [
     id: 'musteri-hizmetleri',
     title: tl('Müşteri Hizmetleri', 'Customer Service'),
     links: [
-      { label: tl('Teslimat', 'Delivery'), to: '/bilgi/teslimat' },
-      { label: tl('İade ve Değişim', 'Returns & Exchanges'), to: '/bilgi/iade-degisim' },
+      { label: tl('Teslimat ve İade Politikası', 'Delivery & Returns Policy'), to: '/bilgi/teslimat-ve-iade' },
       { label: tl('Beden Rehberi', 'Size Guide'), to: '/bilgi/beden-rehberi' },
       { label: tl('Sıkça Sorulan Sorular', 'Frequently Asked Questions'), to: '/bilgi/sss' },
       { label: tl('WhatsApp Destek', 'WhatsApp Support'), action: 'support' },

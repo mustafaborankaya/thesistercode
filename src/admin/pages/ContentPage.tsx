@@ -61,6 +61,7 @@ function flattenForm(form: ContentForm): Record<string, string> {
     'brand.address': form.brand.address,
     'brand.phone': form.brand.phone,
     'brand.email': form.brand.email,
+    'brand.registry': form.brand.registry,
     'brand.workingHours': form.brand.workingHours,
     'cookie.bannerText': form.cookieText,
     'cookie.necessary': form.cookieCategories.necessary,
@@ -154,6 +155,7 @@ function buildFormFromFields(fields: Record<string, string | null>): ContentForm
       address: resolveField(fields['brand.address'], b.address, contentTexts['brand.address']),
       phone: resolveField(fields['brand.phone'], b.phone, contentTexts['brand.phone']),
       email: resolveField(fields['brand.email'], b.email, contentTexts['brand.email']),
+      registry: resolveField(fields['brand.registry'], b.registry, contentTexts['brand.registry']),
       workingHours: resolveField(fields['brand.workingHours'], b.workingHours, contentTexts['brand.workingHours']),
     },
     infoPages: Object.fromEntries(
