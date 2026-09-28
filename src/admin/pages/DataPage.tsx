@@ -1,233 +1,218 @@
 import { useRef, useState } from 'react'
-import { Button } from '../../components/ui/Button'
-import { Icon } from '../../components/ui/Icon'
 import { apiErrorMessage } from '../../i18n/apiMessages'
 import { exportAdminData, importAdminData, useApiMode } from '../adminApi'
 import { deleteMediaBlob, exportAdminJson, importAdminJson, listMediaBlobNames, resetAdminData } from '../adminStore'
 import { AS } from '../adminStrings'
-import styles from '../admin.module.css'
+import { Btn } from '../ui/Button'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
+import { FormSection } from '../ui/FormSection'
+import { Notice, PageHeader } from '../ui/Page'
+import { useToast } from '../ui/toastContext'
+import ui from '../ui/ui.module.css'
 
-/** `/admin/veri` — API varsa JSON dışa/içe aktarma (ürün + içerik + ayar, bkz. api/README.md "Bilinen sınırlar"); yoksa yerel override'ları dışa/içe aktarma + sıfırlama. */
+function download(json: string, filename: string) {
+  const blob = new Blob([json], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
+const today = () => new Date().toISOString().slice(0, 10)
+
+/** `/admin/veri` — API varsa JSON dışa/içe aktarma (ürün + içerik + ayar); yoksa yerel override'lar + sıfırlama. */
 export function DataPage() {
-  return useApiMode ? <ApiDataPage /> : <LocalDataPage />
+  return (
+    <div style={{ maxWidth: 880 }}>
+      <PageHeader title={AS.data.title} description={AS.data.subtitle} />
+      {useApiMode ? <ApiData /> : <LocalData />}
+    </div>
+  )
 }
 
 /* ==================== API modu ==================== */
 
-function ApiDataPage() {
+function ApiData() {
+  const toast = useToast()
   const fileRef = useRef<HTMLInputElement>(null)
-  const [importResult, setImportResult] = useState<{ ok: boolean; text: string } | null>(null)
-  const [exportError, setExportError] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
+  const [pendingImport, setPendingImport] = useState<{ name: string; payload: unknown } | null>(null)
+  const [importing, setImporting] = useState(false)
 
   async function handleExport() {
-    setExportError(null)
+    setExporting(true)
     try {
       const payload = await exportAdminData()
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `teshvikiye-api-export-${new Date().toISOString().slice(0, 10)}.json`
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(url)
+      download(JSON.stringify(payload, null, 2), `teshvikiye-api-export-${today()}.json`)
+      toast.success(AS.data.exported)
     } catch (e) {
-      setExportError(apiErrorMessage(e))
+      toast.error(apiErrorMessage(e))
+    } finally {
+      setExporting(false)
     }
   }
 
-  async function handleImportFile(file: File) {
-    setImportResult(null)
+  async function pickFile(file: File) {
+    if (fileRef.current) fileRef.current.value = ''
     let parsed: unknown
     try {
       parsed = JSON.parse(await file.text())
     } catch {
-      setImportResult({ ok: false, text: 'Geçersiz JSON dosyası.' })
-      if (fileRef.current) fileRef.current.value = ''
+      toast.error(AS.data.invalidJson)
       return
     }
-    const format = (parsed as { format?: string } | null)?.format
-    if (format !== 'teshvikiye-api-export') {
-      setImportResult({ ok: false, text: 'Bu dosya API dışa aktarma biçiminde değil (yerel panel dışa aktarımı burada kullanılamaz).' })
-      if (fileRef.current) fileRef.current.value = ''
+    if ((parsed as { format?: string } | null)?.format !== 'teshvikiye-api-export') {
+      toast.error(AS.data.wrongFormat)
       return
     }
+    setPendingImport({ name: file.name, payload: parsed })
+  }
+
+  async function confirmImport() {
+    if (!pendingImport) return
+    setImporting(true)
     try {
-      await importAdminData(parsed)
-      setImportResult({ ok: true, text: 'İçe aktarıldı.' })
+      await importAdminData(pendingImport.payload)
+      toast.success(AS.data.importDone)
+      setPendingImport(null)
     } catch (e) {
-      setImportResult({ ok: false, text: apiErrorMessage(e) })
+      toast.error(AS.data.importError(apiErrorMessage(e)))
     } finally {
-      if (fileRef.current) fileRef.current.value = ''
+      setImporting(false)
     }
   }
 
   return (
-    <div>
-      <div className={styles.pageHead}>
-        <h1 className={styles.pageTitle}>{AS.data.title}</h1>
-      </div>
-
-      <div className={styles.section}>
-        <div className={styles.sectionTitle}>{AS.data.exportTitle}</div>
-        <p className="text-soft" style={{ marginBottom: 'var(--sp-3)' }}>
-          Ürün katalogu, içerik alanları, ayarlar ve marka görselleri indirilir. Kullanıcılar, müşteriler ve siparişler kapsam dışıdır (bkz. api/README.md).
-        </p>
-        <Button variant="secondary" onClick={() => void handleExport()}>
+    <>
+      <FormSection title={AS.data.exportTitle} description={AS.data.exportDesc}>
+        <Btn icon="upload" loading={exporting} onClick={() => void handleExport()}>
           {AS.data.exportButton}
-        </Button>
-        {exportError ? (
-          <p role="alert" className="text-sm" style={{ marginTop: 'var(--sp-2)' }}>
-            {exportError}
-          </p>
-        ) : null}
-      </div>
-
-      <div className={styles.section}>
-        <div className={styles.sectionTitle}>{AS.data.importTitle}</div>
-        <p className="text-soft" style={{ marginBottom: 'var(--sp-3)' }}>
-          Yalnızca bu sayfadan indirilmiş bir dosya (`teshvikiye-api-export`) yüklenebilir. İçe aktarma ürün katalogunu TAMAMEN DEĞİŞTİRİR — yalnızca sahip (owner) yapabilir.
-        </p>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="application/json"
-          onChange={(e) => {
-            const file = e.target.files?.[0]
-            if (file) void handleImportFile(file)
-          }}
-        />
-        {importResult ? (
-          <div className={styles.saveMessage} style={{ marginTop: 'var(--sp-3)' }}>
-            <Icon name={importResult.ok ? 'check' : 'info'} size={16} />
-            <span>{importResult.text}</span>
+        </Btn>
+      </FormSection>
+      <FormSection title={AS.data.importTitle} description={AS.data.importDesc}>
+        <div className={ui.stack}>
+          <Notice tone="warning">{AS.data.ownerOnly}</Notice>
+          <div>
+            <Btn icon="data" onClick={() => fileRef.current?.click()}>
+              {AS.data.importButton}
+            </Btn>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/json,.json"
+              className="sr-only"
+              tabIndex={-1}
+              aria-label={AS.data.importTitle}
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f) void pickFile(f)
+              }}
+            />
           </div>
-        ) : null}
-      </div>
-    </div>
+        </div>
+      </FormSection>
+      <ConfirmDialog
+        open={pendingImport != null}
+        title={AS.data.importConfirmTitle}
+        message={pendingImport ? AS.data.importConfirmText(pendingImport.name) : ''}
+        confirmLabel={AS.data.importConfirm}
+        tone="danger"
+        pending={importing}
+        onCancel={() => setPendingImport(null)}
+        onConfirm={() => void confirmImport()}
+      />
+    </>
   )
 }
 
 /* ==================== Yerel (localStorage) modu — yalnızca API yokken (DEV) ==================== */
 
-function LocalDataPage() {
+function LocalData() {
+  const toast = useToast()
   const fileRef = useRef<HTMLInputElement>(null)
-  const [importResult, setImportResult] = useState<{ ok: boolean; text: string } | null>(null)
-  const [confirmingReset, setConfirmingReset] = useState(false)
-  const [resetDone, setResetDone] = useState(false)
+  const [pendingImport, setPendingImport] = useState<File | null>(null)
+  const [confirmReset, setConfirmReset] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   async function handleExport() {
-    const json = await exportAdminJson()
-    const blob = new Blob([json], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `the-sister-code-admin-${new Date().toISOString().slice(0, 10)}.json`
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    URL.revokeObjectURL(url)
+    download(await exportAdminJson(), `the-sister-code-admin-${today()}.json`)
+    toast.success(AS.data.exported)
   }
 
-  async function handleImportFile(file: File) {
-    const text = await file.text()
-    const result = await importAdminJson(text)
-    setImportResult(result.ok ? { ok: true, text: AS.data.importSuccess(result.mediaCount) } : { ok: false, text: AS.data.importError(result.error) })
-    if (fileRef.current) fileRef.current.value = ''
+  async function confirmImport() {
+    if (!pendingImport) return
+    setBusy(true)
+    const result = await importAdminJson(await pendingImport.text())
+    setBusy(false)
+    setPendingImport(null)
+    if (result.ok) toast.success(`${AS.data.importSuccess(result.mediaCount)} ${AS.save.savedLocal}`)
+    else toast.error(AS.data.importError(result.error))
   }
 
   async function handleReset() {
+    setBusy(true)
     resetAdminData()
-    for (const name of await listMediaBlobNames()) {
-      await deleteMediaBlob(name)
-    }
-    setConfirmingReset(false)
-    setResetDone(true)
-    setImportResult(null)
+    for (const name of await listMediaBlobNames()) await deleteMediaBlob(name)
+    setBusy(false)
+    setConfirmReset(false)
+    toast.success(AS.data.resetDone)
   }
 
   return (
-    <div>
-      <div className={styles.pageHead}>
-        <h1 className={styles.pageTitle}>{AS.data.title}</h1>
-      </div>
-      <p className={styles.demoNotice}>{AS.demoNotice}</p>
-
-      <div className={styles.section}>
-        <div className={styles.sectionTitle}>{AS.data.exportTitle}</div>
-        <p className="text-soft" style={{ marginBottom: 'var(--sp-3)' }}>
-          {AS.data.exportHint}
-        </p>
-        <Button variant="secondary" onClick={() => void handleExport()}>
+    <>
+      <Notice tone="warning">{AS.demoNotice}</Notice>
+      <FormSection title={AS.data.exportTitle} description={AS.data.exportHint}>
+        <Btn icon="upload" onClick={() => void handleExport()}>
           {AS.data.exportButton}
-        </Button>
-      </div>
-
-      <div className={styles.section}>
-        <div className={styles.sectionTitle}>{AS.data.importTitle}</div>
-        <p className="text-soft" style={{ marginBottom: 'var(--sp-3)' }}>
-          {AS.data.importHint}
-        </p>
+        </Btn>
+      </FormSection>
+      <FormSection title={AS.data.importTitle} description={AS.data.importHint}>
+        <Btn icon="data" onClick={() => fileRef.current?.click()}>
+          {AS.data.importButton}
+        </Btn>
         <input
           ref={fileRef}
           type="file"
-          accept="application/json"
+          accept="application/json,.json"
+          className="sr-only"
+          tabIndex={-1}
+          aria-label={AS.data.importTitle}
           onChange={(e) => {
-            const file = e.target.files?.[0]
-            if (file) void handleImportFile(file)
+            const f = e.target.files?.[0]
+            if (f) setPendingImport(f)
+            if (fileRef.current) fileRef.current.value = ''
           }}
         />
-        {importResult ? (
-          <div className={styles.saveMessage} style={{ marginTop: 'var(--sp-3)' }}>
-            <Icon name={importResult.ok ? 'check' : 'info'} size={16} />
-            <span>{importResult.text}</span>
-            {importResult.ok ? (
-              <>
-                <a className="link" href="/" target="_blank" rel="noopener noreferrer">
-                  {AS.save.openStore}
-                </a>
-                <button type="button" className="link" onClick={() => window.location.reload()}>
-                  {AS.save.reloadPage}
-                </button>
-              </>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-
-      <div className={styles.section}>
-        <div className={styles.sectionTitle}>{AS.data.resetTitle}</div>
-        <p className="text-soft" style={{ marginBottom: 'var(--sp-3)' }}>
-          {AS.data.resetHint}
-        </p>
-        {resetDone ? (
-          <div className={styles.saveMessage}>
-            <Icon name="check" size={16} />
-            <span>{AS.data.resetDone}</span>
-            <a className="link" href="/" target="_blank" rel="noopener noreferrer">
-              {AS.save.openStore}
-            </a>
-            <button type="button" className="link" onClick={() => window.location.reload()}>
-              {AS.save.reloadPage}
-            </button>
-          </div>
-        ) : confirmingReset ? (
-          <div className={styles.twoStepConfirm}>
-            <span>{AS.data.resetConfirmPrompt}</span>
-            <Button variant="primary" small onClick={() => void handleReset()}>
-              {AS.data.resetConfirmYes}
-            </Button>
-            <Button variant="ghost" small onClick={() => setConfirmingReset(false)}>
-              {AS.data.resetConfirmNo}
-            </Button>
-          </div>
-        ) : (
-          <Button variant="secondary" onClick={() => setConfirmingReset(true)}>
-            {AS.data.resetButton}
-          </Button>
-        )}
-      </div>
-    </div>
+      </FormSection>
+      <FormSection title={AS.data.resetTitle} description={AS.data.resetHint}>
+        <Btn variant="danger" icon="trash" onClick={() => setConfirmReset(true)}>
+          {AS.data.resetButton}
+        </Btn>
+      </FormSection>
+      <ConfirmDialog
+        open={pendingImport != null}
+        title={AS.data.importConfirmTitle}
+        message={pendingImport ? AS.data.importConfirmText(pendingImport.name) : ''}
+        confirmLabel={AS.data.importConfirm}
+        tone="danger"
+        pending={busy}
+        onCancel={() => setPendingImport(null)}
+        onConfirm={() => void confirmImport()}
+      />
+      <ConfirmDialog
+        open={confirmReset}
+        title={AS.data.resetConfirmTitle}
+        message={AS.data.resetHint}
+        confirmLabel={AS.data.resetConfirmYes}
+        tone="danger"
+        pending={busy}
+        onCancel={() => setConfirmReset(false)}
+        onConfirm={() => void handleReset()}
+      />
+    </>
   )
 }

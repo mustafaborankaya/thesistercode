@@ -1,24 +1,43 @@
-import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { Button } from '../../components/ui/Button'
-import { Checkbox, Field, SelectField, Switch, TextareaField } from '../../components/ui/Field'
+import { useMemo, useState, type ReactNode } from 'react'
+import { useParams } from 'react-router-dom'
 import { allProducts, allSizes, baseSeeds, categories, colorOptions } from '../../data/catalog'
-import { productMediaName } from '../../data/media'
-import type { Product, SizeId } from '../../data/types'
+import { mediaByName, productMediaName } from '../../data/media'
+import type { MediaKind, Product, SizeId } from '../../data/types'
 import { apiErrorMessage } from '../../i18n/apiMessages'
+import { ApiError } from '../../services/api'
 import { getAdminSettings, listAdminProducts, updateAdminProduct, useApiMode, type AdminProduct, type AdminProductPatch, type NewBadgeMode } from '../adminApi'
-import { inventoryConfigFrom, localInventoryConfig, MAX_STOCK_QTY, stockLevel, type InventoryConfig } from '../inventory'
+import { readAdminData, updateAdminData, type ProductOverride } from '../adminStore'
 import { AS } from '../adminStrings'
 import { ApiMediaField } from '../components/ApiMediaField'
 import { MediaField } from '../components/MediaField'
-import { SaveBar } from '../components/SaveBar'
-import { readAdminData, updateAdminData, type ProductOverride } from '../adminStore'
+import { inventoryConfigFrom, localInventoryConfig, MAX_STOCK_QTY, stockLevel, type InventoryConfig } from '../inventory'
+import { isConflict, withExpected } from '../productUtils'
+import { Btn } from '../ui/Button'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
+import { CheckField, Segmented, SelectField, SwitchField, TextAreaField, TextField } from '../ui/Form'
+import { FormSection } from '../ui/FormSection'
+import { EmptyState, ErrorState, Notice, PageHeader } from '../ui/Page'
+import { StatusBadge } from '../ui/StatusBadge'
+import { StickySaveBar } from '../ui/StickySaveBar'
+import { Tabs } from '../ui/Tabs'
+import { tabPanelProps } from '../ui/tabPanel'
+import { parseAmount } from '../ui/format'
+import { useToast } from '../ui/toastContext'
+import { useLoader } from '../ui/useLoader'
+import ui from '../ui/ui.module.css'
 import styles from '../admin.module.css'
 
 type Seed = (typeof baseSeeds)[number]
 type CategoryValue = Product['category']
+type AnyProduct = (Product | AdminProduct) & { updatedAt?: string | null }
 
 const editableCategories = categories.filter((c) => !c.virtual)
+const MEDIA_KINDS: { kind: MediaKind; label: string }[] = [
+  { kind: 'front', label: AS.productEdit.frontLabel },
+  { kind: 'back', label: AS.productEdit.backLabel },
+  { kind: 'model', label: AS.productEdit.modelLabel },
+  { kind: 'fabric', label: AS.productEdit.fabricLabel },
+]
 
 interface FormState {
   name: string
@@ -29,6 +48,8 @@ interface FormState {
   newBadge: NewBadgeMode
   hidden: boolean
   colors: string[]
+  /** Renk id → Türkçe renk adı (yalnızca API modunda düzenlenir). */
+  colorLabels: Record<string, string>
   stock: Record<string, Record<SizeId, string>>
   description: string
   fabricCare: string
@@ -43,8 +64,20 @@ interface FormState {
   colorLabelsEn: Record<string, string>
 }
 
+type TabId = 'general' | 'pricing' | 'media' | 'english' | 'related'
+type Errors = Partial<Record<'name' | 'price' | 'stock' | 'colorLabels', string>>
+
+const TAB_FIELDS: Record<TabId, (keyof FormState)[]> = {
+  general: ['name', 'category', 'isNew', 'newBadge', 'hidden', 'description', 'fabricCare', 'deliveryReturns'],
+  pricing: ['price', 'colors', 'colorLabels', 'stock'],
+  media: [],
+  english: ['nameEn', 'descriptionEn', 'fabricCareEn', 'colorLabelsEn'],
+  related: ['similarProductIds', 'completeLookProductIds'],
+}
+const ERROR_TAB: Record<keyof Errors, TabId> = { name: 'general', price: 'pricing', stock: 'pricing', colorLabels: 'pricing' }
+
 /** EN alanlarını ürün nesnesinden okur: API ürünü (AdminProduct) EN alanları taşır, yerel demo ürünü taşımaz. */
-function enFieldsOf(product: Product | AdminProduct): Pick<FormState, 'nameEn' | 'descriptionEn' | 'fabricCareEn' | 'colorLabelsEn'> {
+function enFieldsOf(product: AnyProduct): Pick<FormState, 'nameEn' | 'descriptionEn' | 'fabricCareEn' | 'colorLabelsEn'> {
   const p = product as Partial<AdminProduct>
   return {
     nameEn: p.nameEn ?? '',
@@ -67,7 +100,9 @@ function defaultTexts(number: string) {
   }
 }
 
-function buildFormFromProduct(product: Product | AdminProduct): FormState {
+const colorOptionLabel = (id: string) => colorOptions.find((c) => c.id === id)?.label ?? id
+
+function buildFormFromProduct(product: AnyProduct): FormState {
   const stock: FormState['stock'] = {}
   for (const color of product.colors) {
     const row = {} as Record<SizeId, string>
@@ -82,6 +117,7 @@ function buildFormFromProduct(product: Product | AdminProduct): FormState {
     newBadge: (product as Partial<AdminProduct>).newBadge ?? (product.isNew ? 'on' : 'off'),
     hidden: product.hidden ?? false,
     colors: product.colors.map((c) => c.id),
+    colorLabels: Object.fromEntries(product.colors.map((c) => [c.id, c.label])),
     stock,
     description: product.content.description,
     fabricCare: product.content.fabricCare,
@@ -109,6 +145,7 @@ function buildFormFromSeed(seed: Seed, number: string): FormState {
     newBadge: seed.isNew ? 'on' : 'off',
     hidden: false,
     colors,
+    colorLabels: Object.fromEntries(colors.map((c) => [c, colorOptionLabel(c)])),
     stock,
     description: texts.description,
     fabricCare: texts.fabricCare,
@@ -135,86 +172,6 @@ function validStockValue(value: string): boolean {
   return /^\d+$/.test(t) && Number(t) <= MAX_STOCK_QTY
 }
 
-function stockFormValid(form: FormState): boolean {
-  return form.colors.every((cid) => allSizes.every((size) => validStockValue(form.stock[cid]?.[size] ?? '0')))
-}
-
-interface StockMatrixProps {
-  colors: string[]
-  labelOf: (colorId: string) => string
-  stock: FormState['stock']
-  threshold: number
-  onChange: (colorId: string, size: SizeId, value: string) => void
-}
-
-/** Renk × beden stok matrisi; eşik altındaki (1..eşik) hücre vurgulu, 0 soluk, geçersiz hücre işaretli. */
-function StockMatrix({ colors, labelOf, stock, threshold, onChange }: StockMatrixProps) {
-  return (
-    <>
-      <p className="text-soft text-xs" style={{ marginBottom: 'var(--sp-3)' }}>
-        {AS.productEdit.stockHint(threshold)}
-      </p>
-      <div className={styles.stockTableWrap}>
-        <table className={styles.stockTable}>
-          <thead>
-            <tr>
-              <th scope="col">{AS.productEdit.colorsTitle}</th>
-              {allSizes.map((size) => (
-                <th key={size} scope="col">
-                  {size}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {colors.map((colorId) => {
-              const label = labelOf(colorId)
-              return (
-                <tr key={colorId}>
-                  <th scope="row">{label}</th>
-                  {allSizes.map((size) => {
-                    const raw = stock[colorId]?.[size] ?? '0'
-                    const valid = validStockValue(raw)
-                    const level = valid ? stockLevel(Number(raw), threshold) : 'ok'
-                    const cellClass = level === 'low' ? styles.stockCellLow : level === 'out' ? styles.stockCellOut : undefined
-                    const note = level === 'low' ? AS.productEdit.cellLow : level === 'out' ? AS.productEdit.cellOut : null
-                    return (
-                      <td key={size} className={cellClass}>
-                        <label className="sr-only" htmlFor={`stock-${colorId}-${size}`}>
-                          {label} {size}
-                          {note ? ` — ${note}` : ''}
-                        </label>
-                        <div className={styles.stockCell}>
-                          <input
-                            id={`stock-${colorId}-${size}`}
-                            type="number"
-                            inputMode="numeric"
-                            min={0}
-                            max={MAX_STOCK_QTY}
-                            step={1}
-                            aria-invalid={valid ? undefined : true}
-                            value={raw}
-                            onChange={(e) => onChange(colorId, size, e.target.value)}
-                          />
-                          {note ? (
-                            <span className={styles.stockCellNote} aria-hidden="true">
-                              {note}
-                            </span>
-                          ) : null}
-                        </div>
-                      </td>
-                    )
-                  })}
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-    </>
-  )
-}
-
 function sameSet(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false
   const sa = [...a].sort()
@@ -222,498 +179,366 @@ function sameSet(a: string[], b: string[]): boolean {
   return sa.every((v, i) => v === sb[i])
 }
 
-/** `/admin/urunler/:id` — tek ürün düzenleme formu. API varsa sunucudan okur/yazar; yoksa (yerel geliştirme) localStorage override'ı kullanır. */
+/** Ortak doğrulama: ad (boş/200+), fiyat (sayı ≥ 0), stok hücreleri, renk adları. */
+function validate(form: FormState, apiMode: boolean): { errors: Errors; price: number | null } {
+  const errors: Errors = {}
+  const name = form.name.trim()
+  if (!name) errors.name = AS.productEdit.nameRequired
+  else if (name.length > 200) errors.name = AS.productEdit.nameTooLong
+  const price = parseAmount(form.price)
+  if (price == null || price < 0) errors.price = AS.productEdit.priceInvalid
+  if (!form.colors.every((cid) => allSizes.every((size) => validStockValue(form.stock[cid]?.[size] ?? '0')))) errors.stock = AS.productEdit.stockInvalid
+  if (apiMode && form.colors.some((cid) => !(form.colorLabels[cid] ?? '').trim())) errors.colorLabels = AS.productEdit.colorLabelRequired
+  return { errors, price: errors.price ? null : price }
+}
+
+function changedKeys(a: FormState, b: FormState): Set<keyof FormState> {
+  const out = new Set<keyof FormState>()
+  for (const k of Object.keys(a) as (keyof FormState)[]) if (JSON.stringify(a[k]) !== JSON.stringify(b[k])) out.add(k)
+  return out
+}
+
+/** API PUT gövdesi: yalnızca değişen alanlar (bkz. api/src/routes/admin-products.js → updateSchema). */
+function buildApiPatch(form: FormState, product: AdminProduct, price: number): AdminProductPatch {
+  const patch: AdminProductPatch = {}
+  const trimmedName = form.name.trim()
+  if (trimmedName !== product.name) patch.name = trimmedName
+  if (price !== product.price) patch.price = price
+  if (form.category !== product.category) patch.category = form.category
+  if (form.newBadge !== (product.newBadge ?? (product.isNew ? 'on' : 'off'))) patch.newBadge = form.newBadge
+  if (form.hidden !== (product.hidden ?? false)) patch.hidden = form.hidden
+
+  const nameEn = enDiff(form.nameEn, product.nameEn)
+  if (nameEn !== undefined) patch.nameEn = nameEn
+  const descriptionEn = enDiff(form.descriptionEn, product.content.descriptionEn)
+  if (descriptionEn !== undefined) patch.descriptionEn = descriptionEn
+  const fabricCareEn = enDiff(form.fabricCareEn, product.content.fabricCareEn)
+  if (fabricCareEn !== undefined) patch.fabricCareEn = fabricCareEn
+
+  // Renkler: set, TR adı ya da EN adı değiştiyse tam liste gönderilir (sunucu renkleri sil-yeniden-ekle ile yazar).
+  const currentColorIds = product.colors.map((c) => c.id)
+  const labelChanged = form.colors.some((cid) => (form.colorLabels[cid] ?? '').trim() !== (product.colors.find((c) => c.id === cid)?.label ?? ''))
+  const colorEnChanged = form.colors.some((cid) => enDiff(form.colorLabelsEn[cid] ?? '', product.colors.find((c) => c.id === cid)?.labelEn) !== undefined)
+  if (!sameSet(form.colors, currentColorIds) || labelChanged || colorEnChanged) {
+    patch.colors = form.colors.map((cid) => ({
+      id: cid,
+      label: (form.colorLabels[cid] ?? '').trim() || product.colors.find((c) => c.id === cid)?.label || colorOptionLabel(cid),
+      labelEn: (form.colorLabelsEn[cid] ?? '').trim() || null,
+    }))
+  }
+
+  // Stok: değişen hücreler; YENİ eklenen rengin tüm hücreleri (0 olsa da) her zaman gönderilir.
+  const stockPatch: Record<string, Partial<Record<SizeId, number>>> = {}
+  for (const colorId of form.colors) {
+    const row = form.stock[colorId]
+    if (!row) continue
+    const isNewColor = !currentColorIds.includes(colorId)
+    const cell: Partial<Record<SizeId, number>> = {}
+    for (const size of allSizes) {
+      const value = Number(row[size])
+      const original = product.stock[colorId]?.[size] ?? 0
+      if (Number.isFinite(value) && (isNewColor || value !== original)) cell[size] = value
+    }
+    if (Object.keys(cell).length) stockPatch[colorId] = cell
+  }
+  if (Object.keys(stockPatch).length) patch.stock = stockPatch
+
+  const d = form.description.trim()
+  if (d !== product.content.description) patch.description = d
+  const fc = form.fabricCare.trim()
+  if (fc !== product.content.fabricCare) patch.fabricCare = fc
+  const dr = form.deliveryReturns.trim()
+  if (dr !== product.content.deliveryReturns) patch.deliveryReturns = dr
+
+  if (!sameSet(form.similarProductIds, product.similarProductIds ?? [])) patch.similarProductIds = form.similarProductIds
+  if (!sameSet(form.completeLookProductIds, product.completeLookProductIds ?? [])) patch.completeLookProductIds = form.completeLookProductIds
+  return patch
+}
+
+/** `/admin/urunler/:id` — sekmeli ürün düzenleme. API varsa sunucudan okur/yazar; yoksa (yerel geliştirme) localStorage override'ı. */
 export function ProductEditPage() {
   const { id = '' } = useParams()
-  return useApiMode ? <ApiProductEditPage id={id} /> : <LocalProductEditPage id={id} />
+  return useApiMode ? <ApiProductEditPage key={id} id={id} /> : <LocalProductEditPage key={id} id={id} />
 }
 
 /* ==================== API modu ==================== */
 
 function ApiProductEditPage({ id }: { id: string }) {
-  const [products, setProducts] = useState<AdminProduct[] | null>(null)
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const toast = useToast()
+  const list = useLoader(listAdminProducts)
+  const config = useLoader<InventoryConfig>(() => getAdminSettings().then(inventoryConfigFrom))
+  const cfg = config.data ?? localInventoryConfig()
+  const product = (list.data?.find((p) => p.id === id) ?? null) as (AdminProduct & { updatedAt?: string | null }) | null
+
   const [form, setForm] = useState<FormState | null>(null)
-  const [saveError, setSaveError] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
+  const [baseline, setBaseline] = useState<FormState | null>(null)
+  const [forProduct, setForProduct] = useState<string | null>(null)
+  const [errors, setErrors] = useState<Errors>({})
+  const [tab, setTab] = useState<TabId>('general')
   const [pending, setPending] = useState(false)
-  const [config, setConfig] = useState<InventoryConfig>(localInventoryConfig)
+  const [conflict, setConflict] = useState(false)
+  const [confirmZero, setConfirmZero] = useState(false)
+  const [removeKind, setRemoveKind] = useState<MediaKind | null>(null)
+  const [removing, setRemoving] = useState(false)
 
-  // Eşik ve rozet gün sayısı yönetici ayarından (public /settings'te yok); hata olursa varsayılan kalır.
-  useEffect(() => {
-    getAdminSettings()
-      .then((raw) => setConfig(inventoryConfigFrom(raw)))
-      .catch(() => undefined)
-  }, [])
-
-  useEffect(() => {
-    let cancelled = false
-    listAdminProducts()
-      .then((list) => {
-        if (cancelled) return
-        setProducts(list)
-        const found = list.find((p) => p.id === id)
-        if (found) setForm(buildFormFromProduct(found))
-      })
-      .catch((e) => {
-        if (!cancelled) setLoadError(apiErrorMessage(e))
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [id])
-
-  const product = products?.find((p) => p.id === id) ?? null
-
-  if (loadError) {
-    return (
-      <div>
-        <p className={styles.empty} role="alert">
-          {loadError}
-        </p>
-        <p style={{ marginTop: 'var(--sp-4)' }}>
-          <Link className="link" to="/admin/urunler">
-            {AS.productEdit.backToList}
-          </Link>
-        </p>
-      </div>
-    )
+  // Ürün ilk kez yüklenince (ya da "Yenile" sonrası) formu kur — render sırasında, efektsiz.
+  const productStamp = product ? `${product.id}@${product.updatedAt ?? ''}#${list.data?.length}` : null
+  if (product && forProduct === null) {
+    const f = buildFormFromProduct(product)
+    setForm(f)
+    setBaseline(f)
+    setForProduct(productStamp)
   }
 
-  // `!products` henüz yüklenmedi demektir (bekle); `products` yüklendiyse ama eşleşen ürün yoksa
-  // (bilinmeyen id) `form` hiç set edilmez — bu yüzden "bulunamadı" kontrolü "yükleniyor" kontrolünden
-  // ÖNCE yapılmalı, aksi halde bilinmeyen bir id sonsuza dek "Yükleniyor…" gösterirdi.
-  if (!products) {
-    return <p className={styles.empty}>{AS.common.loading}</p>
-  }
+  if (list.error && !list.data) return <ErrorState message={apiErrorMessage(list.error)} onRetry={list.reload} />
+  if (!list.data) return <LoadingState />
+  if (!product || !form || !baseline) return <NotFound />
 
-  if (!product || !form) {
-    return (
-      <div>
-        <p className={styles.empty}>{AS.productEdit.notFound}</p>
-        <p style={{ marginTop: 'var(--sp-4)' }}>
-          <Link className="link" to="/admin/urunler">
-            {AS.productEdit.backToList}
-          </Link>
-        </p>
-      </div>
-    )
-  }
+  const changed = changedKeys(form, baseline)
+  const dirty = changed.size > 0
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => (f ? { ...f, [key]: value } : f))
-    setMessage(null)
-    setSaveError(null)
+    // Kullanıcı hatalı alanı düzelttiğinde o alanın hatası hemen kalkar.
+    if (key in errors) setErrors((e) => ({ ...e, [key]: undefined }))
   }
 
-  function toggleColor(colorId: string, checked: boolean) {
-    setForm((f) => {
-      if (!f) return f
-      let nextColors = checked ? [...f.colors, colorId] : f.colors.filter((c) => c !== colorId)
-      if (nextColors.length === 0) nextColors = f.colors
-      const stock = { ...f.stock }
-      if (checked && !stock[colorId]) {
-        const row = {} as Record<SizeId, string>
-        for (const size of allSizes) row[size] = '0'
-        stock[colorId] = row
-      }
-      return { ...f, colors: nextColors, stock }
-    })
-    setMessage(null)
-    setSaveError(null)
+  function reloadFromServer() {
+    setConflict(false)
+    setForProduct(null)
+    setErrors({})
+    list.reload()
   }
 
-  function updateStock(colorId: string, size: SizeId, value: string) {
-    setForm((f) => (f ? { ...f, stock: { ...f.stock, [colorId]: { ...f.stock[colorId], [size]: value } } } : f))
-    setMessage(null)
-    setSaveError(null)
-  }
-
-  function toggleRelated(field: 'similarProductIds' | 'completeLookProductIds', otherId: string, checked: boolean) {
-    setForm((f) => {
-      if (!f) return f
-      const list = checked ? [...f[field], otherId] : f[field].filter((v) => v !== otherId)
-      return { ...f, [field]: list }
-    })
-    setMessage(null)
-    setSaveError(null)
-  }
-
-  async function handleSave() {
+  async function save(allowZero = false) {
     if (!form || !product) return
-    const patch: AdminProductPatch = {}
-    const trimmedName = form.name.trim()
-    if (trimmedName && trimmedName !== product.name) patch.name = trimmedName
-
-    const priceNum = Number(form.price.trim())
-    if (Number.isFinite(priceNum) && priceNum >= 0 && priceNum !== product.price) patch.price = priceNum
-
-    if (form.category !== product.category) patch.category = form.category
-    if (form.newBadge !== (product.newBadge ?? (product.isNew ? 'on' : 'off'))) patch.newBadge = form.newBadge
-    if (form.hidden !== (product.hidden ?? false)) patch.hidden = form.hidden
-
-    if (!stockFormValid(form)) {
-      setSaveError(AS.productEdit.stockInvalid)
+    const { errors: errs, price } = validate(form, true)
+    setErrors(errs)
+    const firstErr = (Object.keys(errs) as (keyof Errors)[])[0]
+    if (firstErr || price == null) {
+      if (firstErr) setTab(ERROR_TAB[firstErr])
+      toast.error(AS.apiNotice.validation)
       return
     }
-
-    const nameEn = enDiff(form.nameEn, product.nameEn)
-    if (nameEn !== undefined) patch.nameEn = nameEn
-    const descriptionEn = enDiff(form.descriptionEn, product.content.descriptionEn)
-    if (descriptionEn !== undefined) patch.descriptionEn = descriptionEn
-    const fabricCareEn = enDiff(form.fabricCareEn, product.content.fabricCareEn)
-    if (fabricCareEn !== undefined) patch.fabricCareEn = fabricCareEn
-
-    // Renkler: set değiştiyse YA DA yalnızca bir EN renk adı değiştiyse tam liste gönderilir (sunucu
-    // renkleri sil-yeniden-ekle ile yazar). Mevcut TR etiketi korunur; yeni eklenen renkte demo etiket.
-    const currentColorIds = product.colors.map((c) => c.id)
-    const colorEnChanged = form.colors.some((cid) => enDiff(form.colorLabelsEn[cid] ?? '', product.colors.find((c) => c.id === cid)?.labelEn) !== undefined)
-    if (!sameSet(form.colors, currentColorIds) || colorEnChanged) {
-      patch.colors = form.colors.flatMap((cid) => {
-        const label = product.colors.find((c) => c.id === cid)?.label ?? colorOptions.find((c) => c.id === cid)?.label
-        if (!label) return []
-        return [{ id: cid, label, labelEn: (form.colorLabelsEn[cid] ?? '').trim() || null }]
-      })
+    if (price === 0 && product.price !== 0 && !allowZero) {
+      setConfirmZero(true)
+      return
     }
-
-    const stockPatch: Record<string, Partial<Record<SizeId, number>>> = {}
-    for (const colorId of form.colors) {
-      const row = form.stock[colorId]
-      if (!row) continue
-      const cell: Partial<Record<SizeId, number>> = {}
-      for (const size of allSizes) {
-        const value = Number(row[size])
-        const original = product.stock[colorId]?.[size] ?? 0
-        if (Number.isFinite(value) && value !== original) cell[size] = value
-      }
-      if (Object.keys(cell).length) stockPatch[colorId] = cell
-    }
-    if (Object.keys(stockPatch).length) patch.stock = stockPatch
-
-    const trimmedDescription = form.description.trim()
-    if (trimmedDescription !== product.content.description) patch.description = trimmedDescription
-
-    const trimmedFabricCare = form.fabricCare.trim()
-    if (trimmedFabricCare !== product.content.fabricCare) patch.fabricCare = trimmedFabricCare
-
-    const trimmedDeliveryReturns = form.deliveryReturns.trim()
-    if (trimmedDeliveryReturns !== product.content.deliveryReturns) patch.deliveryReturns = trimmedDeliveryReturns
-
-    if (!sameSet(form.similarProductIds, product.similarProductIds ?? [])) patch.similarProductIds = form.similarProductIds
-    if (!sameSet(form.completeLookProductIds, product.completeLookProductIds ?? [])) patch.completeLookProductIds = form.completeLookProductIds
-
+    const patch = buildApiPatch(form, product, price)
     if (Object.keys(patch).length === 0) {
-      setMessage(AS.save.saved)
+      setBaseline(form)
+      toast.info(AS.save.nothing)
       return
     }
-
     setPending(true)
-    setSaveError(null)
     try {
-      const updated = await updateAdminProduct(product.id, patch)
-      setProducts((list) => (list ? list.map((p) => (p.id === updated.id ? updated : p)) : list))
-      setForm(buildFormFromProduct(updated))
-      setMessage(AS.apiNotice.saved)
+      const updated = await updateAdminProduct(product.id, withExpected(product, patch))
+      list.setData((l) => (l ?? []).map((p) => (p.id === updated.id ? updated : p)))
+      const fresh = buildFormFromProduct(updated)
+      setForm(fresh)
+      setBaseline(fresh)
+      toast.success(AS.apiNotice.saved)
     } catch (e) {
-      setSaveError(apiErrorMessage(e))
+      if (isConflict(e)) setConflict(true)
+      else toast.error(e instanceof ApiError && e.code === 'validation_error' ? `${AS.apiNotice.validation} (${apiErrorMessage(e)})` : apiErrorMessage(e))
     } finally {
       setPending(false)
     }
   }
 
-  async function handleMediaUpload(kind: 'front' | 'back' | 'model' | 'fabric', url: string) {
+  async function uploadMedia(kind: MediaKind, url: string) {
     const updated = await updateAdminProduct(product!.id, { media: { [kind]: url } })
-    setProducts((list) => (list ? list.map((p) => (p.id === updated.id ? updated : p)) : list))
-    setMessage(AS.apiNotice.saved)
+    list.setData((l) => (l ?? []).map((p) => (p.id === updated.id ? updated : p)))
   }
 
-  const otherProducts = products.filter((p) => p.id !== product.id)
+  async function confirmRemoveMedia() {
+    if (!removeKind || !product) return
+    setRemoving(true)
+    try {
+      // Yeni sunucu: yuvaya null → görsel kaldırılır. Eski sunucu 400 döner → bilgilendir.
+      const updated = await updateAdminProduct(product.id, { media: { [removeKind]: null } })
+      list.setData((l) => (l ?? []).map((p) => (p.id === updated.id ? updated : p)))
+      toast.success(AS.productEdit.mediaRemoved)
+      setRemoveKind(null)
+    } catch (e) {
+      toast.error(e instanceof ApiError && (e.status === 400 || e.status === 404) ? AS.productEdit.mediaRemoveUnsupported : apiErrorMessage(e))
+      setRemoveKind(null)
+    } finally {
+      setRemoving(false)
+    }
+  }
+
   const mediaByKind = Object.fromEntries(product.media.map((m) => [m.kind, m]))
+  const others = (list.data ?? []).filter((p) => p.id !== product.id)
 
   return (
-    <div>
-      <div className={styles.pageHead}>
-        <h1 className={styles.pageTitle}>{AS.productEdit.title(product.number)}</h1>
-      </div>
-
-      <div className={styles.section}>
-        <div className={styles.grid}>
-          <Field label={AS.productEdit.nameLabel} value={form.name} onChange={(e) => update('name', e.target.value)} />
-          <Field label={AS.productEdit.nameEnLabel} lang="en" maxLength={200} placeholder={AS.productEdit.enPlaceholder} value={form.nameEn} onChange={(e) => update('nameEn', e.target.value)} />
-          <Field label={AS.productEdit.priceLabel} type="number" min={0} value={form.price} onChange={(e) => update('price', e.target.value)} />
-          <SelectField label={AS.productEdit.categoryLabel} value={form.category} onChange={(e) => update('category', e.target.value as CategoryValue)}>
-            {editableCategories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label}
-              </option>
-            ))}
-          </SelectField>
-          <div className={styles.fieldStack}>
-            <SelectField label={AS.productEdit.newBadgeLabel} value={form.newBadge} onChange={(e) => update('newBadge', e.target.value as NewBadgeMode)}>
-              <option value="on">{AS.productEdit.newBadgeOn}</option>
-              <option value="auto">{AS.productEdit.newBadgeAuto(config.newBadgeDays)}</option>
-              <option value="off">{AS.productEdit.newBadgeOff}</option>
-            </SelectField>
-            {form.newBadge === (product.newBadge ?? (product.isNew ? 'on' : 'off')) ? (
-              <p className="text-soft text-xs">{AS.productEdit.newBadgeState(product.isNew)}</p>
-            ) : null}
-            <Switch label={AS.productEdit.hiddenLabel} checked={form.hidden} onChange={(e) => update('hidden', e.target.checked)} />
-          </div>
-        </div>
-      </div>
-
-      <div className={styles.section}>
-        <div className={styles.sectionTitle}>{AS.productEdit.colorsTitle}</div>
-        <div className={styles.checkList} style={{ maxHeight: 'none' }}>
-          {colorOptions.map((opt) => (
-            <Checkbox key={opt.id} label={opt.label} checked={form.colors.includes(opt.id)} onChange={(e) => toggleColor(opt.id, e.target.checked)} />
-          ))}
-        </div>
-        <p className="text-soft text-xs" style={{ marginTop: 'var(--sp-2)' }}>
-          {AS.productEdit.colorsHint}
-        </p>
-        <div className={styles.subCardTitle} style={{ marginTop: 'var(--sp-4)' }}>
-          {AS.productEdit.colorLabelsEnTitle}
-        </div>
-        <div className={styles.grid}>
-          {form.colors.map((colorId) => {
-            const label = product.colors.find((c) => c.id === colorId)?.label ?? colorOptions.find((c) => c.id === colorId)?.label ?? colorId
-            return (
-              <Field
-                key={colorId}
-                label={AS.productEdit.colorLabelEn(label)}
-                lang="en"
-                maxLength={64}
-                placeholder={AS.productEdit.enPlaceholder}
-                value={form.colorLabelsEn[colorId] ?? ''}
-                onChange={(e) => update('colorLabelsEn', { ...form.colorLabelsEn, [colorId]: e.target.value })}
-              />
-            )
-          })}
-        </div>
-      </div>
-
-      <div className={styles.section}>
-        <div className={styles.sectionTitle}>{AS.productEdit.stockTitle}</div>
-        <StockMatrix
-          colors={form.colors}
-          labelOf={(colorId) => product.colors.find((c) => c.id === colorId)?.label ?? colorOptions.find((c) => c.id === colorId)?.label ?? colorId}
-          stock={form.stock}
-          threshold={config.lowStockThreshold}
-          onChange={updateStock}
-        />
-      </div>
-
-      <div className={styles.section}>
-        <div className={styles.sectionTitle}>{AS.productEdit.contentTitle}</div>
-        <div className={styles.fieldStack}>
-          <p className="text-soft text-xs">{AS.productEdit.enNote}</p>
-          <TextareaField label={AS.productEdit.descriptionLabel} rows={4} value={form.description} onChange={(e) => update('description', e.target.value)} />
-          <TextareaField
-            label={AS.productEdit.descriptionEnLabel}
-            lang="en"
-            rows={4}
-            placeholder={AS.productEdit.enPlaceholder}
-            value={form.descriptionEn}
-            onChange={(e) => update('descriptionEn', e.target.value)}
-          />
-          <TextareaField label={AS.productEdit.fabricCareLabel} rows={3} value={form.fabricCare} onChange={(e) => update('fabricCare', e.target.value)} />
-          <TextareaField
-            label={AS.productEdit.fabricCareEnLabel}
-            lang="en"
-            rows={3}
-            placeholder={AS.productEdit.enPlaceholder}
-            value={form.fabricCareEn}
-            onChange={(e) => update('fabricCareEn', e.target.value)}
-          />
-          <TextareaField label={AS.productEdit.deliveryReturnsLabel} rows={3} value={form.deliveryReturns} onChange={(e) => update('deliveryReturns', e.target.value)} />
-        </div>
-      </div>
-
-      <div className={styles.grid}>
-        <div className={styles.section}>
-          <div className={styles.sectionTitle}>{AS.productEdit.similarTitle}</div>
-          <div className={styles.checkList}>
-            {otherProducts.map((p) => (
-              <Checkbox
-                key={p.id}
-                label={`${p.number} — ${p.name}`}
-                checked={form.similarProductIds.includes(p.id)}
-                onChange={(e) => toggleRelated('similarProductIds', p.id, e.target.checked)}
-              />
-            ))}
-          </div>
-        </div>
-        <div className={styles.section}>
-          <div className={styles.sectionTitle}>{AS.productEdit.completeLookTitle}</div>
-          <div className={styles.checkList}>
-            {otherProducts.map((p) => (
-              <Checkbox
-                key={p.id}
-                label={`${p.number} — ${p.name}`}
-                checked={form.completeLookProductIds.includes(p.id)}
-                onChange={(e) => toggleRelated('completeLookProductIds', p.id, e.target.checked)}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className={styles.section}>
-        <div className={styles.sectionTitle}>{AS.productEdit.mediaTitle}</div>
-        <p className="text-soft text-xs" style={{ marginBottom: 'var(--sp-3)' }}>
-          {AS.media.removeUnavailable}
-        </p>
-        <div className={styles.mediaGrid}>
-          <ApiMediaField name={productMediaName(product.number, 'front')} label={AS.productEdit.frontLabel} src={mediaByKind.front?.src ?? null} onUpload={(url) => handleMediaUpload('front', url)} />
-          <ApiMediaField name={productMediaName(product.number, 'back')} label={AS.productEdit.backLabel} src={mediaByKind.back?.src ?? null} onUpload={(url) => handleMediaUpload('back', url)} />
-          <ApiMediaField name={productMediaName(product.number, 'model')} label={AS.productEdit.modelLabel} src={mediaByKind.model?.src ?? null} onUpload={(url) => handleMediaUpload('model', url)} />
-          <ApiMediaField name={productMediaName(product.number, 'fabric')} label={AS.productEdit.fabricLabel} src={mediaByKind.fabric?.src ?? null} onUpload={(url) => handleMediaUpload('fabric', url)} />
-        </div>
-      </div>
-
-      {saveError ? (
-        <p role="alert" className={styles.empty}>
-          {saveError}
-        </p>
+    <>
+      <EditHeader product={product} form={form} />
+      {conflict ? (
+        <Notice
+          tone="danger"
+          action={
+            <Btn icon="refresh" onClick={reloadFromServer}>
+              {AS.productEdit.conflictReload}
+            </Btn>
+          }
+        >
+          <strong>{AS.productEdit.conflictTitle}</strong>
+          <div>{AS.productEdit.conflictText}</div>
+        </Notice>
       ) : null}
-
-      <SaveBar onSave={() => void handleSave()} message={message} pending={pending}>
-        <Button variant="secondary" to="/admin/urunler">
-          {AS.productEdit.backToList}
-        </Button>
-      </SaveBar>
-    </div>
+      <ProductFormView
+        mode="api"
+        tab={tab}
+        onTab={setTab}
+        form={form}
+        changed={changed}
+        errors={errors}
+        update={update}
+        setForm={setForm}
+        config={cfg}
+        others={others}
+        currentBadgeActive={product.isNew}
+        savedBadgeMode={product.newBadge ?? (product.isNew ? 'on' : 'off')}
+        productColorLabel={(cid) => product.colors.find((c) => c.id === cid)?.label ?? colorOptionLabel(cid)}
+        media={
+          <>
+            <Notice tone="neutral">{AS.productEdit.mediaHint}</Notice>
+            <div className={ui.slotGrid}>
+              {MEDIA_KINDS.map(({ kind, label }) => {
+                const serverSrc = mediaByKind[kind]?.src ?? null
+                // Sunucuda URL yoksa mağaza paketlenmiş dosyayı gösterir; panel de onu gösterir ama kaldırılamaz.
+                const fallback = serverSrc ? null : mediaByName(productMediaName(product.number, kind))
+                return (
+                  <ApiMediaField
+                    key={kind}
+                    name={productMediaName(product.number, kind)}
+                    label={label}
+                    src={serverSrc ?? fallback}
+                    meta={fallback ? AS.productEdit.mediaDefault : undefined}
+                    savedMessage={AS.productEdit.mediaSaved}
+                    pendingExternal={removing && removeKind === kind}
+                    onUpload={(url) => uploadMedia(kind, url)}
+                    onRequestRemove={serverSrc ? () => setRemoveKind(kind) : undefined}
+                  />
+                )
+              })}
+            </div>
+          </>
+        }
+      />
+      <StickySaveBar
+        dirty={dirty && !conflict}
+        saving={pending}
+        changes={changed.size}
+        onSave={() => void save()}
+        onDiscard={() => {
+          setForm(baseline)
+          setErrors({})
+          toast.info(AS.save.discarded)
+        }}
+      />
+      <ConfirmDialog
+        open={confirmZero}
+        title={AS.productEdit.priceZeroTitle}
+        message={AS.productEdit.priceZeroText}
+        confirmLabel={AS.productEdit.priceZeroConfirm}
+        onCancel={() => setConfirmZero(false)}
+        onConfirm={() => {
+          setConfirmZero(false)
+          void save(true)
+        }}
+      />
+      <ConfirmDialog
+        open={removeKind != null}
+        title={removeKind ? AS.mediaPage.removeTitle(MEDIA_KINDS.find((m) => m.kind === removeKind)!.label) : ''}
+        message={AS.mediaPage.removeText}
+        confirmLabel={AS.mediaPage.removeConfirm}
+        tone="danger"
+        pending={removing}
+        onCancel={() => setRemoveKind(null)}
+        onConfirm={() => void confirmRemoveMedia()}
+      />
+    </>
   )
 }
 
 /* ==================== Yerel (localStorage) modu — yalnızca API yokken (DEV) ==================== */
 
 function LocalProductEditPage({ id }: { id: string }) {
+  const toast = useToast()
   const product = allProducts.find((p) => p.id === id)
   const seed = baseSeeds.find((s) => s.id === id)
-
-  const [form, setForm] = useState<FormState | null>(() => {
+  const initial = useMemo<FormState | null>(() => {
     if (!product) return null
     const o = readAdminData().products[product.id] ?? {}
     return { ...buildFormFromProduct(product), nameEn: o.nameEn ?? '', descriptionEn: o.descriptionEn ?? '', fabricCareEn: o.fabricCareEn ?? '' }
-  })
-  const [message, setMessage] = useState<string | null>(null)
+  }, [product])
+  const [form, setForm] = useState<FormState | null>(initial)
+  const [baseline, setBaseline] = useState<FormState | null>(initial)
+  const [errors, setErrors] = useState<Errors>({})
+  const [tab, setTab] = useState<TabId>('general')
+  const [confirmReset, setConfirmReset] = useState(false)
+  const [confirmZero, setConfirmZero] = useState(false)
 
-  if (!product || !seed || !form) {
-    return (
-      <div>
-        <p className={styles.empty}>{AS.productEdit.notFound}</p>
-        <p style={{ marginTop: 'var(--sp-4)' }}>
-          <Link className="link" to="/admin/urunler">
-            {AS.productEdit.backToList}
-          </Link>
-        </p>
-      </div>
-    )
-  }
-
-  const texts = defaultTexts(product.number)
-  // Nested function/closure narrowing doesn't persist for `product`/`seed`/`form` after the guard
-  // above, so capture non-null locals here and use these inside handleSave/handleReset/toggleColor.
+  if (!product || !seed || !form || !baseline) return <NotFound />
   const currentProduct = product
-  const currentSeed = seed
-  const currentForm = form
+  const sd = seed
+  const texts = defaultTexts(product.number)
+  const changed = changedKeys(form, baseline)
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => (f ? { ...f, [key]: value } : f))
-    setMessage(null)
+    // Kullanıcı hatalı alanı düzelttiğinde o alanın hatası hemen kalkar.
+    if (key in errors) setErrors((e) => ({ ...e, [key]: undefined }))
   }
 
-  function toggleColor(colorId: string, checked: boolean) {
-    setForm((f) => {
-      if (!f) return f
-      let nextColors = checked ? [...f.colors, colorId] : f.colors.filter((c) => c !== colorId)
-      if (nextColors.length === 0) nextColors = f.colors
-      const stock = { ...f.stock }
-      if (checked && !stock[colorId]) {
-        const row = {} as Record<SizeId, string>
-        for (const size of allSizes) row[size] = String(seedStockDefault(currentSeed, colorId, size))
-        stock[colorId] = row
-      }
-      return { ...f, colors: nextColors, stock }
-    })
-    setMessage(null)
-  }
-
-  function updateStock(colorId: string, size: SizeId, value: string) {
-    setForm((f) => (f ? { ...f, stock: { ...f.stock, [colorId]: { ...f.stock[colorId], [size]: value } } } : f))
-    setMessage(null)
-  }
-
-  function toggleRelated(field: 'similarProductIds' | 'completeLookProductIds', otherId: string, checked: boolean) {
-    setForm((f) => {
-      if (!f) return f
-      const list = checked ? [...f[field], otherId] : f[field].filter((v) => v !== otherId)
-      return { ...f, [field]: list }
-    })
-    setMessage(null)
-  }
-
-  function handleSave() {
-    if (!stockFormValid(currentForm)) {
-      setMessage(AS.productEdit.stockInvalid)
+  function save(allowZero = false) {
+    if (!form) return
+    const { errors: errs, price } = validate(form, false)
+    setErrors(errs)
+    const firstErr = (Object.keys(errs) as (keyof Errors)[])[0]
+    if (firstErr || price == null) {
+      if (firstErr) setTab(ERROR_TAB[firstErr])
+      toast.error(AS.apiNotice.validation)
       return
     }
+    if (price === 0 && sd.price !== 0 && !allowZero) {
+      setConfirmZero(true)
+      return
+    }
+    const f = form
     const override: ProductOverride = {}
-    const f = currentForm
-    const sd = currentSeed
-
     const trimmedName = f.name.trim()
-    if (trimmedName && trimmedName !== texts.name) override.name = trimmedName
-
-    const trimmedPrice = f.price.trim()
-    const priceNum = Number(trimmedPrice)
-    if (trimmedPrice && Number.isFinite(priceNum) && priceNum >= 0 && priceNum !== sd.price) override.price = priceNum
-
+    if (trimmedName !== texts.name) override.name = trimmedName
+    if (price !== sd.price) override.price = price
     if (f.category !== sd.category) override.category = f.category
-
-    const defaultIsNew = sd.isNew ?? false
-    if (f.isNew !== defaultIsNew) override.isNew = f.isNew
-
+    if (f.isNew !== (sd.isNew ?? false)) override.isNew = f.isNew
     if (f.hidden) override.hidden = true
-
-    const defaultColors = sd.colors ?? ['renk-1']
-    if (!sameSet(f.colors, defaultColors)) override.colors = f.colors
-
+    if (!sameSet(f.colors, sd.colors ?? ['renk-1'])) override.colors = f.colors
     const stockOverride: Record<string, Partial<Record<SizeId, number>>> = {}
     for (const colorId of f.colors) {
       const row = f.stock[colorId]
       if (!row) continue
-      const cellOverride: Partial<Record<SizeId, number>> = {}
+      const cell: Partial<Record<SizeId, number>> = {}
       for (const size of allSizes) {
         const value = Number(row[size])
-        const def = seedStockDefault(sd, colorId, size)
-        if (Number.isFinite(value) && value !== def) cellOverride[size] = value
+        if (Number.isFinite(value) && value !== seedStockDefault(sd, colorId, size)) cell[size] = value
       }
-      if (Object.keys(cellOverride).length > 0) stockOverride[colorId] = cellOverride
+      if (Object.keys(cell).length > 0) stockOverride[colorId] = cell
     }
     if (Object.keys(stockOverride).length > 0) override.stock = stockOverride
-
-    const trimmedDescription = f.description.trim()
-    if (trimmedDescription && trimmedDescription !== texts.description) override.description = trimmedDescription
-
-    const trimmedFabricCare = f.fabricCare.trim()
-    if (trimmedFabricCare && trimmedFabricCare !== texts.fabricCare) override.fabricCare = trimmedFabricCare
-
-    const trimmedDeliveryReturns = f.deliveryReturns.trim()
-    if (trimmedDeliveryReturns && trimmedDeliveryReturns !== texts.deliveryReturns) override.deliveryReturns = trimmedDeliveryReturns
-
+    const d = f.description.trim()
+    if (d && d !== texts.description) override.description = d
+    const fc = f.fabricCare.trim()
+    if (fc && fc !== texts.fabricCare) override.fabricCare = fc
+    const dr = f.deliveryReturns.trim()
+    if (dr && dr !== texts.deliveryReturns) override.deliveryReturns = dr
     if (f.nameEn.trim()) override.nameEn = f.nameEn.trim()
     if (f.descriptionEn.trim()) override.descriptionEn = f.descriptionEn.trim()
     if (f.fabricCareEn.trim()) override.fabricCareEn = f.fabricCareEn.trim()
-
-    const defaultSimilar = sd.similarProductIds ?? []
-    if (!sameSet(f.similarProductIds, defaultSimilar)) override.similarProductIds = f.similarProductIds
-
-    const defaultCompleteLook = sd.completeLookProductIds ?? []
-    if (!sameSet(f.completeLookProductIds, defaultCompleteLook)) override.completeLookProductIds = f.completeLookProductIds
-
+    if (!sameSet(f.similarProductIds, sd.similarProductIds ?? [])) override.similarProductIds = f.similarProductIds
+    if (!sameSet(f.completeLookProductIds, sd.completeLookProductIds ?? [])) override.completeLookProductIds = f.completeLookProductIds
     const productId = currentProduct.id
     updateAdminData((current) => {
       const products = { ...current.products }
@@ -721,146 +546,495 @@ function LocalProductEditPage({ id }: { id: string }) {
       else products[productId] = override
       return { ...current, products }
     })
-    setMessage(AS.save.saved)
+    setBaseline(f)
+    toast.success(AS.save.savedLocal)
   }
 
-  function handleReset() {
+  function reset() {
     const productId = currentProduct.id
-    const productNumber = currentProduct.number
-    const sd = currentSeed
     updateAdminData((current) => {
       const products = { ...current.products }
       delete products[productId]
       return { ...current, products }
     })
-    setForm(buildFormFromSeed(sd, productNumber))
-    setMessage(AS.productEdit.resetDone)
+    const fresh = buildFormFromSeed(sd, currentProduct.number)
+    setForm(fresh)
+    setBaseline(fresh)
+    setConfirmReset(false)
+    toast.success(AS.productEdit.resetDone)
   }
 
-  const otherProducts = allProducts.filter((p) => p.id !== product.id)
-
   return (
-    <div>
-      <div className={styles.pageHead}>
-        <h1 className={styles.pageTitle}>{AS.productEdit.title(product.number)}</h1>
-      </div>
-      <p className={styles.demoNotice}>{AS.demoNotice}</p>
+    <>
+      <EditHeader
+        product={product}
+        form={form}
+        extra={
+          <Btn variant="ghost" icon="refresh" onClick={() => setConfirmReset(true)}>
+            {AS.productEdit.resetToDefault}
+          </Btn>
+        }
+      />
+      <Notice tone="warning">{AS.demoNotice}</Notice>
+      <ProductFormView
+        mode="local"
+        tab={tab}
+        onTab={setTab}
+        form={form}
+        changed={changed}
+        errors={errors}
+        update={update}
+        setForm={setForm}
+        config={localInventoryConfig()}
+        others={allProducts.filter((p) => p.id !== product.id)}
+        currentBadgeActive={product.isNew}
+        savedBadgeMode={product.isNew ? 'on' : 'off'}
+        productColorLabel={colorOptionLabel}
+        seedDefault={(colorId, size) => seedStockDefault(sd, colorId, size)}
+        media={
+          <>
+            <Notice tone="neutral">{AS.productEdit.mediaHint}</Notice>
+            <div className={ui.slotGrid}>
+              {MEDIA_KINDS.map(({ kind, label }) => (
+                <MediaField key={kind} name={productMediaName(product.number, kind)} label={label} />
+              ))}
+            </div>
+          </>
+        }
+      />
+      <StickySaveBar
+        dirty={changed.size > 0}
+        changes={changed.size}
+        onSave={() => save()}
+        onDiscard={() => {
+          setForm(baseline)
+          setErrors({})
+          toast.info(AS.save.discarded)
+        }}
+      />
+      <ConfirmDialog
+        open={confirmReset}
+        title={AS.productEdit.resetConfirmTitle}
+        message={AS.productEdit.resetConfirmText}
+        confirmLabel={AS.productEdit.resetToDefault}
+        tone="danger"
+        onCancel={() => setConfirmReset(false)}
+        onConfirm={reset}
+      />
+      <ConfirmDialog
+        open={confirmZero}
+        title={AS.productEdit.priceZeroTitle}
+        message={AS.productEdit.priceZeroText}
+        confirmLabel={AS.productEdit.priceZeroConfirm}
+        onCancel={() => setConfirmZero(false)}
+        onConfirm={() => {
+          setConfirmZero(false)
+          save(true)
+        }}
+      />
+    </>
+  )
+}
 
-      <div className={styles.section}>
-        <div className={styles.grid}>
-          <Field label={AS.productEdit.nameLabel} value={form.name} onChange={(e) => update('name', e.target.value)} />
-          <Field label={AS.productEdit.nameEnLabel} lang="en" maxLength={200} placeholder={AS.productEdit.enPlaceholder} value={form.nameEn} onChange={(e) => update('nameEn', e.target.value)} />
-          <Field label={AS.productEdit.priceLabel} type="number" min={0} value={form.price} onChange={(e) => update('price', e.target.value)} />
-          <SelectField label={AS.productEdit.categoryLabel} value={form.category} onChange={(e) => update('category', e.target.value as CategoryValue)}>
-            {editableCategories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label}
-              </option>
-            ))}
-          </SelectField>
-          <div className={styles.fieldStack}>
-            <Switch label={AS.productEdit.isNewLabel} checked={form.isNew} onChange={(e) => update('isNew', e.target.checked)} />
-            <Switch label={AS.productEdit.hiddenLabel} checked={form.hidden} onChange={(e) => update('hidden', e.target.checked)} />
-          </div>
-        </div>
-      </div>
+/* ==================== Ortak görünüm ==================== */
 
-      <div className={styles.section}>
-        <div className={styles.sectionTitle}>{AS.productEdit.colorsTitle}</div>
-        <div className={styles.checkList} style={{ maxHeight: 'none' }}>
-          {colorOptions.map((opt) => (
-            <Checkbox key={opt.id} label={opt.label} checked={form.colors.includes(opt.id)} onChange={(e) => toggleColor(opt.id, e.target.checked)} />
-          ))}
-        </div>
-        <p className="text-soft text-xs" style={{ marginTop: 'var(--sp-2)' }}>
-          {AS.productEdit.colorsHint}
-        </p>
-      </div>
+function LoadingState() {
+  return (
+    <div className={ui.card}>
+      <EmptyState icon="refresh" title={AS.common.loading} />
+    </div>
+  )
+}
 
-      <div className={styles.section}>
-        <div className={styles.sectionTitle}>{AS.productEdit.stockTitle}</div>
-        <StockMatrix
-          colors={form.colors}
-          labelOf={(colorId) => colorOptions.find((c) => c.id === colorId)?.label ?? colorId}
-          stock={form.stock}
-          threshold={localInventoryConfig().lowStockThreshold}
-          onChange={updateStock}
+function NotFound() {
+  return (
+    <>
+      <PageHeader title={AS.productEdit.notFound} back={{ to: '/admin/urunler', label: AS.productEdit.backToList }} />
+      <div className={ui.card}>
+        <EmptyState
+          icon="products"
+          title={AS.productEdit.notFound}
+          action={
+            <Btn to="/admin/urunler" icon="chevron-left">
+              {AS.productEdit.backToList}
+            </Btn>
+          }
         />
       </div>
+    </>
+  )
+}
 
-      <div className={styles.section}>
-        <div className={styles.sectionTitle}>{AS.productEdit.contentTitle}</div>
-        <div className={styles.fieldStack}>
-          <p className="text-soft text-xs">{AS.productEdit.enNote}</p>
-          <TextareaField label={AS.productEdit.descriptionLabel} rows={4} value={form.description} onChange={(e) => update('description', e.target.value)} />
-          <TextareaField
-            label={AS.productEdit.descriptionEnLabel}
-            lang="en"
-            rows={4}
-            placeholder={AS.productEdit.enPlaceholder}
-            value={form.descriptionEn}
-            onChange={(e) => update('descriptionEn', e.target.value)}
-          />
-          <TextareaField label={AS.productEdit.fabricCareLabel} rows={3} value={form.fabricCare} onChange={(e) => update('fabricCare', e.target.value)} />
-          <TextareaField
-            label={AS.productEdit.fabricCareEnLabel}
-            lang="en"
-            rows={3}
-            placeholder={AS.productEdit.enPlaceholder}
-            value={form.fabricCareEn}
-            onChange={(e) => update('fabricCareEn', e.target.value)}
-          />
-          <TextareaField label={AS.productEdit.deliveryReturnsLabel} rows={3} value={form.deliveryReturns} onChange={(e) => update('deliveryReturns', e.target.value)} />
-        </div>
-      </div>
+function EditHeader({ product, form, extra }: { product: AnyProduct; form: FormState; extra?: ReactNode }) {
+  return (
+    <PageHeader
+      back={{ to: '/admin/urunler', label: AS.productEdit.backToList }}
+      title={form.name.trim() || AS.productEdit.title(product.number)}
+      description={AS.productEdit.title(product.number)}
+      meta={product.hidden ? <StatusBadge tone="neutral">{AS.productEdit.hiddenBadge}</StatusBadge> : <StatusBadge tone="success">{AS.productEdit.visibleBadge}</StatusBadge>}
+      actions={
+        <>
+          {extra}
+          {!product.hidden ? (
+            <a className={[ui.btn, ui.btnSecondary].join(' ')} href={`/urun/${product.slug}`} target="_blank" rel="noopener noreferrer">
+              {AS.productEdit.viewInStore}
+            </a>
+          ) : null}
+        </>
+      }
+    />
+  )
+}
 
-      <div className={styles.grid}>
-        <div className={styles.section}>
-          <div className={styles.sectionTitle}>{AS.productEdit.similarTitle}</div>
-          <div className={styles.checkList}>
-            {otherProducts.map((p) => (
-              <Checkbox
-                key={p.id}
-                label={`${p.number} — ${p.name}`}
-                checked={form.similarProductIds.includes(p.id)}
-                onChange={(e) => toggleRelated('similarProductIds', p.id, e.target.checked)}
-              />
-            ))}
+interface FormViewProps {
+  mode: 'api' | 'local'
+  tab: TabId
+  onTab: (t: TabId) => void
+  form: FormState
+  changed: Set<keyof FormState>
+  errors: Errors
+  update: <K extends keyof FormState>(key: K, value: FormState[K]) => void
+  setForm: (fn: (f: FormState | null) => FormState | null) => void
+  config: InventoryConfig
+  others: Product[] | AdminProduct[]
+  currentBadgeActive: boolean
+  savedBadgeMode: NewBadgeMode
+  productColorLabel: (colorId: string) => string
+  /** Yerel modda yeni eklenen rengin varsayılan stoğu (tohum veri). */
+  seedDefault?: (colorId: string, size: SizeId) => number
+  media: ReactNode
+}
+
+function ProductFormView({ mode, tab, onTab, form, changed, errors, update, setForm, config, others, currentBadgeActive, savedBadgeMode, productColorLabel, seedDefault, media }: FormViewProps) {
+  const api = mode === 'api'
+  const tabHas = (t: TabId) => TAB_FIELDS[t].some((k) => changed.has(k)) || (Object.keys(errors) as (keyof Errors)[]).some((k) => errors[k] && ERROR_TAB[k] === t)
+  const labelOf = (cid: string) => (api ? form.colorLabels[cid]?.trim() || productColorLabel(cid) : productColorLabel(cid))
+
+  function toggleColor(colorId: string, checked: boolean) {
+    setForm((f) => {
+      if (!f) return f
+      let nextColors = checked ? [...f.colors, colorId] : f.colors.filter((c) => c !== colorId)
+      if (nextColors.length === 0) nextColors = f.colors
+      const stock = { ...f.stock }
+      if (checked && !stock[colorId]) {
+        const row = {} as Record<SizeId, string>
+        for (const size of allSizes) row[size] = String(seedDefault ? seedDefault(colorId, size) : 0)
+        stock[colorId] = row
+      }
+      const colorLabels = checked && !f.colorLabels[colorId] ? { ...f.colorLabels, [colorId]: productColorLabel(colorId) } : f.colorLabels
+      return { ...f, colors: nextColors, stock, colorLabels }
+    })
+  }
+
+  function toggleRelated(field: 'similarProductIds' | 'completeLookProductIds', otherId: string, checked: boolean) {
+    setForm((f) => (f ? { ...f, [field]: checked ? [...f[field], otherId] : f[field].filter((v) => v !== otherId) } : f))
+  }
+
+  const tabs = [
+    { id: 'general' as const, label: AS.productEdit.tabGeneral },
+    { id: 'pricing' as const, label: AS.productEdit.tabPricing },
+    { id: 'media' as const, label: AS.productEdit.tabMedia },
+    { id: 'english' as const, label: AS.productEdit.tabEnglish },
+    { id: 'related' as const, label: AS.productEdit.tabRelated },
+  ].map((t) => ({ ...t, dot: tabHas(t.id), dotLabel: AS.productEdit.tabHasChanges }))
+
+  return (
+    <div style={{ maxWidth: 960 }}>
+      <Tabs label={AS.productEdit.tabsLabel} tabs={tabs} active={tab} onChange={onTab} idPrefix="pe" />
+
+      <div {...tabPanelProps('pe', 'general', tab)}>
+        <FormSection title={AS.productEdit.basicsTitle}>
+          <div className={ui.formGrid}>
+            <TextField label={AS.productEdit.nameLabel} value={form.name} maxLength={200} error={errors.name} onChange={(e) => update('name', e.target.value)} wrapClassName={ui.span2} />
+            <SelectField label={AS.productEdit.categoryLabel} value={form.category} onChange={(e) => update('category', e.target.value as CategoryValue)}>
+              {editableCategories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </SelectField>
           </div>
-        </div>
-        <div className={styles.section}>
-          <div className={styles.sectionTitle}>{AS.productEdit.completeLookTitle}</div>
-          <div className={styles.checkList}>
-            {otherProducts.map((p) => (
-              <Checkbox
-                key={p.id}
-                label={`${p.number} — ${p.name}`}
-                checked={form.completeLookProductIds.includes(p.id)}
-                onChange={(e) => toggleRelated('completeLookProductIds', p.id, e.target.checked)}
-              />
-            ))}
+        </FormSection>
+        <FormSection title={AS.productEdit.visibilityTitle}>
+          <div className={ui.stack}>
+            <SwitchField label={AS.productEdit.hiddenLabel} hint={AS.productEdit.hiddenHint} checked={form.hidden} onChange={(e) => update('hidden', e.target.checked)} />
+            {api ? (
+              <div className={ui.stackSm}>
+                <Segmented
+                  label={AS.productEdit.newBadgeLabel}
+                  value={form.newBadge}
+                  onChange={(v) => update('newBadge', v)}
+                  options={[
+                    { value: 'on', label: AS.productEdit.newBadgeOn },
+                    { value: 'auto', label: AS.productEdit.newBadgeAuto(config.newBadgeDays) },
+                    { value: 'off', label: AS.productEdit.newBadgeOff },
+                  ]}
+                />
+                {form.newBadge === savedBadgeMode ? <p className={ui.hint}>{AS.productEdit.newBadgeState(currentBadgeActive)}</p> : null}
+              </div>
+            ) : (
+              <SwitchField label={AS.productEdit.isNewLabel} checked={form.isNew} onChange={(e) => update('isNew', e.target.checked)} />
+            )}
           </div>
-        </div>
+        </FormSection>
+        <FormSection title={AS.productEdit.contentTitle}>
+          <div className={ui.stack}>
+            <TextAreaField label={AS.productEdit.descriptionLabel} rows={4} value={form.description} onChange={(e) => update('description', e.target.value)} />
+            <TextAreaField label={AS.productEdit.fabricCareLabel} rows={3} value={form.fabricCare} onChange={(e) => update('fabricCare', e.target.value)} />
+            <TextAreaField
+              label={AS.productEdit.deliveryReturnsLabel}
+              hint={AS.productEdit.deliveryReturnsHint}
+              rows={3}
+              value={form.deliveryReturns}
+              onChange={(e) => update('deliveryReturns', e.target.value)}
+            />
+          </div>
+        </FormSection>
       </div>
 
-      <div className={styles.section}>
-        <div className={styles.sectionTitle}>{AS.productEdit.mediaTitle}</div>
-        <div className={styles.mediaGrid}>
-          <MediaField name={productMediaName(product.number, 'front')} label={AS.productEdit.frontLabel} onChange={() => setMessage(AS.save.saved)} />
-          <MediaField name={productMediaName(product.number, 'back')} label={AS.productEdit.backLabel} onChange={() => setMessage(AS.save.saved)} />
-          <MediaField name={productMediaName(product.number, 'model')} label={AS.productEdit.modelLabel} onChange={() => setMessage(AS.save.saved)} />
-          <MediaField name={productMediaName(product.number, 'fabric')} label={AS.productEdit.fabricLabel} onChange={() => setMessage(AS.save.saved)} />
-        </div>
+      <div {...tabPanelProps('pe', 'pricing', tab)}>
+        <FormSection title={AS.productEdit.priceTitle}>
+          <div className={ui.formGrid}>
+            <TextField label={AS.productEdit.priceLabel} inputMode="decimal" suffix="TL" value={form.price} error={errors.price} onChange={(e) => update('price', e.target.value)} />
+          </div>
+        </FormSection>
+        <FormSection title={AS.productEdit.colorsTitle} description={AS.productEdit.colorsHint}>
+          <div>
+            {colorOptions.map((opt) => {
+              const checked = form.colors.includes(opt.id)
+              return (
+                <div key={opt.id} className={styles.colorRow}>
+                  <CheckField
+                    label={api ? <span className="sr-only">{productColorLabel(opt.id)}</span> : productColorLabel(opt.id)}
+                    checked={checked}
+                    onChange={(e) => toggleColor(opt.id, e.target.checked)}
+                    aria-label={productColorLabel(opt.id)}
+                  />
+                  {api ? (
+                    <TextField
+                      label={AS.productEdit.colorNameLabel(opt.id)}
+                      hideLabel
+                      maxLength={64}
+                      disabled={!checked}
+                      value={checked ? (form.colorLabels[opt.id] ?? '') : productColorLabel(opt.id)}
+                      error={checked && errors.colorLabels && !(form.colorLabels[opt.id] ?? '').trim() ? errors.colorLabels : null}
+                      onChange={(e) => update('colorLabels', { ...form.colorLabels, [opt.id]: e.target.value })}
+                    />
+                  ) : null}
+                </div>
+              )
+            })}
+          </div>
+        </FormSection>
+        <FormSection title={AS.productEdit.stockTitle} description={AS.productEdit.stockHint(config.lowStockThreshold)}>
+          {errors.stock ? <Notice tone="danger">{errors.stock}</Notice> : null}
+          <StockMatrix colors={form.colors} labelOf={labelOf} stock={form.stock} threshold={config.lowStockThreshold} onChange={(stock) => update('stock', stock)} />
+        </FormSection>
       </div>
 
-      <SaveBar onSave={handleSave} message={message}>
-        <Button variant="ghost" onClick={handleReset}>
-          {AS.productEdit.resetToDefault}
-        </Button>
-        <Button variant="secondary" to="/admin/urunler">
-          {AS.productEdit.backToList}
-        </Button>
-      </SaveBar>
+      <div {...tabPanelProps('pe', 'media', tab)}>
+        <FormSection title={AS.productEdit.mediaTitle}>{media}</FormSection>
+      </div>
+
+      <div {...tabPanelProps('pe', 'english', tab)}>
+        <FormSection title={AS.productEdit.englishTitle} description={AS.productEdit.englishHint}>
+          <div className={ui.stack}>
+            <div className={styles.enPair}>
+              <TextField label={AS.productEdit.nameLabel} value={form.name} disabled readOnly />
+              <TextField label={AS.productEdit.nameEnLabel} lang="en" maxLength={200} placeholder={AS.productEdit.enPlaceholder} value={form.nameEn} onChange={(e) => update('nameEn', e.target.value)} />
+            </div>
+            <div className={styles.enPair}>
+              <TextAreaField label={AS.productEdit.descriptionLabel} rows={4} value={form.description} disabled readOnly />
+              <TextAreaField
+                label={AS.productEdit.descriptionEnLabel}
+                lang="en"
+                rows={4}
+                placeholder={AS.productEdit.enPlaceholder}
+                value={form.descriptionEn}
+                onChange={(e) => update('descriptionEn', e.target.value)}
+              />
+            </div>
+            <div className={styles.enPair}>
+              <TextAreaField label={AS.productEdit.fabricCareLabel} rows={3} value={form.fabricCare} disabled readOnly />
+              <TextAreaField
+                label={AS.productEdit.fabricCareEnLabel}
+                lang="en"
+                rows={3}
+                placeholder={AS.productEdit.enPlaceholder}
+                value={form.fabricCareEn}
+                onChange={(e) => update('fabricCareEn', e.target.value)}
+              />
+            </div>
+          </div>
+        </FormSection>
+        {api ? (
+          <FormSection title={AS.productEdit.colorLabelsEnTitle}>
+            <div className={ui.formGrid}>
+              {form.colors.map((colorId) => (
+                <TextField
+                  key={colorId}
+                  label={AS.productEdit.colorLabelEn(labelOf(colorId))}
+                  lang="en"
+                  maxLength={64}
+                  placeholder={AS.productEdit.enPlaceholder}
+                  value={form.colorLabelsEn[colorId] ?? ''}
+                  onChange={(e) => update('colorLabelsEn', { ...form.colorLabelsEn, [colorId]: e.target.value })}
+                />
+              ))}
+            </div>
+          </FormSection>
+        ) : null}
+      </div>
+
+      <div {...tabPanelProps('pe', 'related', tab)}>
+        <RelatedPicker
+          title={AS.productEdit.similarTitle}
+          hint={AS.productEdit.similarHint}
+          others={others}
+          selected={form.similarProductIds}
+          onToggle={(pid, on) => toggleRelated('similarProductIds', pid, on)}
+        />
+        <RelatedPicker
+          title={AS.productEdit.completeLookTitle}
+          hint={AS.productEdit.completeLookHint}
+          others={others}
+          selected={form.completeLookProductIds}
+          onToggle={(pid, on) => toggleRelated('completeLookProductIds', pid, on)}
+        />
+      </div>
     </div>
+  )
+}
+
+function RelatedPicker({ title, hint, others, selected, onToggle }: { title: string; hint: string; others: (Product | AdminProduct)[]; selected: string[]; onToggle: (id: string, on: boolean) => void }) {
+  const [q, setQ] = useState('')
+  const needle = q.trim().toLocaleLowerCase('tr-TR')
+  const list = needle ? others.filter((p) => p.name.toLocaleLowerCase('tr-TR').includes(needle) || p.number.includes(needle)) : others
+  return (
+    <FormSection title={title} description={hint} actions={<StatusBadge tone="neutral" dot={false}>{AS.productEdit.selectedCount(selected.length)}</StatusBadge>}>
+      <div className={ui.stack}>
+        <TextField label={AS.productEdit.relatedFilter} hideLabel type="search" placeholder={AS.productEdit.relatedFilter} value={q} onChange={(e) => setQ(e.target.value)} />
+        <div className={styles.checkGrid} role="group" aria-label={title}>
+          {list.map((p) => (
+            <CheckField key={p.id} label={`${p.number} — ${p.name}`} checked={selected.includes(p.id)} onChange={(e) => onToggle(p.id, e.target.checked)} />
+          ))}
+        </div>
+      </div>
+    </FormSection>
+  )
+}
+
+interface StockMatrixProps {
+  colors: string[]
+  labelOf: (colorId: string) => string
+  stock: FormState['stock']
+  threshold: number
+  onChange: (stock: FormState['stock']) => void
+}
+
+/**
+ * Renk × beden stok matrisi: düşük stok (1..eşik) sarı, tükendi gri, geçersiz kırmızı. "Tüm hücrelere
+ * doldur", satırı diğer renklere kopyala, sütunda ilk satırı aşağı kopyala; satır toplamları.
+ */
+function StockMatrix({ colors, labelOf, stock, threshold, onChange }: StockMatrixProps) {
+  const [fill, setFill] = useState('')
+  const fillValid = validStockValue(fill)
+  const cell = (cid: string, size: SizeId) => stock[cid]?.[size] ?? '0'
+
+  function setCell(cid: string, size: SizeId, value: string) {
+    onChange({ ...stock, [cid]: { ...stock[cid], [size]: value } })
+  }
+  function fillAll() {
+    if (!fillValid) return
+    const next = { ...stock }
+    for (const cid of colors) next[cid] = Object.fromEntries(allSizes.map((s) => [s, fill.trim()])) as Record<SizeId, string>
+    onChange(next)
+  }
+  function copyRow(from: string) {
+    const next = { ...stock }
+    for (const cid of colors) if (cid !== from) next[cid] = { ...stock[from] }
+    onChange(next)
+  }
+  function copyColumn(size: SizeId) {
+    const first = colors[0]
+    if (!first) return
+    const v = cell(first, size)
+    const next = { ...stock }
+    for (const cid of colors) next[cid] = { ...stock[cid], [size]: v }
+    onChange(next)
+  }
+  const rowTotal = (cid: string) => allSizes.reduce((sum, s) => sum + (validStockValue(cell(cid, s)) ? Number(cell(cid, s)) : 0), 0)
+
+  return (
+    <>
+      <div className={styles.stockToolbar}>
+        <TextField label={AS.productEdit.fillAllLabel} inputMode="numeric" value={fill} onChange={(e) => setFill(e.target.value)} placeholder="0" />
+        <Btn onClick={fillAll} disabled={!fillValid}>
+          {AS.productEdit.fillAll}
+        </Btn>
+      </div>
+      <div className={styles.stockWrap}>
+        <table className={styles.stockTable}>
+          <caption className="sr-only">{AS.productEdit.stockTitle}</caption>
+          <thead>
+            <tr>
+              <th scope="col" style={{ textAlign: 'left' }}>
+                {AS.productEdit.colorsTitle}
+              </th>
+              {allSizes.map((size) => (
+                <th key={size} scope="col">
+                  <span className={styles.colHead}>
+                    {size}
+                    {colors.length > 1 ? (
+                      <button type="button" className={styles.miniBtn} onClick={() => copyColumn(size)} aria-label={AS.productEdit.copyColumnAria(size)}>
+                        {AS.productEdit.copyColumn}
+                      </button>
+                    ) : null}
+                  </span>
+                </th>
+              ))}
+              <th scope="col">{AS.productEdit.rowTotal}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {colors.map((cid) => {
+              const label = labelOf(cid)
+              return (
+                <tr key={cid}>
+                  <th scope="row">
+                    <div>{label}</div>
+                    {colors.length > 1 ? (
+                      <button type="button" className={styles.miniBtn} style={{ paddingLeft: 0 }} onClick={() => copyRow(cid)} aria-label={AS.productEdit.copyRowAria(label)}>
+                        {AS.productEdit.copyRow}
+                      </button>
+                    ) : null}
+                  </th>
+                  {allSizes.map((size) => {
+                    const raw = cell(cid, size)
+                    const valid = validStockValue(raw)
+                    const level = valid ? stockLevel(Number(raw), threshold) : 'ok'
+                    const note = level === 'low' ? AS.productEdit.cellLow : level === 'out' ? AS.productEdit.cellOut : null
+                    return (
+                      <td key={size} className={level === 'low' ? styles.cellLow : level === 'out' ? styles.cellOut : undefined}>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          aria-label={`${label} ${size}${note ? ` — ${note}` : ''}`}
+                          aria-invalid={valid ? undefined : true}
+                          value={raw}
+                          onChange={(e) => setCell(cid, size, e.target.value)}
+                          onFocus={(e) => e.target.select()}
+                        />
+                      </td>
+                    )
+                  })}
+                  <td className={styles.stockTotal}>{rowTotal(cid)}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </>
   )
 }

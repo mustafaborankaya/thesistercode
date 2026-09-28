@@ -3,6 +3,7 @@
  * API'ye ulaşılamıyorsa yalnızca geliştirme ortamında `siteSettings.admin` ile yerel kontrol yapılır;
  * üretimde yerel geri dönüş yoktur.
  */
+import { isApiMode } from '../data/remote'
 import { api, ApiError } from '../services/api'
 import { setAdminSession } from './adminStore'
 
@@ -70,4 +71,12 @@ export async function logoutAdmin(): Promise<void> {
   }
   setAdminSession(false)
   currentAdmin = null
+}
+
+/**
+ * Sahip (owner) mi? Kullanıcılar ve Veri menüleri yalnızca sahibe gösterilir (API editöre 403 döner).
+ * Yerel demo modunda (API yok) tüm menüler açıktır.
+ */
+export function isOwner(): boolean {
+  return !isApiMode() || currentAdmin?.role === 'owner'
 }

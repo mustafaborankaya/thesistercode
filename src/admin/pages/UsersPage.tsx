@@ -1,11 +1,18 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { Button } from '../../components/ui/Button'
-import { Field, SelectField } from '../../components/ui/Field'
+import { useState } from 'react'
 import { apiErrorMessage } from '../../i18n/apiMessages'
 import { createAdminUser, listAdminUsers, updateAdminUser, type AdminUserRow } from '../adminApi'
 import { currentAdmin } from '../adminAuth'
 import { AS } from '../adminStrings'
-import styles from '../admin.module.css'
+import { Btn } from '../ui/Button'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
+import { DataTable, type Column } from '../ui/DataTable'
+import { SelectField, TextField } from '../ui/Form'
+import { EmptyState, ErrorState, Notice, PageHeader } from '../ui/Page'
+import { StatusBadge } from '../ui/StatusBadge'
+import { formatDate, formatWhen } from '../ui/format'
+import { useToast } from '../ui/toastContext'
+import { useLoader } from '../ui/useLoader'
+import ui from '../ui/ui.module.css'
 
 interface CreateForm {
   username: string
@@ -15,186 +22,245 @@ interface CreateForm {
 
 const emptyCreateForm: CreateForm = { username: '', password: '', role: 'editor' }
 
-/** `/admin/kullanicilar` — yalnızca API modunda gösterilir (GET/POST/PATCH /admin/users). Oluşturma/değiştirme yalnızca owner rolü içindir; editor 403 alır ve kibarca bilgilendirilir. */
+/**
+ * `/admin/kullanicilar` — yalnızca API modunda ve sahip rolünde menüde görünür (GET/POST/PATCH /admin/users).
+ * Oluşturma/değiştirme owner içindir; editor 403 alır.
+ */
 export function UsersPage() {
-  const [users, setUsers] = useState<AdminUserRow[] | null>(null)
-  const [listError, setListError] = useState<string | null>(null)
+  const toast = useToast()
+  const list = useLoader(listAdminUsers)
+  const [creating, setCreating] = useState(false)
   const [createForm, setCreateForm] = useState<CreateForm>(emptyCreateForm)
-  const [createError, setCreateError] = useState<string | null>(null)
+  const [createErrors, setCreateErrors] = useState<Partial<Record<keyof CreateForm, string>>>({})
   const [createPending, setCreatePending] = useState(false)
-  const [rowMessage, setRowMessage] = useState<Record<number, string>>({})
-  const [rowError, setRowError] = useState<Record<number, string>>({})
-  const [rowPending, setRowPending] = useState<Record<number, boolean>>({})
-  const [passwordDrafts, setPasswordDrafts] = useState<Record<number, string>>({})
+  const [pwUser, setPwUser] = useState<AdminUserRow | null>(null)
+  const [pw, setPw] = useState('')
+  const [pwError, setPwError] = useState<string | null>(null)
+  const [deactivateUser, setDeactivateUser] = useState<AdminUserRow | null>(null)
+  const [busyId, setBusyId] = useState<number | null>(null)
+  const isOwner = currentAdmin?.role === 'owner'
 
-  function refresh() {
-    setListError(null)
-    listAdminUsers()
-      .then(setUsers)
-      .catch((e) => setListError(apiErrorMessage(e)))
-  }
-
-  useEffect(refresh, [])
-
-  async function handleCreate(e: FormEvent) {
-    e.preventDefault()
-    setCreateError(null)
+  async function handleCreate() {
+    const errs: Partial<Record<keyof CreateForm, string>> = {}
+    if (createForm.username.trim().length < 3) errs.username = AS.users.usernameInvalid
+    if (createForm.password.length < 8) errs.password = AS.users.passwordInvalid
+    setCreateErrors(errs)
+    if (Object.keys(errs).length) return
     setCreatePending(true)
     try {
-      await createAdminUser(createForm)
+      await createAdminUser({ ...createForm, username: createForm.username.trim() })
+      toast.success(AS.users.createdToast(createForm.username.trim()))
       setCreateForm(emptyCreateForm)
-      refresh()
-    } catch (err) {
-      setCreateError(apiErrorMessage(err))
+      setCreating(false)
+      list.reload()
+    } catch (e) {
+      toast.error(apiErrorMessage(e))
     } finally {
       setCreatePending(false)
     }
   }
 
-  async function handleToggleActive(user: AdminUserRow) {
-    setRowPending((s) => ({ ...s, [user.id]: true }))
-    setRowError((s) => ({ ...s, [user.id]: '' }))
+  async function setActive(user: AdminUserRow, active: boolean) {
+    setBusyId(user.id)
     try {
-      await updateAdminUser(user.id, { is_active: user.is_active === 1 ? false : true })
-      setRowMessage((s) => ({ ...s, [user.id]: AS.apiNotice.saved }))
-      refresh()
+      await updateAdminUser(user.id, { is_active: active })
+      toast.success(active ? AS.users.activated(user.username) : AS.users.deactivated(user.username))
+      list.reload()
     } catch (e) {
-      setRowError((s) => ({ ...s, [user.id]: apiErrorMessage(e) }))
+      toast.error(apiErrorMessage(e))
     } finally {
-      setRowPending((s) => ({ ...s, [user.id]: false }))
+      setBusyId(null)
+      setDeactivateUser(null)
     }
   }
 
-  async function handleChangePassword(user: AdminUserRow) {
-    const password = passwordDrafts[user.id] ?? ''
-    if (password.length < 8) {
-      setRowError((s) => ({ ...s, [user.id]: 'Parola en az 8 karakter olmalı.' }))
+  async function changePassword() {
+    if (!pwUser) return
+    if (pw.length < 8) {
+      setPwError(AS.users.passwordInvalid)
       return
     }
-    setRowPending((s) => ({ ...s, [user.id]: true }))
-    setRowError((s) => ({ ...s, [user.id]: '' }))
+    setBusyId(pwUser.id)
     try {
-      await updateAdminUser(user.id, { password })
-      setPasswordDrafts((s) => ({ ...s, [user.id]: '' }))
-      setRowMessage((s) => ({ ...s, [user.id]: AS.users.passwordChanged }))
+      await updateAdminUser(pwUser.id, { password: pw })
+      toast.success(AS.users.passwordChanged)
+      setPwUser(null)
+      setPw('')
     } catch (e) {
-      setRowError((s) => ({ ...s, [user.id]: apiErrorMessage(e) }))
+      toast.error(apiErrorMessage(e))
     } finally {
-      setRowPending((s) => ({ ...s, [user.id]: false }))
+      setBusyId(null)
     }
   }
 
-  const isOwner = currentAdmin?.role === 'owner'
+  const columns: Column<AdminUserRow>[] = [
+    {
+      key: 'username',
+      header: AS.users.username,
+      primary: true,
+      sortValue: (u) => u.username,
+      render: (u) => (
+        <span className={ui.cellTitle}>
+          {u.username}
+          {u.id === currentAdmin?.id ? <span className={ui.muted}> ({AS.users.you})</span> : null}
+        </span>
+      ),
+    },
+    { key: 'role', header: AS.users.role, sortValue: (u) => u.role, render: (u) => (u.role === 'owner' ? AS.users.roleOwner : AS.users.roleEditor) },
+    {
+      key: 'status',
+      header: AS.users.status,
+      sortValue: (u) => u.is_active,
+      render: (u) => <StatusBadge tone={u.is_active === 1 ? 'success' : 'neutral'}>{u.is_active === 1 ? AS.users.active : AS.users.inactive}</StatusBadge>,
+    },
+    { key: 'last', header: AS.users.lastLogin, sortValue: (u) => u.last_login_at ?? '', render: (u) => (u.last_login_at ? formatWhen(u.last_login_at) : AS.users.never) },
+    { key: 'created', header: AS.users.created, sortValue: (u) => u.created_at, render: (u) => formatDate(u.created_at) },
+  ]
 
   return (
     <div>
-      <div className={styles.pageHead}>
-        <h1 className={styles.pageTitle}>{AS.users.title}</h1>
-      </div>
-      {!isOwner ? (
-        <p className="text-soft text-sm" style={{ marginBottom: 'var(--sp-4)' }}>
-          {AS.users.ownerOnlyNote}
-        </p>
-      ) : null}
-
-      {listError ? (
-        <p className={styles.empty} role="alert">
-          {listError}
-        </p>
-      ) : !users ? (
-        <p className={styles.empty}>{AS.common.loading}</p>
-      ) : users.length === 0 ? (
-        <p className={styles.empty}>{AS.users.empty}</p>
+      <PageHeader
+        title={AS.users.title}
+        description={AS.users.subtitle}
+        actions={
+          isOwner ? (
+            <Btn variant="primary" icon="plus" onClick={() => setCreating(true)}>
+              {AS.users.add}
+            </Btn>
+          ) : null
+        }
+      />
+      {!isOwner ? <Notice tone="neutral">{AS.users.ownerOnlyNote}</Notice> : null}
+      <p className={ui.hint} style={{ marginBottom: 12 }}>
+        {AS.users.roleHelp}
+      </p>
+      {list.error && !list.data ? (
+        <ErrorState message={apiErrorMessage(list.error)} onRetry={list.reload} />
       ) : (
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th scope="col">{AS.users.username}</th>
-                <th scope="col">{AS.users.role}</th>
-                <th scope="col">{AS.users.active}</th>
-                <th scope="col">{AS.users.lastLogin}</th>
-                <th scope="col">{AS.users.newPasswordLabel}</th>
-                <th scope="col" />
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr key={user.id}>
-                  <td>{user.username}</td>
-                  <td>{user.role === 'owner' ? AS.users.roleOwner : AS.users.roleEditor}</td>
-                  <td>{user.is_active === 1 ? AS.users.active : AS.users.inactive}</td>
-                  <td>{user.last_login_at ? new Date(user.last_login_at).toLocaleString('tr-TR') : AS.users.never}</td>
-                  <td>
-                    <label className="sr-only" htmlFor={`user-pw-${user.id}`}>
-                      {AS.users.newPasswordLabel} — {user.username}
-                    </label>
-                    <input
-                      id={`user-pw-${user.id}`}
-                      type="password"
-                      autoComplete="new-password"
-                      value={passwordDrafts[user.id] ?? ''}
-                      onChange={(e) => setPasswordDrafts((s) => ({ ...s, [user.id]: e.target.value }))}
-                    />
-                  </td>
-                  <td>
-                    <div className={styles.pageActions}>
-                      <Button small variant="secondary" disabled={rowPending[user.id]} onClick={() => void handleChangePassword(user)}>
-                        {AS.users.changePasswordButton}
-                      </Button>
-                      <Button small variant="ghost" disabled={rowPending[user.id]} onClick={() => void handleToggleActive(user)}>
-                        {user.is_active === 1 ? AS.users.deactivate : AS.users.activate}
-                      </Button>
-                    </div>
-                    {rowMessage[user.id] ? <p className="text-sm">{rowMessage[user.id]}</p> : null}
-                    {rowError[user.id] ? (
-                      <p role="alert" className="text-sm">
-                        {rowError[user.id]}
-                      </p>
-                    ) : null}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          caption={AS.users.title}
+          columns={columns}
+          rows={list.data ?? null}
+          rowKey={(u) => String(u.id)}
+          rowActions={
+            isOwner
+              ? (u) => (
+                  <>
+                    <Btn
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setPwUser(u)
+                        setPw('')
+                        setPwError(null)
+                      }}
+                    >
+                      {AS.users.changePassword}
+                    </Btn>
+                    {u.is_active === 1 ? (
+                      <Btn size="sm" variant="ghost" disabled={u.id === currentAdmin?.id} loading={busyId === u.id} onClick={() => setDeactivateUser(u)}>
+                        {AS.users.deactivate}
+                      </Btn>
+                    ) : (
+                      <Btn size="sm" variant="ghost" loading={busyId === u.id} onClick={() => void setActive(u, true)}>
+                        {AS.users.activate}
+                      </Btn>
+                    )}
+                  </>
+                )
+              : undefined
+          }
+          empty={<EmptyState icon="users" title={AS.users.empty} />}
+        />
       )}
 
-      <div className={styles.section}>
-        <div className={styles.sectionTitle}>{AS.users.createTitle}</div>
-        <form className={styles.grid} onSubmit={handleCreate}>
-          <Field
+      <ConfirmDialog
+        open={creating}
+        title={AS.users.createTitle}
+        confirmLabel={AS.users.createButton}
+        pending={createPending}
+        onCancel={() => {
+          setCreating(false)
+          setCreateErrors({})
+        }}
+        onConfirm={() => void handleCreate()}
+      >
+        <form
+          className={ui.stack}
+          style={{ marginTop: 12 }}
+          noValidate
+          onSubmit={(e) => {
+            e.preventDefault()
+            void handleCreate()
+          }}
+        >
+          <TextField
             label={AS.users.usernameLabel}
+            hint={AS.users.usernameHint}
+            autoComplete="off"
             value={createForm.username}
+            error={createErrors.username}
             onChange={(e) => setCreateForm((f) => ({ ...f, username: e.target.value }))}
-            minLength={3}
-            required
           />
-          <Field
+          <TextField
             label={AS.users.passwordLabel}
+            hint={AS.users.passwordHint}
             type="password"
-            value={createForm.password}
-            onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))}
-            minLength={8}
             autoComplete="new-password"
-            required
+            value={createForm.password}
+            error={createErrors.password}
+            onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))}
           />
           <SelectField label={AS.users.roleLabel} value={createForm.role} onChange={(e) => setCreateForm((f) => ({ ...f, role: e.target.value as 'owner' | 'editor' }))}>
             <option value="editor">{AS.users.roleEditor}</option>
             <option value="owner">{AS.users.roleOwner}</option>
           </SelectField>
-          <div>
-            <Button type="submit" disabled={createPending}>
-              {AS.users.createButton}
-            </Button>
-          </div>
+          <button type="submit" hidden />
         </form>
-        {createError ? (
-          <p role="alert" className="text-sm" style={{ marginTop: 'var(--sp-2)' }}>
-            {createError}
-          </p>
-        ) : null}
-      </div>
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={pwUser != null}
+        title={pwUser ? AS.users.changePasswordTitle(pwUser.username) : ''}
+        confirmLabel={AS.users.changePasswordButton}
+        pending={pwUser != null && busyId === pwUser.id}
+        onCancel={() => setPwUser(null)}
+        onConfirm={() => void changePassword()}
+      >
+        <form
+          style={{ marginTop: 12 }}
+          noValidate
+          onSubmit={(e) => {
+            e.preventDefault()
+            void changePassword()
+          }}
+        >
+          <TextField
+            label={AS.users.newPasswordLabel}
+            hint={AS.users.passwordHint}
+            type="password"
+            autoComplete="new-password"
+            value={pw}
+            error={pwError}
+            onChange={(e) => {
+              setPw(e.target.value)
+              setPwError(null)
+            }}
+          />
+          <button type="submit" hidden />
+        </form>
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={deactivateUser != null}
+        title={deactivateUser ? AS.users.deactivateTitle(deactivateUser.username) : ''}
+        message={AS.users.deactivateText}
+        confirmLabel={AS.users.deactivate}
+        tone="danger"
+        pending={deactivateUser != null && busyId === deactivateUser.id}
+        onCancel={() => setDeactivateUser(null)}
+        onConfirm={() => deactivateUser && void setActive(deactivateUser, false)}
+      />
     </div>
   )
 }

@@ -7,8 +7,28 @@
  */
 import { isApiMode, type RemoteProduct } from '../data/remote'
 import type { CategoryId, MediaKind, SizeId } from '../data/types'
-import { api } from '../services/api'
-import type { ApiOrder } from '../services/ordersApi'
+import { api, ApiError } from '../services/api'
+import type { ApiOrder as BaseApiOrder } from '../services/ordersApi'
+
+/**
+ * Uç nokta henüz sunucuda yok mu? (404/405/501). Yeni sözleşme uç noktaları (kupon, müşteri,
+ * istatistik) eski sunucuda 404 döner — sayfalar bu durumda çökmeden "Sunucu güncellemesi bekleniyor"
+ * boş durumunu gösterir. Diğer hatalar (401/403/5xx/ağ) gerçek hata olarak ele alınır.
+ */
+export function isUnavailable(e: unknown): boolean {
+  return e instanceof ApiError && (e.status === 404 || e.status === 405 || e.status === 501)
+}
+
+/** Sipariş (panel görünümü): kargo bilgisi ve yönetici notu yeni sunucu sürümünde gelir; eski sürümde yoktur. */
+export interface ApiOrder extends BaseApiOrder {
+  shipping?: { carrier: string | null; trackingNumber: string | null; trackingUrl?: string | null; shippedAt: string | null } | null
+  adminNote?: string | null
+}
+
+/** Sunucu bu siparişte kargo/not alanlarını destekliyor mu? (alanlar yanıtta hiç yoksa eski sürüm) */
+export function orderExtrasSupported(order: ApiOrder): boolean {
+  return 'shipping' in order || 'adminNote' in order
+}
 
 /**
  * Panel için API/yerel mod anahtarı (bkz. src/data/remote.ts → isApiMode). Yalnızca yerel
@@ -26,6 +46,8 @@ export type AdminProduct = RemoteProduct
 export type AdminColorInput = { id: string; label: string; labelEn?: string | null }
 
 export type AdminProductPatch = Partial<{
+  /** Eşzamanlı düzenleme koruması: formun yüklendiği andaki `updatedAt` (değiştiyse sunucu 409 döner). */
+  expectedUpdatedAt: string
   name: string
   /** İngilizce alanlar: null ya da boş metin temizler (mağaza `/en` sitesinde Türkçeye düşer). */
   nameEn: string | null
@@ -44,7 +66,8 @@ export type AdminProductPatch = Partial<{
   deliveryReturns: string | null
   similarProductIds: string[]
   completeLookProductIds: string[]
-  media: Partial<Record<MediaKind, string>>
+  /** Bir yuvaya `null` göndermek o görseli kaldırır (yeni sunucu sürümü; eskisi 400 döner). */
+  media: Partial<Record<MediaKind, string | null>>
 }>
 
 export type NewBadgeMode = 'on' | 'auto' | 'off'
@@ -171,13 +194,54 @@ export async function listAdminOrders(status?: string): Promise<ApiOrder[]> {
   return res.orders
 }
 
+export interface AdminOrderQuery {
+  q?: string
+  status?: string
+  /** YYYY-MM-DD (dahil) */
+  from?: string
+  /** YYYY-MM-DD (dahil) */
+  to?: string
+  page?: number
+  pageSize?: number
+}
+
+/**
+ * `GET /admin/orders?q=&status=&from=&to=&page=&pageSize=` → `{ orders, total, page, pageSize }`.
+ * Eski sunucu sorguyu yok sayar ve `total` göndermez — bu durumda `serverPaged: false` döner ve
+ * çağıran süzme/sayfalamayı istemcide yapar (sunucunun süzdüğü varsayılmaz).
+ */
+export async function queryAdminOrders(query: AdminOrderQuery): Promise<{ orders: ApiOrder[]; total: number; serverPaged: boolean }> {
+  const params = new URLSearchParams()
+  for (const [k, v] of Object.entries(query)) if (v !== undefined && v !== '') params.set(k, String(v))
+  const qs = params.toString()
+  const res = await api<{ orders: ApiOrder[]; total?: number }>(`/admin/orders${qs ? `?${qs}` : ''}`)
+  if (typeof res.total === 'number') return { orders: res.orders, total: res.total, serverPaged: true }
+  return { orders: res.orders, total: res.orders.length, serverPaged: false }
+}
+
 export async function getAdminOrder(id: string): Promise<ApiOrder> {
   const res = await api<{ order: ApiOrder }>(`/admin/orders/${encodeURIComponent(id)}`)
   return res.order
 }
 
 export async function updateAdminOrderStatus(id: string, status: string): Promise<ApiOrder> {
-  const res = await api<{ order: ApiOrder }>(`/admin/orders/${encodeURIComponent(id)}`, { method: 'PATCH', body: { status } })
+  return patchAdminOrder(id, { status })
+}
+
+export interface AdminOrderPatch {
+  status?: string
+  carrier?: string | null
+  trackingNumber?: string | null
+  adminNote?: string | null
+}
+
+/**
+ * `PATCH /admin/orders/:id` `{ status?, carrier?, trackingNumber?, adminNote? }` → `{ order }`.
+ * Eski sunucu `status`'u zorunlu tutar ve diğer alanları sessizce atar — çağıran, yanıtta `shipping`/
+ * `adminNote` alanlarının geldiğini doğrulamalıdır (bkz. orderExtrasSupported).
+ */
+export async function patchAdminOrder(id: string, patch: AdminOrderPatch): Promise<ApiOrder> {
+  const res = await api<{ order: ApiOrder }>(`/admin/orders/${encodeURIComponent(id)}`, { method: 'PATCH', body: patch })
   return res.order
 }
 
@@ -246,4 +310,110 @@ export async function exportAdminData(): Promise<AdminExportPayload> {
 /** Yalnızca owner çağırabilir; editor 403 alır. Kapsam: ürünler + içerik + ayarlar (kullanıcı/müşteri/sipariş dahil değil). */
 export async function importAdminData(payload: unknown): Promise<void> {
   await api('/admin/import', { method: 'POST', body: payload })
+}
+
+/* ---------------- Gösterge istatistikleri ---------------- */
+
+export interface AdminStats {
+  today: { orders: number; revenue: number }
+  week: { orders: number; revenue: number }
+  month: { orders: number; revenue: number }
+  pendingPayment: number
+  lowStock: number
+  recentOrders: ApiOrder[]
+}
+
+/** `GET /admin/stats` — yoksa (404) çağıran mevcut verilerden hesaplar (bkz. pages/Dashboard.tsx). */
+export async function getAdminStats(): Promise<AdminStats> {
+  return api<AdminStats>('/admin/stats')
+}
+
+/* ---------------- Kuponlar ---------------- */
+
+export type CouponType = 'percent' | 'fixed'
+
+export interface AdminCoupon {
+  id: number
+  code: string
+  type: CouponType
+  value: number
+  minSubtotal: number | null
+  usageLimit: number | null
+  perCustomerLimit: number | null
+  startsAt: string | null
+  expiresAt: string | null
+  active: boolean
+  usedCount: number
+  createdAt: string
+}
+
+export type AdminCouponInput = Omit<AdminCoupon, 'id' | 'usedCount' | 'createdAt'>
+
+export async function listAdminCoupons(): Promise<AdminCoupon[]> {
+  const res = await api<{ coupons: AdminCoupon[] }>('/admin/coupons')
+  return res.coupons
+}
+
+export async function createAdminCoupon(data: AdminCouponInput): Promise<AdminCoupon> {
+  const res = await api<{ coupon: AdminCoupon }>('/admin/coupons', { method: 'POST', body: data })
+  return res.coupon
+}
+
+export async function updateAdminCoupon(id: number, patch: Partial<AdminCouponInput>): Promise<AdminCoupon> {
+  const res = await api<{ coupon: AdminCoupon }>(`/admin/coupons/${id}`, { method: 'PUT', body: patch })
+  return res.coupon
+}
+
+/** Kullanılmış kupon silinmez; sunucu pasifleştirir (`{ ok }`). */
+export async function deleteAdminCoupon(id: number): Promise<{ deactivated: boolean }> {
+  const res = await api<{ ok?: boolean; deactivated?: boolean } | null>(`/admin/coupons/${id}`, { method: 'DELETE' })
+  return { deactivated: res?.deactivated === true }
+}
+
+/* ---------------- Müşteriler ---------------- */
+
+export interface AdminCustomer {
+  id: number
+  name: string
+  email: string
+  createdAt: string
+  ordersCount: number
+  totalSpent: number
+  discountEligible: boolean
+  discountUsed: boolean
+  lastOrderAt: string | null
+}
+
+/** Müşteri adresi — alan adları sunucu sürümüne göre değişebilir; panel yalnızca gösterir. */
+export interface AdminCustomerAddress {
+  id: number | string
+  label?: string | null
+  firstName?: string
+  lastName?: string
+  address?: string
+  district?: string
+  city?: string
+  postalCode?: string
+  country?: string
+  phone?: string | null
+  isDefault?: boolean
+}
+
+export async function listAdminCustomers(query: { q?: string; page?: number; pageSize?: number }): Promise<{ customers: AdminCustomer[]; total: number; serverPaged: boolean }> {
+  const params = new URLSearchParams()
+  for (const [k, v] of Object.entries(query)) if (v !== undefined && v !== '') params.set(k, String(v))
+  const qs = params.toString()
+  const res = await api<{ customers: AdminCustomer[]; total?: number }>(`/admin/customers${qs ? `?${qs}` : ''}`)
+  if (typeof res.total === 'number') return { customers: res.customers, total: res.total, serverPaged: true }
+  return { customers: res.customers, total: res.customers.length, serverPaged: false }
+}
+
+export async function getAdminCustomer(id: number): Promise<{ customer: AdminCustomer; orders: ApiOrder[]; addresses: AdminCustomerAddress[] }> {
+  const res = await api<{ customer: AdminCustomer; orders?: ApiOrder[]; addresses?: AdminCustomerAddress[] }>(`/admin/customers/${id}`)
+  return { customer: res.customer, orders: res.orders ?? [], addresses: res.addresses ?? [] }
+}
+
+export async function updateAdminCustomer(id: number, patch: { discountEligible: boolean }): Promise<AdminCustomer> {
+  const res = await api<{ customer: AdminCustomer }>(`/admin/customers/${id}`, { method: 'PATCH', body: patch })
+  return res.customer
 }
