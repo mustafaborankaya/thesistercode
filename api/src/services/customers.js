@@ -5,7 +5,7 @@
  */
 import { pool } from '../db.js'
 import { conflict } from '../errors.js'
-import { listOrdersByCustomer } from './orders.js'
+import { listOrdersByCustomer, ACTIVE_ORDER_STATUSES } from './orders.js'
 
 export const MAX_ADDRESSES = 10
 export const MAX_ACCOUNT_ORDERS = 50
@@ -153,4 +153,76 @@ export async function setDefaultAddress(customerId, id) {
  */
 export async function listOrdersForCustomer(customerId) {
   return listOrdersByCustomer(customerId, MAX_ACCOUNT_ORDERS)
+}
+
+/* ---------------- Yönetici: müşteriler ---------------- */
+
+/** Ciro sayılan durumlar: paid + shipped; `includeNew` (ödeme sağlayıcısı yokken) 'new' de. */
+export function revenueStatuses(includeNew) {
+  return includeNew ? ['new', 'paid', 'shipped'] : ['paid', 'shipped']
+}
+
+const FIRST_ORDER_USED_SQL = `EXISTS (SELECT 1 FROM orders o2 WHERE o2.customer_id = c.id
+  AND o2.status IN (${ACTIVE_ORDER_STATUSES.map((s) => `'${s}'`).join(', ')})
+  AND NOT (o2.coupon_code IS NOT NULL AND o2.discount_amount = 0))`
+
+function formatAdminCustomer(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    createdAt: row.created_at,
+    ordersCount: Number(row.orders_count ?? 0),
+    totalSpent: Number(row.total_spent ?? 0),
+    // Yöneticinin açıp kapattığı bayrak (customers.discount_eligible); fiili hak = bayrak && !discountUsed.
+    discountEligible: !!row.discount_eligible,
+    discountUsed: !!row.discount_used,
+    lastOrderAt: row.last_order_at ?? null,
+  }
+}
+
+function customerSelect(includeNew) {
+  const rs = revenueStatuses(includeNew)
+    .map((s) => `'${s}'`)
+    .join(', ')
+  // Parola hash'i SEÇİLMEZ. ordersCount: demo hariç tüm siparişler (iptaller dahil).
+  return `SELECT c.id, c.name, c.email, c.created_at, c.discount_eligible,
+      (SELECT COUNT(*) FROM orders o WHERE o.customer_id = c.id AND o.status <> 'demo') AS orders_count,
+      (SELECT COALESCE(SUM(o.total), 0) FROM orders o WHERE o.customer_id = c.id AND o.status IN (${rs})) AS total_spent,
+      (SELECT MAX(o.created_at) FROM orders o WHERE o.customer_id = c.id AND o.status <> 'demo') AS last_order_at,
+      ${FIRST_ORDER_USED_SQL} AS discount_used
+    FROM customers c`
+}
+
+export async function adminListCustomers({ q, page, pageSize, includeNew = false } = {}) {
+  const params = []
+  let where = ''
+  if (q && String(q).trim()) {
+    const term = `%${String(q).trim().replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`
+    where = ' WHERE (c.name LIKE ? OR c.email LIKE ?)'
+    params.push(term, term)
+  }
+  const [[{ n }]] = await pool.query(`SELECT COUNT(*) AS n FROM customers c${where}`, params)
+  const size = Math.min(200, Math.max(1, Number.parseInt(pageSize, 10) || 50))
+  const pageNo = Math.max(1, Number.parseInt(page, 10) || 1)
+  const [rows] = await pool.query(`${customerSelect(includeNew)}${where} ORDER BY c.created_at DESC, c.id DESC LIMIT ? OFFSET ?`, [
+    ...params,
+    size,
+    (pageNo - 1) * size,
+  ])
+  return { customers: rows.map(formatAdminCustomer), total: Number(n), page: pageNo, pageSize: size }
+}
+
+export async function adminGetCustomer(id, { includeNew = false } = {}) {
+  const [rows] = await pool.query(`${customerSelect(includeNew)} WHERE c.id = ? LIMIT 1`, [id])
+  if (!rows[0]) return null
+  const [orders, addresses] = await Promise.all([listOrdersByCustomer(id, 200, { includeAdminNote: true }), listAddresses(id)])
+  return { customer: formatAdminCustomer(rows[0]), orders, addresses }
+}
+
+export async function adminSetDiscountEligible(id, discountEligible, { includeNew = false } = {}) {
+  const [result] = await pool.query('UPDATE customers SET discount_eligible = ? WHERE id = ?', [discountEligible ? 1 : 0, id])
+  if (!result.affectedRows) return null
+  const [rows] = await pool.query(`${customerSelect(includeNew)} WHERE c.id = ? LIMIT 1`, [id])
+  return formatAdminCustomer(rows[0])
 }

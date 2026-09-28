@@ -185,6 +185,8 @@ const DEFAULT_SETTINGS = {
     firstOrderOnly: true,
   },
   'shipping.amount': null,
+  // Ücretsiz kargo eşiği (TL; indirimler sonrası ara toplam). null → eşik yok.
+  'shipping.freeOver': null,
   'support.whatsappNumber': null,
   'support.email': null,
   social: { instagram: null, tiktok: null, pinterest: null },

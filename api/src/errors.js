@@ -1,4 +1,43 @@
 /** Uygulama genelinde kullanılan hata sınıfı ve merkezi hata işleyici. */
+import { z } from 'zod'
+
+/**
+ * Türkçe zod hata haritası (genel): şemada açık mesaj verilmemiş alanlarda da kullanıcıya Türkçe mesaj döner.
+ * Şemadaki açık mesajlar (ör. .min(1, 'Ad gerekli')) her zaman önceliklidir.
+ */
+const TYPE_NAMES = { string: 'metin', number: 'sayı', boolean: 'true/false', object: 'nesne', array: 'liste', null: 'boş (null)', undefined: 'boş', integer: 'tam sayı', float: 'ondalıklı sayı', nan: 'geçersiz sayı' }
+const typeName = (t) => TYPE_NAMES[t] ?? t
+z.setErrorMap((issue, ctx) => {
+  switch (issue.code) {
+    case z.ZodIssueCode.invalid_type:
+      if (issue.received === 'undefined') return { message: 'Bu alan gerekli' }
+      return { message: `${typeName(issue.expected)} bekleniyor, ${typeName(issue.received)} geldi` }
+    case z.ZodIssueCode.too_small:
+      if (issue.type === 'string') return { message: issue.minimum <= 1 ? 'Bu alan boş olamaz' : `En az ${issue.minimum} karakter olmalı` }
+      if (issue.type === 'array') return { message: `En az ${issue.minimum} öğe olmalı` }
+      return { message: `En az ${issue.minimum} olmalı` }
+    case z.ZodIssueCode.too_big:
+      if (issue.type === 'string') return { message: `En fazla ${issue.maximum} karakter olabilir` }
+      if (issue.type === 'array') return { message: `En fazla ${issue.maximum} öğe olabilir` }
+      return { message: `En fazla ${issue.maximum} olabilir` }
+    case z.ZodIssueCode.invalid_enum_value:
+      return { message: `Geçersiz değer; izin verilenler: ${issue.options.join(', ')}` }
+    case z.ZodIssueCode.invalid_string:
+      if (issue.validation === 'email') return { message: 'Geçerli bir e-posta girin' }
+      if (issue.validation === 'url') return { message: 'Geçerli bir adres (URL) girin' }
+      return { message: 'Geçersiz metin biçimi' }
+    case z.ZodIssueCode.invalid_literal:
+      return { message: `Değer ${JSON.stringify(issue.expected)} olmalı` }
+    case z.ZodIssueCode.invalid_union:
+      return { message: 'Geçersiz değer' }
+    case z.ZodIssueCode.unrecognized_keys:
+      return { message: `Tanınmayan alan(lar): ${issue.keys.join(', ')}` }
+    case z.ZodIssueCode.not_multiple_of:
+      return { message: `${issue.multipleOf} katı olmalı` }
+    default:
+      return { message: ctx.defaultError }
+  }
+})
 
 export class ApiError extends Error {
   constructor(status, code, message, details) {

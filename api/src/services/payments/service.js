@@ -12,6 +12,9 @@
  *   POST /admin/orders/:id/refund → refundOrder: önce cancel (aynı gün), olmazsa kalem bazında refund
  *
  * Tutar/para birimi/sipariş eşleşmesi daima sunucuda, DB'deki payments satırına göre doğrulanır.
+ * Tutarlar: price = kalem toplamı (ara toplam) + kargo; paidPrice = siparişin genel toplamı, yani üyelik
+ * indirimi YA DA kupon indirimi (orders.coupon_discount) düşülmüş + kargo. createOrder toplamı kuruş
+ * cinsinden hesapladığından toKurus(total) iyzico'ya giden paidPrice ile birebir aynıdır.
  */
 import { pool } from '../../db.js'
 import { ApiError, conflict, notFound } from '../../errors.js'
@@ -21,6 +24,7 @@ import { sendMail, notifyAdmin } from '../mail.js'
 import * as ordersService from '../orders.js'
 import { getProvider } from './index.js'
 import { toKurus } from './iyzico.js'
+import { reapplyCouponForOrderInTx } from '../coupons.js'
 
 /** Ödenmeyen siparişin ömrü (dk). Son ödeme denemesi başlatıldıysa o andan itibaren de bu kadar korunur. */
 export const PENDING_TTL_MINUTES = 30
@@ -352,6 +356,8 @@ export async function handleCallback(token, { ip } = {}) {
       // Süre dolup iptal edildikten sonra gelen başarılı ödeme: stok yeniden ayrılabiliyorsa sipariş ödenir.
       if (await ordersService.reserveOrderStockInTx(conn, orderId)) {
         await conn.query("UPDATE orders SET status = 'paid' WHERE id = ?", [orderId])
+        // İptalde geri alınan kupon kullanımı yeniden kaydedilir (ödeme alındı; limit denetlenmez).
+        await reapplyCouponForOrderInTx(conn, orderId)
         becamePaid = true
         errorCode = 'late_payment_recovered'
         errorMessage = 'Süre dolumundan sonra ödendi; stok yeniden ayrıldı'

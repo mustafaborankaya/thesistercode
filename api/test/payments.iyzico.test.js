@@ -90,6 +90,21 @@ test('buildCheckoutFormRequest: kargo null → kargo kalemi yok; misafir buyer i
   assert.equal(r.buyer.id, `G-${ORDER_ID}`)
 })
 
+test('buildCheckoutFormRequest: kupon indirimi paidPrice\'a yansır, price (kalemler + kargo) değişmez; ücretsiz kargoda kargo kalemi yok', () => {
+  const withCoupon = {
+    ...order,
+    totals: { subtotal: 8500, discountPercent: 0, discountAmount: 0, couponDiscount: 1275, shipping: 49.9, total: 7274.9 },
+    coupon: { code: 'YAZ15', discount: 1275 },
+  }
+  const r = buildCheckoutFormRequest(withCoupon, ctx)
+  assert.equal(r.price, '8549.90')
+  assert.equal(r.paidPrice, '7274.90')
+  const free = buildCheckoutFormRequest({ ...withCoupon, totals: { ...withCoupon.totals, shipping: 0, total: 7225 } }, ctx)
+  assert.equal(free.price, '8500.00')
+  assert.equal(free.paidPrice, '7225.00')
+  assert.equal(free.basketItems.length, 1)
+})
+
 test('buildCheckoutFormRequest: kalem toplamı ara toplamla uyuşmazsa hata', () => {
   assert.throws(() => buildCheckoutFormRequest({ ...order, totals: { ...order.totals, subtotal: 8499 } }, ctx), /eşleşmiyor/)
 })

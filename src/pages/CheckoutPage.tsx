@@ -11,8 +11,8 @@ import { productById } from '../data/catalog'
 import { isApiMode } from '../data/remote'
 import type { SizeId } from '../data/types'
 import { S } from '../i18n'
-import { apiErrorMessage, stockShortageMessage, stockShortages } from '../i18n/apiMessages'
-import { applyKnownStock, lineKey } from '../lib/cart'
+import { apiErrorMessage, isCouponError, priceChangedDetails, stockShortageMessage, stockShortages } from '../i18n/apiMessages'
+import { applyKnownStock, computeTotals, lineKey } from '../lib/cart'
 import { formatPrice } from '../lib/format'
 import { paymentProvider } from '../services/checkout'
 import { listAddresses, loadAddresses, sameAddress, saveAddress, subscribeCustomer, type SavedAddress } from '../services/customer'
@@ -45,8 +45,13 @@ function withDefaultAddress(values: CheckoutFormValues, addresses: SavedAddress[
 }
 
 export function CheckoutPage() {
-  const { lines, totals, clear, setQty, removeLine } = useCart()
-  const { isLoggedIn, account, refresh: refreshAccount } = useAccount()
+  const { lines, totals, clear, setQty, removeLine, coupon, removeCoupon, repriceLines } = useCart()
+  const { isLoggedIn, account, refresh: refreshAccount, discountEligible } = useAccount()
+  /**
+   * 409 price_changed sonrası: sunucunun güncel genel toplamı, yerel yeniden hesap hâlâ farklıysa (ör. indirim
+   * hakkı değişti) kullanıcı mesajda gördüğü bu tutarı onaylar. `forLocal`: bu onayın geçerli olduğu yerel toplam.
+   */
+  const [priceAck, setPriceAck] = useState<{ ack: number; forLocal: number } | null>(null)
   const navigate = useNavigate()
   // Sipariş verildikten sonra clear() sepeti boşaltır; bu bayrak "sepet boş" ekranının
   // yönlendirmeden önce bir an için yanıp sönmesini engeller.
@@ -172,7 +177,15 @@ export function CheckoutPage() {
     // toplamlar sunucuda doğrulanır); yalnızca yerel geliştirmede API gerçekten kapalıyken demo
     // sağlayıcıya düşülür — üretimde asla sessizce yerel demo siparişe düşülmez.
     if (isApiMode()) {
-      const result = await createApiOrder({ contact, delivery, lines })
+      const result = await createApiOrder({
+        contact,
+        delivery,
+        lines,
+        // Kupon sunucuda yeniden doğrulanır; alt limit altındaysa hiç gönderilmez (sunucu 400 dönerdi).
+        couponCode: coupon && totals.couponIgnored !== 'minSubtotal' ? coupon.code : null,
+        // Eski sekme/bayat fiyat koruması: özetteki toplam sunucu hesabından farklıysa 409 price_changed.
+        expectedTotal: priceAck && priceAck.forLocal === totals.total ? priceAck.ack : totals.total,
+      })
       if (result.ok && result.paymentRequired) {
         // Çevrim içi ödeme: sipariş 'pending_payment' (stok ayrıldı). Sepet ödeme BAŞARILI olana kadar
         // KORUNUR (sonuç sayfası ?odeme=basarili + sunucu durumu 'paid' iken boşaltır); böylece başarısız ya
@@ -226,6 +239,21 @@ export function CheckoutPage() {
         }
         setSubmitError(S.checkout.stockChangedTitle)
         setStockIssues(notes)
+        return
+      }
+      const changed = priceChangedDetails(result.error)
+      if (changed) {
+        // Sunucu fiyatları kataloğa yazılır; özet yeniden hesaplanır ve kullanıcı yeniden onaylar.
+        repriceLines(changed.lines)
+        const local = computeTotals({ lines, memberDiscountEligible: discountEligible, coupon }).total
+        setPriceAck(Math.abs(local - changed.currentTotal) > 0.005 ? { ack: changed.currentTotal, forLocal: local } : null)
+        setSubmitError(S.checkout.priceChanged(formatPrice(changed.currentTotal)))
+        return
+      }
+      if (isCouponError(result.error.code)) {
+        // Kupon artık geçersiz (süresi doldu, limit doldu …): sepetten düşer, kullanıcı kuponsuz toplamı görüp yeniden onaylar.
+        removeCoupon()
+        setSubmitError(`${apiErrorMessage(result.error)} ${S.checkout.couponRemovedTitle}`)
         return
       }
       setSubmitError(apiErrorMessage(result.error))

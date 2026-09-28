@@ -95,7 +95,7 @@ function clip(s, n) {
  * isteğini üretir. Saf fonksiyon — birim testinde doğrudan doğrulanır.
  *  - basketItems: her satır `unitPrice × qty`; kargo tanımlı ve > 0 ise ayrı "Kargo" kalemi.
  *  - price = sepet kalemleri toplamı (ara toplam + kargo); paidPrice = siparişin genel toplamı
- *    (üyelik indirimi sonrası + kargo). Tüm hesap kuruş cinsinden tam sayıyla yapılır.
+ *    (üyelik indirimi ya da kupon indirimi sonrası + kargo; ikisi birlikte uygulanmaz). Tüm hesap kuruş cinsinden tam sayıyla yapılır.
  */
 export function buildCheckoutFormRequest(order, { callbackUrl, installments, ip, customerId, registeredAt }) {
   const items = order.items ?? []

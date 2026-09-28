@@ -37,9 +37,17 @@ export interface ApiOrder {
     subtotal: number
     discountPercent: number
     discountAmount: number
+    /** Kupon indirimi (üyelik indirimiyle birlikte uygulanmaz); eski API'de yok. */
+    couponDiscount?: number
     shipping: number | null
     total: number
   }
+  /** Uygulanan kupon (yoksa null); eski API'de yok. */
+  coupon?: { code: string; discount: number } | null
+  /** Kargo takibi (yönetici girer); eski API'de yok. */
+  shipping?: { carrier: string | null; trackingNumber: string | null; trackingUrl?: string | null; shippedAt: string | null } | null
+  /** Yalnızca yönetici uç noktalarında (müşteri yanıtlarında hiç yok). */
+  adminNote?: string | null
   items?: ApiOrderItem[]
   /** Siparişin dili (ödeme sayfası / e-posta); eski API'de yok. */
   locale?: 'tr' | 'en'
@@ -73,6 +81,10 @@ export interface CreateOrderInput {
   contact: { email: string; phone: string }
   delivery: { firstName: string; lastName: string; address: string; district: string; city: string; postalCode: string; country: string; note?: string }
   lines: CartLine[]
+  /** İndirim kodu (varsa); sunucu doğrular, geçersizse 400/409 coupon_* döner. */
+  couponCode?: string | null
+  /** Özette gösterilen genel toplam; sunucu hesabından > 0,01 TL farklıysa 409 price_changed. */
+  expectedTotal?: number
 }
 
 /** `paymentRequired`: sunucu siparişi 'pending_payment' oluşturdu → istemci `initPayment` ile ödeme sayfasına gitmeli. */
@@ -117,6 +129,8 @@ export async function createApiOrder(input: CreateOrderInput): Promise<CreateOrd
         lines: input.lines.map((l) => ({ productId: l.productId, colorId: l.colorId, size: l.size, qty: l.qty })),
         // Sipariş onay e-postasının dili — sunucu isteğe bağlı kabul eder.
         locale,
+        ...(input.couponCode ? { couponCode: input.couponCode } : {}),
+        ...(typeof input.expectedTotal === 'number' ? { expectedTotal: input.expectedTotal } : {}),
       },
     })
     if (res.accessToken) saveOrderToken(res.order.id, res.accessToken)

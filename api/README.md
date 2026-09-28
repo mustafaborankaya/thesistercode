@@ -72,6 +72,7 @@ Tüm hatalar `{ error: { code, message } }` biçiminde, mesajlar Türkçedir.
 - `GET /products/:slug`
 - `GET /content` → `{ fields, brandMedia }`
 - `GET /settings` → `{ settings }`
+- `POST /coupons/validate` `{ code, subtotal }` — indirim kodu doğrulama (30 / 15 dk / IP; bkz. "Kuponlar")
 - `POST /orders` — sipariş oluşturur; fiyat/stok DB'den doğrulanır, toplamlar sunucuda hesaplanır
   (üyelik indirimi yalnızca oturumu açık ve `discount_eligible` müşteri için), stok transaction
   içinde düşülür.
@@ -117,12 +118,15 @@ Tüm hatalar `{ error: { code, message } }` biçiminde, mesajlar Türkçedir.
 - `GET /admin/content`, `PUT /admin/content`, `PUT /admin/brand-media`
 - `GET /admin/settings`, `PUT /admin/settings`
 - `POST /admin/upload` (multipart: `file` + `name`; `name` alanı formda `file`'dan ÖNCE olmalı)
-- `GET /admin/orders?status=`, `GET /admin/orders/:id`, `PATCH /admin/orders/:id` `{status}`,
+- `GET /admin/orders?q=&status=&from=&to=&page=&pageSize=`, `GET /admin/orders/:id`,
+  `PATCH /admin/orders/:id` `{status?, carrier?, trackingNumber?, adminNote?}` (bkz. "Kargo takibi"),
   `POST /admin/orders/:id/refund` (bkz. "Ödeme (iyzico)")
 - `GET /admin/users`
 - `POST /admin/users`, `PATCH /admin/users/:id` — **yalnızca owner** (`requireOwner`)
 - `GET /admin/export`, `POST /admin/import` (yalnızca owner) — bkz. "Bilinen sınırlar"
 - `GET /admin/inventory` — stok özeti (bkz. "Stok takibi")
+- `GET/POST /admin/coupons`, `PUT/DELETE /admin/coupons/:id` (bkz. "Kuponlar")
+- `GET /admin/customers`, `GET/PATCH /admin/customers/:id`, `GET /admin/stats` (bkz. "Müşteriler ve istatistik")
 
 ## Stok takibi
 
@@ -291,6 +295,83 @@ başarılı ödeme: stok yeniden ayrılabiliyorsa sipariş `paid` olur (`late_pa
   iyzipay SDK'sının yerel sahte sunucuya gönderdiği gövde/uç nokta/`IYZWSv2` başlığı, `validateRetrieve` kuralları.
 - Uçtan uca: `PAYMENT_PROVIDER=fake` + MariaDB 10.11 ile sipariş → init → callback (başarı/başarısızlık/tutar
   uyuşmazlığı/fraud/tekrar), süre dolumu, geç ödeme, iade ve durum kuralları doğrulandı (24.09.2026).
+
+## Kuponlar
+
+Migration `008_coupons.sql`: `coupons`, `coupon_redemptions` (sipariş başına en fazla bir satır), `orders.coupon_code`,
+`orders.coupon_discount`. Servis: `src/services/coupons.js`.
+
+| Uç nokta | Yetki | Gövde / yanıt |
+| --- | --- | --- |
+| `POST /coupons/validate` | herkese açık, isteğe bağlı müşteri oturumu; **30 / 15 dk / IP** | `{ code, subtotal }` → `{ valid, code, type, value, minSubtotal, discountAmount }`; geçersizde **200** + `{ valid:false, code, discountAmount:0, reason, message }` |
+| `GET /admin/coupons` | `requireAdmin` | `{ coupons:[{ id, code, type, value, minSubtotal, usageLimit, perCustomerLimit, startsAt, expiresAt, active, usedCount, createdAt }] }` |
+| `POST /admin/coupons` | `requireAdmin` | `{ code, type:'percent'\|'fixed', value, minSubtotal?, usageLimit?, perCustomerLimit?, startsAt?, expiresAt?, active? }` → 201 `{ coupon }` |
+| `PUT /admin/coupons/:id` | `requireAdmin` | aynı alanlar, kısmi → `{ coupon }` |
+| `DELETE /admin/coupons/:id` | `requireAdmin` | kullanılmamışsa silinir → `{ ok:true }`; kullanılmışsa `active=0` → `{ ok:true, deactivated:true }` |
+
+Kurallar:
+- **Kod** büyük harfe çevrilir; 4–40 karakter, `[A-Z0-9_-]` (kısa kodlar tahmine açık). Tarihler ISO 8601; DB'de UTC saklanır, `…Z` döner.
+- **İndirim**: `percent` → ara toplam × değer / 100 (0 < değer ≤ 100), `fixed` → min(değer, ara toplam). Hesap kuruş cinsinden tam sayıyla.
+- **Doğrulama sırası**: aktif → başlangıç → bitiş → `minSubtotal` → `usageLimit` (`used_count`) → `perCustomerLimit`
+  (aynı `customer_id` **veya** aynı e-posta — küçük harfe çevrilir — ile yapılmış kullanımlar). Hata kodları:
+  `coupon_not_found`, `coupon_inactive`, `coupon_not_started`, `coupon_expired`, `coupon_min_subtotal` (400);
+  `coupon_usage_limit`, `coupon_customer_limit` (409).
+- **`POST /orders` → `couponCode?`**: kupon transaction içinde `FOR UPDATE` kilitlenir (sıra: müşteri → ürün/stok → kupon),
+  doğrulanır, `used_count` artar ve `coupon_redemptions` satırı yazılır. Geçersiz kod siparişi 400/409 ile reddeder.
+- **Üyelik (ilk sipariş) indirimi ile kupon birlikte uygulanmaz**: yüksek olan uygulanır, eşitlikte kupon. Üyelik indirimi
+  kazanırsa kupon sessizce düşer (`order.coupon = null`, kullanım yazılmaz). Kupon kazanırsa `discountPercent = 0` ve
+  üyenin ilk sipariş hakkı **tüketilmez**: `customerHasActiveOrder` kupon uygulanıp üyelik indirimi uygulanmayan
+  siparişleri saymaz (kuponsuz siparişlerde davranış eskisiyle aynı).
+- **İptal** (`setOrderStatusInTx` → yönetici, süre dolumu, iade): kullanım satırı silinir, `used_count` azalır.
+  İptal geri alınırsa (yönetici ya da süresi dolmuş siparişe geç ödeme) kullanım limit denetimi olmadan yeniden yazılır.
+- **Yanıt**: `formatOrder` → `coupon: { code, discount } | null`, `totals.couponDiscount`. Sipariş e-postalarında kupon satırı.
+- **iyzico**: `price` = kalemler + kargo (değişmez), `paidPrice` = `totals.total` (kupon/üyelik indirimi sonrası + kargo).
+  Tahsil edilecek tutar 0 olacaksa (ör. %100 kupon ve kargo tanımsız) çevrim içi ödemede sipariş **400 `zero_total`**.
+- **`POST /orders` → `expectedTotal?`**: mağazanın gösterdiği genel toplam; sunucu hesabından 0,01 TL'den fazla farklıysa
+  **409 `price_changed`** + `details: { expectedTotal, currentTotal, lines:[{ productId, colorId, size, unitPrice }] }`.
+- **Ücretsiz kargo**: ayar `shipping.freeOver` (sayı | null; public). `shipping.amount` null ise kargo "bildirilecek" kalır
+  (değişmedi). Tanımlıysa, indirimler SONRASI ara toplam ≥ `freeOver` → kargo 0; aksi hâlde `shipping.amount`.
+  Mağaza (`src/lib/cart.ts`) aynı kuralı uygular ve "Ücretsiz kargo" gösterir.
+
+## Kargo takibi
+
+Migration `009_orders_shipping.sql`: `orders.carrier`, `tracking_number`, `shipped_at` (UTC), `admin_note`.
+
+- `PATCH /admin/orders/:id` gövde `{ status?, carrier?, trackingNumber?, adminNote? }` (en az biri; boş metin → null).
+  Durum kuralları korunur; ek olarak `demo` gerçek siparişe verilemez ve demo sipariş başka duruma alınamaz (409
+  `status_not_allowed`). **İptalden çıkışta** (`cancelled → …`) stok aynı transaction'da yeniden ayrılır; yetmezse
+  **409 `insufficient_stock`** ve hiçbir şey değişmez.
+- `shipped`'e **geçişte** `shipped_at` set edilir ve commit sonrası müşteriye `orderShipped` e-postası (TR/EN; firma, takip
+  no, varsa takip bağlantısı) gider; zaten `shipped` olan siparişe tekrar gönderilmez.
+- `formatOrder` → `shipping: { carrier, trackingNumber, trackingUrl, shippedAt }`. `trackingUrl` Yurtiçi/Aras/MNG/PTT/
+  Sürat/UPS için ad eşleşmesiyle üretilir (`src/services/shipping.js`; kalıplar canlıda gerçek numarayla doğrulanmalı),
+  bilinmeyen firmada null. `adminNote` yalnızca yönetici yanıtlarında; `POST /orders`, `GET /orders/:id`,
+  `GET /account/orders` yanıtlarında alan hiç yoktur.
+- `GET /admin/orders?q=&status=&from=&to=&page=&pageSize=` → `{ orders, total, page, pageSize }`. `q`: sipariş no /
+  e-posta / "ad soyad" (LIKE). `from`/`to`: `YYYY-MM-DD` (İstanbul günü, `to` dahil) ya da ISO. `page`/`pageSize`
+  verilmezse eşleşen tüm siparişler döner (geriye uyumlu); `pageSize` en fazla 200.
+
+## Müşteriler ve istatistik
+
+- `GET /admin/customers?q=&page=&pageSize=` → `{ customers:[{ id, name, email, createdAt, ordersCount, totalSpent,
+  discountEligible, discountUsed, lastOrderAt }], total, page, pageSize }`. `q`: ad / e-posta. `ordersCount`: demo hariç tüm
+  siparişler; `totalSpent`: `paid`+`shipped` (+ `PAYMENT_PROVIDER=none` iken `new`) toplamı. `discountEligible` yöneticinin
+  bayrağıdır (`customers.discount_eligible`); fiili hak = bayrak && !`discountUsed`.
+- `GET /admin/customers/:id` → `{ customer, orders (formatOrder + payment, adminNote dahil), addresses }`.
+- `PATCH /admin/customers/:id` `{ discountEligible: boolean }` → `{ customer }`. Parola hash'i hiçbir yanıtta yoktur.
+- `GET /admin/stats[?includeNew=1|0]` → `{ today:{orders,revenue}, week:{…}, month:{…}, pendingPayment, lowStock,
+  lowStockThreshold, includeNew, recentOrders }`. Sayılan durumlar: `paid`+`shipped` (+ `includeNew` ise `new`;
+  parametre yoksa `PAYMENT_PROVIDER=none` iken açık). Pencereler İstanbul takvimine göre: bugün 00:00'dan, son 7 gün
+  (6 gün önceki 00:00'dan), ayın 1'inden. `lowStock`: sayı — `GET /admin/inventory` → `lowStockCount` ile aynı tanım
+  (0 < adet ≤ `inventory.lowStockThreshold` varyant sayısı). `recentOrders`: demo hariç son 10 sipariş.
+- **Ürün görseli kaldırma**: `PUT /admin/products/:id` → `media: { front: null }` o yuvanın `product_media` satırını siler;
+  dosya yalnızca `UPLOAD_PUBLIC_BASE` altındaki düz bir dosya adıysa, `UPLOAD_DIR` içine çözümleniyorsa ve başka hiçbir
+  ürün/marka görseli kullanmıyorsa silinir.
+- **Ürün iyimser kilidi**: ürün yanıtında `updatedAt`; `PUT /admin/products/:id` → `expectedUpdatedAt?` DB'dekinden farklıysa
+  409 `conflict` + `details.updatedAt`. Her güncelleme `updated_at`'i en az 1 sn ilerletir. Renk listesinden çıkarılan
+  rengin stok satırları silinir. Fiyat / kargo ücreti: ≤ 99.999.999,99 ve en fazla 2 ondalık (Türkçe hata mesajları).
+- `POST /admin/import` ürünlerde `createdAt`'i (`YYYY-MM-DD HH:MM:SS` ya da ISO) korur; yoksa NOW().
+- Giriş hız sınırları (`/auth/login`, `/account/login`) yalnızca başarısız denemeleri sayar (`skipSuccessfulRequests`).
 
 ## Bilinen sınırlar / bilinçli tasarım kararları
 

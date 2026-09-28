@@ -35,6 +35,11 @@ export const defaultSettings = {
   /** Kargo ücreti henüz tanımlanmadı; null iken ücretsiz gibi hesaplanmaz, "tanımlanacak" gösterilir. */
   shipping: {
     amount: null as number | null,
+    /**
+     * Ücretsiz kargo eşiği (TL). İndirimler (üyelik ya da kupon) SONRASI ara toplam bu tutara ulaşırsa kargo 0.
+     * null → eşik yok. Kural sunucuyla aynıdır (api/src/services/orders.js → createOrder).
+     */
+    freeOver: null as number | null,
   },
 
   /**

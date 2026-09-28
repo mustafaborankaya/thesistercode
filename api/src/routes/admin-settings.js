@@ -17,6 +17,13 @@ const settingsSchema = z.record(z.string().min(1).max(120), z.unknown())
  * "tanımsız" hale gelmesi gibi veri bozulmalarını PUT anında engellemek. `.partial()` kullanılan
  * obje alanlarında yalnızca gönderilen anahtarlar doğrulanır (kısmi güncellemeye izin verir).
  */
+/** Para: ≥ 0, ≤ 99.999.999,99, en fazla 2 ondalık (kuruş). */
+const money = z
+  .number({ invalid_type_error: 'Tutar sayı olmalı' })
+  .min(0, 'Tutar negatif olamaz')
+  .max(99_999_999.99, 'Tutar çok büyük (en fazla 99.999.999,99)')
+  .refine((n) => Math.abs(Math.round(n * 100) - n * 100) < 1e-6, 'En fazla 2 ondalık basamak girilebilir')
+
 const KNOWN_SETTINGS_SCHEMAS = {
   'brand.name': z.string().min(1),
   'brand.shortName': z.string().min(1),
@@ -32,7 +39,9 @@ const KNOWN_SETTINGS_SCHEMAS = {
       firstOrderOnly: z.boolean(),
     })
     .partial(),
-  'shipping.amount': z.number().min(0).nullable(),
+  'shipping.amount': money.nullable(),
+  // Ücretsiz kargo eşiği: indirimler sonrası ara toplam ≥ eşik → kargo 0. null → eşik yok.
+  'shipping.freeOver': money.nullable(),
   'inventory.lowStockThreshold': z.number().int().min(0).max(9999),
   'catalog.newBadgeDays': z.number().int().min(0).max(3650),
   'support.whatsappNumber': z.string().nullable(),

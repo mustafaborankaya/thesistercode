@@ -12,7 +12,7 @@ import { ApiError } from '../services/api'
 const M = S.api
 
 /** Sunucu mesajı ürün/stok adı gibi bağlama özgü ayrıntı taşır (örn. "Yetersiz stok: Ürün 01 (Renk 1, M)") — TR arayüzde sözlük yerine bu ayrıntı korunur. */
-const DETAILED_CODES = new Set(['insufficient_stock', 'invalid_product', 'invalid_variant', 'validation_error'])
+const DETAILED_CODES = new Set(['insufficient_stock', 'invalid_product', 'invalid_variant', 'validation_error', 'coupon_min_subtotal'])
 
 /**
  * `ApiError` (ya da bilinmeyen bir hata) için kullanıcıya gösterilecek kısa mesajı üretir.
@@ -59,4 +59,30 @@ export function stockShortages(e: unknown): StockShortage[] {
  */
 export function stockShortageMessage(name: string, variant: string, available: number): string {
   return available > 0 ? S.checkout.stockLeft(name, variant, available) : S.checkout.stockGone(name, variant)
+}
+
+/** İndirim kodu hata kodu mu? (`POST /orders` 400/409 ya da `/coupons/validate` → reason) */
+export function isCouponError(code: string | undefined | null): boolean {
+  return typeof code === 'string' && code.startsWith('coupon_')
+}
+
+/** `/coupons/validate` → valid:false `reason` için yerelleştirilmiş mesaj (TR'de sunucu mesajı ayrıntılıysa o). */
+export function couponReasonMessage(reason: string, serverMessage?: string): string {
+  if (locale === 'tr' && serverMessage && reason === 'coupon_min_subtotal') return serverMessage
+  const known = (M as Record<string, string>)[reason]
+  return known ?? apiErrorMessage(new ApiError(400, reason, serverMessage ?? ''))
+}
+
+/** `409 price_changed` → `error.details` (bkz. api/README.md "Kuponlar"). */
+export interface PriceChangedDetails {
+  expectedTotal: number
+  currentTotal: number
+  lines: { productId: string; colorId: string; size: string; unitPrice: number }[]
+}
+
+export function priceChangedDetails(e: unknown): PriceChangedDetails | null {
+  if (!(e instanceof ApiError) || e.code !== 'price_changed' || !e.details || typeof e.details !== 'object') return null
+  const d = e.details as PriceChangedDetails
+  if (!Number.isFinite(d.currentTotal) || !Array.isArray(d.lines)) return null
+  return { expectedTotal: Number(d.expectedTotal), currentTotal: Number(d.currentTotal), lines: d.lines.filter((l) => l && typeof l.productId === 'string' && Number.isFinite(l.unitPrice)) }
 }

@@ -34,9 +34,12 @@ function itemsFromApiOrder(order: ApiOrder): OrderSummaryItem[] {
   })
 }
 
-function totalsFromApiOrder(order: ApiOrder): CartTotals {
+function totalsFromApiOrder(order: ApiOrder): CartTotals & { couponCode: string | null; couponDiscount: number } {
   const itemCount = (order.items ?? []).reduce((n, item) => n + item.qty, 0)
   return {
+    // Kupon satırı sunucu yanıtından (özet toplamı sunucunun gerçek toplamıdır).
+    couponCode: order.coupon?.code ?? null,
+    couponDiscount: order.totals.couponDiscount ?? order.coupon?.discount ?? 0,
     itemCount,
     subtotal: order.totals.subtotal,
     discountPercent: order.totals.discountPercent,

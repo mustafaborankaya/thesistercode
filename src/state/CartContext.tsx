@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { productById } from '../data/catalog'
-import type { CartLine, CartTotals, SizeId } from '../data/types'
-import { computeTotals, lineKey, normalizeLines, variantStock } from '../lib/cart'
+import type { CartLine, SizeId } from '../data/types'
+import { applyKnownPrice, computeTotals, lineKey, normalizeLines, variantStock, type AppliedCoupon, type SummaryTotals } from '../lib/cart'
+import { validateCouponApi, type ValidateCouponResult } from '../services/coupons'
 import { readJSON, storageKeys, writeJSON } from '../lib/storage'
 import { useAccount } from './AccountContext'
 import { usePanels } from './PanelContext'
@@ -10,7 +11,14 @@ export type AddResult = { ok: true; key: string; qty: number } | { ok: false; re
 
 interface CartContextValue {
   lines: CartLine[]
-  totals: CartTotals
+  totals: SummaryTotals
+  /** Doğrulanmış indirim kodu (sekme boyunca sessionStorage'da). */
+  coupon: AppliedCoupon | null
+  /** `POST /coupons/validate` ile doğrular; geçerliyse sepete uygular. */
+  applyCoupon: (code: string) => Promise<ValidateCouponResult>
+  removeCoupon: () => void
+  /** Sunucunun bildirdiği güncel birim fiyatları kataloğa yazar ve toplamları yeniden hesaplatır (409 price_changed). */
+  repriceLines: (updates: { productId: string; unitPrice: number }[]) => void
   /** Geçerli varyantı sepete ekler ve sepet panelini açar. */
   addLine: (productId: string, colorId: string, size: SizeId, qty?: number) => AddResult
   setQty: (key: string, qty: number) => void
@@ -26,12 +34,41 @@ interface CartContextValue {
 
 const CartContext = createContext<CartContextValue | null>(null)
 
+const COUPON_KEY = 'tsc.coupon'
+
+function readCoupon(): AppliedCoupon | null {
+  try {
+    const raw = window.sessionStorage.getItem(COUPON_KEY)
+    if (!raw) return null
+    const c = JSON.parse(raw) as AppliedCoupon
+    return c && typeof c.code === 'string' && (c.type === 'percent' || c.type === 'fixed') && typeof c.value === 'number' ? c : null
+  } catch {
+    return null
+  }
+}
+
+function writeCoupon(c: AppliedCoupon | null): void {
+  try {
+    if (c) window.sessionStorage.setItem(COUPON_KEY, JSON.stringify(c))
+    else window.sessionStorage.removeItem(COUPON_KEY)
+  } catch {
+    /* depolama engelliyse kupon yalnızca bu sayfa ömrü boyunca kalır */
+  }
+}
+
 export function CartProvider({ children }: { children: ReactNode }) {
   const [lines, setLines] = useState<CartLine[]>(() => normalizeLines(readJSON<CartLine[]>(storageKeys.cart, [])))
   const [lastAddedKey, setLastAddedKey] = useState<string | null>(null)
   const { discountEligible } = useAccount()
   const { openPanel } = usePanels()
   const lastAddRef = useRef<{ key: string; at: number } | null>(null)
+  const [coupon, setCoupon] = useState<AppliedCoupon | null>(() => readCoupon())
+  /** Katalog fiyatı yerinde güncellendiğinde toplamları yeniden hesaplatmak için. */
+  const [priceVersion, setPriceVersion] = useState(0)
+
+  useEffect(() => {
+    writeCoupon(coupon)
+  }, [coupon])
 
   useEffect(() => {
     writeJSON(storageKeys.cart, lines)
@@ -108,13 +145,38 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const removeLine = useCallback((key: string) => setLines((prev) => prev.filter((l) => l.key !== key)), [])
-  const clear = useCallback(() => setLines([]), [])
+  // Sipariş verildiğinde (clear) kupon da düşer.
+  const clear = useCallback(() => {
+    setLines([])
+    setCoupon(null)
+  }, [])
 
-  const totals = useMemo(() => computeTotals({ lines, memberDiscountEligible: discountEligible }), [lines, discountEligible])
+  const subtotalRef = useRef(0)
+  const applyCoupon = useCallback(async (code: string) => {
+    const result = await validateCouponApi(code.trim(), subtotalRef.current)
+    if (result.ok) setCoupon(result.coupon)
+    return result
+  }, [])
+  const removeCoupon = useCallback(() => setCoupon(null), [])
+
+  const repriceLines = useCallback((updates: { productId: string; unitPrice: number }[]) => {
+    for (const u of updates) applyKnownPrice(u.productId, u.unitPrice)
+    setPriceVersion((v) => v + 1)
+  }, [])
+
+  const totals = useMemo(
+    () => computeTotals({ lines, memberDiscountEligible: discountEligible, coupon }),
+    // priceVersion: katalog fiyatları yerinde değiştiğinde yeniden hesap.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [lines, discountEligible, coupon, priceVersion],
+  )
+  useEffect(() => {
+    subtotalRef.current = totals.subtotal
+  }, [totals.subtotal])
 
   const value = useMemo<CartContextValue>(
-    () => ({ lines, totals, addLine, setQty, increment, decrement, removeLine, clear, maxQty, lastAddedKey }),
-    [lines, totals, addLine, setQty, increment, decrement, removeLine, clear, maxQty, lastAddedKey],
+    () => ({ lines, totals, coupon, applyCoupon, removeCoupon, repriceLines, addLine, setQty, increment, decrement, removeLine, clear, maxQty, lastAddedKey }),
+    [lines, totals, coupon, applyCoupon, removeCoupon, repriceLines, addLine, setQty, increment, decrement, removeLine, clear, maxQty, lastAddedKey],
   )
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
 }

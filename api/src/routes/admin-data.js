@@ -18,6 +18,8 @@ import { requireAdmin, requireOwner } from '../auth.js'
 import { parseBody } from '../errors.js'
 
 const router = Router()
+
+const DB_DATETIME_RE = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/
 router.use(requireAdmin)
 
 // Export/import yalnızca owner'a özeldir (spesifikasyon gereği) — bir editor hesabı ele geçirilse
@@ -79,7 +81,21 @@ const productImportSchema = z.object({
     .optional(),
   similarProductIds: z.array(z.string().max(32)).max(50).optional(),
   completeLookProductIds: z.array(z.string().max(32)).max(50).optional(),
+  /** Dışa aktarımdaki oluşturulma zamanı ('YYYY-MM-DD HH:MM:SS' ya da ISO); yoksa NOW(). "Yeni" otomatik rozeti buna bağlı. */
+  createdAt: z
+    .string()
+    .max(40)
+    .refine((v) => DB_DATETIME_RE.test(v) || !Number.isNaN(Date.parse(v)), 'Geçersiz createdAt')
+    .nullable()
+    .optional(),
 })
+
+/** created_at için iki parametre: [ham DB metni | null, epoch saniye | null] → COALESCE(?, FROM_UNIXTIME(?), NOW()). */
+function createdAtParams(v) {
+  if (!v) return [null, null]
+  if (DB_DATETIME_RE.test(v)) return [v, null]
+  return [null, Math.floor(Date.parse(v) / 1000)]
+}
 
 const importSchema = z.object({
   format: z.literal('teshvikiye-api-export').optional(),
@@ -116,8 +132,8 @@ router.post('/import', requireOwner, async (req, res, next) => {
         let sortOrder = 0
         for (const p of data.products) {
           await conn.query(
-            `INSERT INTO products (id, number, slug, name, name_en, category, is_new, new_badge_auto, price, description, description_en, fabric_care, fabric_care_en, delivery_returns, hidden, sort_order)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO products (id, number, slug, name, name_en, category, is_new, new_badge_auto, price, description, description_en, fabric_care, fabric_care_en, delivery_returns, hidden, sort_order, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, FROM_UNIXTIME(?), NOW()))`,
             [
               p.id,
               p.number,
@@ -135,6 +151,7 @@ router.post('/import', requireOwner, async (req, res, next) => {
               p.content?.deliveryReturns ?? null,
               p.hidden ? 1 : 0,
               sortOrder++,
+              ...createdAtParams(p.createdAt),
             ],
           )
           let i = 0

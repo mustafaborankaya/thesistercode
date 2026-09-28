@@ -20,12 +20,22 @@ const stockSchema = z.record(
   z.record(z.enum(productsService.SIZES), z.number().int().min(0).max(productsService.MAX_STOCK_QTY)),
 )
 const newBadgeSchema = z.enum(productsService.NEW_BADGE_MODES)
-const mediaSchema = z.record(z.enum(productsService.MEDIA_KINDS), z.string().min(1))
+// Yuva değeri null → o yuvanın görseli kaldırılır (product_media satırı silinir, kullanılmayan dosya uploads'tan silinir).
+const mediaSchema = z.record(
+  z.enum(productsService.MEDIA_KINDS, { errorMap: () => ({ message: 'Geçersiz görsel yuvası' }) }),
+  z.string().min(1, 'Görsel adresi boş olamaz').max(500, 'Görsel adresi çok uzun').nullable(),
+)
+/** Fiyat: ≥ 0, ≤ 99.999.999,99 (DECIMAL(10,2)), en fazla 2 ondalık. */
+const priceSchema = z
+  .number({ invalid_type_error: 'Fiyat sayı olmalı', required_error: 'Fiyat gerekli' })
+  .min(0, 'Fiyat negatif olamaz')
+  .max(99_999_999.99, 'Fiyat çok büyük (en fazla 99.999.999,99)')
+  .refine((n) => Math.abs(Math.round(n * 100) - n * 100) < 1e-6, 'Fiyat en fazla 2 ondalık basamak içerebilir')
 
 const updateSchema = z.object({
-  name: z.string().min(1).max(200).optional(),
-  nameEn: z.string().max(200).nullable().optional(),
-  price: z.number().min(0).optional(),
+  name: z.string().min(1, 'Ürün adı boş olamaz').max(200, 'Ürün adı en fazla 200 karakter olabilir').optional(),
+  nameEn: z.string().max(200, 'İngilizce ad en fazla 200 karakter olabilir').nullable().optional(),
+  price: priceSchema.optional(),
   category: z.enum(productsService.CATEGORIES).optional(),
   isNew: z.boolean().optional(),
   newBadge: newBadgeSchema.optional(),
@@ -40,13 +50,15 @@ const updateSchema = z.object({
   similarProductIds: z.array(z.string()).optional(),
   completeLookProductIds: z.array(z.string()).optional(),
   media: mediaSchema.optional(),
+  /** İyimser kilit: istemcinin son gördüğü updatedAt; DB'dekinden farklıysa 409 conflict { details:{ updatedAt } }. */
+  expectedUpdatedAt: z.string().max(40).nullable().optional(),
 })
 
 const createSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   nameEn: z.string().max(200).nullable().optional(),
-  category: z.enum(productsService.CATEGORIES),
-  price: z.number().min(0),
+  category: z.enum(productsService.CATEGORIES, { errorMap: () => ({ message: 'Geçerli bir kategori seçin' }) }),
+  price: priceSchema,
   isNew: z.boolean().optional(),
   newBadge: newBadgeSchema.optional(),
   hidden: z.boolean().optional(),

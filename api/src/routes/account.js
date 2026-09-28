@@ -29,6 +29,17 @@ const authLimiter = rateLimit({
   message: { error: { code: 'rate_limited', message: 'Çok fazla deneme yapıldı. Lütfen 15 dakika sonra tekrar deneyin.' } },
 })
 
+// Müşteri girişi: başarılı girişler kotayı tüketmez. (Kayıt/parola sıfırlama authLimiter'da kalır —
+// forgot her zaman 200 döndüğünden orada skipSuccessfulRequests sınırı fiilen kaldırırdı.)
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: { code: 'rate_limited', message: 'Çok fazla deneme yapıldı. Lütfen 15 dakika sonra tekrar deneyin.' } },
+})
+
 const registerSchema = z.object({
   name: z.string().min(1, 'Ad Soyad gerekli').max(200),
   email: z.string().email('Geçerli bir e-posta girin').max(190),
@@ -96,7 +107,7 @@ router.post('/register', authLimiter, async (req, res, next) => {
   }
 })
 
-router.post('/login', authLimiter, async (req, res, next) => {
+router.post('/login', loginLimiter, async (req, res, next) => {
   try {
     const { email, password } = parseBody(loginSchema, req.body)
     const normalizedEmail = email.trim().toLowerCase()

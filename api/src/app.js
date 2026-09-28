@@ -25,6 +25,10 @@ import adminOrdersRoutes from './routes/admin-orders.js'
 import adminUsersRoutes from './routes/admin-users.js'
 import adminDataRoutes from './routes/admin-data.js'
 import adminInventoryRoutes from './routes/admin-inventory.js'
+import couponsRoutes from './routes/coupons.js'
+import adminCouponsRoutes from './routes/admin-coupons.js'
+import adminCustomersRoutes from './routes/admin-customers.js'
+import adminStatsRoutes from './routes/admin-stats.js'
 import paymentsRoutes, { callbackRouter as paymentCallbackRouter } from './routes/payments.js'
 
 const PKG_VERSION = '1.0.0'
@@ -87,6 +91,10 @@ export function createApp() {
   router.use('/account', accountRoutes)
   router.use('/orders', ordersRoutes)
   router.use('/payments', paymentsRoutes)
+  router.use('/coupons', couponsRoutes)
+  router.use('/admin/coupons', adminCouponsRoutes)
+  router.use('/admin/customers', adminCustomersRoutes)
+  router.use('/admin/stats', adminStatsRoutes)
   router.use('/admin/products', adminProductsRoutes)
   router.use('/admin/orders', adminOrdersRoutes)
   router.use('/admin/inventory', adminInventoryRoutes)

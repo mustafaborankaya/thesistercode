@@ -81,6 +81,7 @@ const PUBLIC_SETTING_KEYS = [
   'brand.shortName',
   'memberDiscount',
   'shipping.amount',
+  'shipping.freeOver',
   'support.whatsappNumber',
   'support.email',
   'social',

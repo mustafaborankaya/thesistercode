@@ -19,6 +19,14 @@ ${bodyHtml}
 </div></body></html>`
 }
 
+/** Kupon satırı: "Kupon (KOD): -12.00 TL" — kupon uygulanmadıysa null. */
+function couponLine(order, en) {
+  const c = order.coupon
+  const amount = order.totals?.couponDiscount ?? c?.discount ?? 0
+  if (!c || !(amount > 0)) return null
+  return { label: `${en ? 'Coupon' : 'Kupon'} (${c.code})`, value: `-${money(amount)}` }
+}
+
 function money(n) {
   return `${Number(n).toFixed(2)} TL`
 }
@@ -34,7 +42,8 @@ export const templates = {
     const lines = items.map((i) => `${i.qty} × ${i.productName} (${i.colorLabel} / ${i.size}) — ${money(i.unitPrice * i.qty)}`)
     // Çevrim içi ödeme başarıyla alındıysa (iyzico) bu e-posta ödeme onayını da içerir.
     const paidLine = order.status === 'paid' ? (en ? 'Your payment has been received.' : 'Ödemeniz alındı.') : null
-    const shippingText = t.shipping == null ? (en ? 'to be confirmed' : 'bildirilecek') : money(t.shipping)
+    const shippingText = t.shipping == null ? (en ? 'to be confirmed' : 'bildirilecek') : t.shipping === 0 ? (en ? 'Free' : 'Ücretsiz') : money(t.shipping)
+    const coupon = couponLine(order, en)
     const text = [
       en ? `Hello ${d.firstName},` : `Merhaba ${d.firstName},`,
       en ? `We have received your order ${order.id}.` : `${order.id} numaralı siparişinizi aldık.`,
@@ -44,6 +53,7 @@ export const templates = {
       '',
       `${en ? 'Subtotal' : 'Ara toplam'}: ${money(t.subtotal)}`,
       t.discountAmount > 0 ? `${en ? 'Member discount' : 'Üyelik indirimi'} (%${t.discountPercent}): -${money(t.discountAmount)}` : null,
+      coupon ? `${coupon.label}: ${coupon.value}` : null,
       `${en ? 'Shipping' : 'Kargo'}: ${shippingText}`,
       `${en ? 'Total' : 'Genel toplam'}: ${money(t.total)}`,
       '',
@@ -61,6 +71,7 @@ export const templates = {
 <table style="border-collapse:collapse;margin-top:12px">
 <tr><td style="padding:2px 16px 2px 0">${en ? 'Subtotal' : 'Ara toplam'}</td><td>${esc(money(t.subtotal))}</td></tr>
 ${t.discountAmount > 0 ? `<tr><td style="padding:2px 16px 2px 0">${en ? 'Member discount' : 'Üyelik indirimi'} (%${esc(t.discountPercent)})</td><td>-${esc(money(t.discountAmount))}</td></tr>` : ''}
+${coupon ? `<tr><td style="padding:2px 16px 2px 0">${esc(coupon.label)}</td><td>${esc(coupon.value)}</td></tr>` : ''}
 <tr><td style="padding:2px 16px 2px 0">${en ? 'Shipping' : 'Kargo'}</td><td>${esc(shippingText)}</td></tr>
 <tr><td style="padding:8px 16px 2px 0;font-weight:600">${en ? 'Total' : 'Genel toplam'}</td><td style="padding-top:8px;font-weight:600">${esc(money(t.total))}</td></tr>
 </table>
@@ -86,11 +97,45 @@ ${t.discountAmount > 0 ? `<tr><td style="padding:2px 16px 2px 0">${en ? 'Member 
       '',
       `Ara toplam: ${money(order.totals.subtotal)}`,
       order.totals.discountAmount > 0 ? `Üyelik indirimi (%${order.totals.discountPercent}): -${money(order.totals.discountAmount)}` : null,
+      couponLine(order, false) ? `${couponLine(order, false).label}: ${couponLine(order, false).value}` : null,
       `Toplam: ${money(order.totals.total)}`,
     ]
       .filter((l) => l !== null)
       .join('\n')
     const html = layout(subject, `<pre style="white-space:pre-wrap;font-family:inherit">${esc(text)}</pre>`, 'tr')
+    return { subject, text, html }
+  },
+
+  /** Kargoya verildi — müşteriye. Kargo firması, takip no ve (bilinen firmada) takip bağlantısı. */
+  orderShipped({ order, locale = 'tr' }) {
+    const en = locale === 'en'
+    const d = order.delivery
+    const sh = order.shipping ?? {}
+    const subject = en ? `Your order ${order.id} has been shipped` : `${order.id} numaralı siparişiniz kargoya verildi`
+    const lines = [
+      en ? `Hello ${d.firstName},` : `Merhaba ${d.firstName},`,
+      en ? `Your order ${order.id} has been shipped.` : `${order.id} numaralı siparişiniz kargoya verildi.`,
+      '',
+      sh.carrier ? `${en ? 'Carrier' : 'Kargo firması'}: ${sh.carrier}` : null,
+      sh.trackingNumber ? `${en ? 'Tracking number' : 'Takip numarası'}: ${sh.trackingNumber}` : null,
+      sh.trackingUrl ? `${en ? 'Track your parcel' : 'Kargonuzu takip edin'}: ${sh.trackingUrl}` : null,
+      '',
+      `${en ? 'Delivery address' : 'Teslimat adresi'}: ${d.firstName} ${d.lastName}, ${d.address}, ${d.district} / ${d.city} ${d.postalCode}, ${d.country}`,
+    ].filter((l) => l !== null)
+    const text = lines.join('\n')
+    const rows = [
+      sh.carrier ? [en ? 'Carrier' : 'Kargo firması', esc(sh.carrier)] : null,
+      sh.trackingNumber ? [en ? 'Tracking number' : 'Takip numarası', esc(sh.trackingNumber)] : null,
+      sh.trackingUrl ? [en ? 'Tracking' : 'Takip', `<a href="${esc(sh.trackingUrl)}" style="color:#000">${esc(en ? 'Track your parcel' : 'Kargonuzu takip edin')}</a>`] : null,
+    ].filter(Boolean)
+    const html = layout(
+      subject,
+      `<p>${esc(lines[0])}</p>
+<p>${esc(lines[1])}</p>
+${rows.length ? `<table style="border-collapse:collapse;margin-top:12px">${rows.map(([k, v]) => `<tr><td style="padding:2px 16px 2px 0">${esc(k)}</td><td>${v}</td></tr>`).join('')}</table>` : ''}
+<p style="margin-top:16px">${esc(en ? 'Delivery address' : 'Teslimat adresi')}: ${esc(`${d.firstName} ${d.lastName}, ${d.address}, ${d.district} / ${d.city} ${d.postalCode}, ${d.country}`)}</p>`,
+      locale,
+    )
     return { subject, text, html }
   },
 

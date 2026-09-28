@@ -182,6 +182,16 @@ export const tr = {
     discountHint: 'Hesap oluşturan müşterilere ilk siparişte %10 indirim uygulanır.',
     discountApplied: 'İlk sipariş üyelik indirimi uygulandı.',
     closeDrawer: 'Sepet panelini kapat',
+    couponLabel: 'İndirim kodu',
+    couponApply: 'Uygula',
+    couponApplying: 'Kontrol ediliyor…',
+    couponRemove: 'Kaldır',
+    couponLine: (code: string) => `Kupon (${code})`,
+    couponApplied: (code: string) => `${code} indirim kodu uygulandı.`,
+    couponEmpty: 'Bir indirim kodu girin.',
+    couponMemberBetter: (code: string) => `Üyelik indirimi daha yüksek olduğu için ${code} kodu uygulanmadı.`,
+    couponBelowMin: (code: string, min: string) => `${code} kodu için sepet tutarı en az ${min} olmalı.`,
+    freeShipping: 'Ücretsiz kargo',
   },
 
   checkout: {
@@ -233,6 +243,8 @@ export const tr = {
     orderFailed: 'Sipariş oluşturulamadı. Lütfen tekrar deneyin.',
     /** POST /orders → 409 insufficient_stock: sepet mevcut stoğa göre güncellenir. */
     stockChangedTitle: 'Bazı ürünlerin stoğu değişti. Sepetiniz güncellendi; kontrol edip siparişi yeniden onaylayın.',
+    priceChanged: (total: string) => `Fiyatlar güncellendi, lütfen yeniden onaylayın. Güncel genel toplam: ${total}.`,
+    couponRemovedTitle: 'İndirim kodu sepetten kaldırıldı.',
     stockLeft: (name: string, variant: string, n: number) => `${name} (${variant}): yalnızca ${n} adet kaldı, adet ${n} olarak güncellendi.`,
     stockGone: (name: string, variant: string) => `${name} (${variant}): tükendi, sepetten çıkarıldı.`,
     backToShop: 'Alışverişe dön',
@@ -516,6 +528,16 @@ export const tr = {
     too_many_attempts: 'Bu sipariş için çok fazla ödeme denemesi yapıldı. Lütfen yeni bir sipariş oluşturun.',
     /** Giriş/kayıt sayfaları — "yalnızca bu tarayıcıda saklanır" demo notunun API modu karşılığı. */
     accountNote: 'Hesap bilgileriniz sunucuda saklanır; parolanız asla düz metin olarak loglanmaz.',
+    /** İndirim kodu hataları (api/src/services/coupons.js). */
+    coupon_not_found: 'İndirim kodu geçersiz.',
+    coupon_inactive: 'Bu indirim kodu artık geçerli değil.',
+    coupon_not_started: 'Bu indirim kodu henüz geçerli değil.',
+    coupon_expired: 'Bu indirim kodunun süresi dolmuş.',
+    coupon_min_subtotal: 'Sepet tutarı bu indirim kodu için yetersiz.',
+    coupon_usage_limit: 'Bu indirim kodunun kullanım sınırı doldu.',
+    coupon_customer_limit: 'Bu indirim kodunu kullanım hakkınız doldu.',
+    zero_total: 'Tahsil edilecek tutar sıfır olduğundan çevrim içi ödeme başlatılamaz.',
+    price_changed: 'Fiyatlar güncellendi, lütfen yeniden onaylayın.',
   },
 }
 

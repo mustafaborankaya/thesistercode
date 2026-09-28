@@ -129,3 +129,30 @@
   font-size: var(--fs-xs);
   color: var(--color-ink-soft);
 }
+
+/* İndirim kodu (mevcut Field + küçük ikincil düğme; monokrom) */
+.coupon {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+
+.couponInput {
+  flex: 1;
+  min-width: 0;
+}
+
+.couponButton {
+  flex-shrink: 0;
+  min-height: var(--tap);
+}
+
+.couponApplied {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-2);
+  font-size: var(--fs-xs);
+}

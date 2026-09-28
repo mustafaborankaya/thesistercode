@@ -1,5 +1,8 @@
 /** Ürün SQL sorguları ve mağaza `Product` tipiyle aynı şekle dönüştürme. */
+import fsp from 'node:fs/promises'
+import path from 'node:path'
 import { pool } from '../db.js'
+import { env } from '../env.js'
 import { badRequest, conflict, notFound } from '../errors.js'
 import { getInventorySettings } from './settings.js'
 
@@ -121,6 +124,8 @@ function toProduct(row, related, ctx) {
     isNewManual: !!row.is_new,
     newBadge: newBadgeMode(row),
     createdAt: row.created_at ?? null,
+    // İyimser kilit için (PUT /admin/products/:id → expectedUpdatedAt): DB'deki ham değer aynen döner.
+    updatedAt: row.updated_at ?? null,
     price: Number(row.price),
     colors,
     sizes: SIZES,
@@ -191,11 +196,51 @@ async function assertProductExists(id) {
   return rows[0]
 }
 
+/**
+ * Kaldırılan ürün görselinin dosyasını siler — yalnızca URL, UPLOAD_PUBLIC_BASE altındaki düz bir dosya adıysa,
+ * çözümlenen yol UPLOAD_DIR içindeyse ve dosya başka hiçbir ürün görseli / marka görseli tarafından
+ * kullanılmıyorsa. Hata sessizce loglanır (satır zaten silindi).
+ */
+async function deleteUploadIfUnused(url) {
+  try {
+    const base = `${env.UPLOAD_PUBLIC_BASE.replace(/\/$/, '')}/`
+    if (typeof url !== 'string' || !url.startsWith(base)) return false
+    const filename = url.slice(base.length)
+    if (!/^[a-z0-9][a-z0-9-]*\.[a-z0-9]{2,5}$/.test(filename)) return false
+    const dir = path.resolve(env.UPLOAD_DIR)
+    const full = path.resolve(dir, filename)
+    if (path.dirname(full) !== dir) return false
+    const [[{ n }]] = await pool.query('SELECT COUNT(*) AS n FROM product_media WHERE url = ?', [url])
+    const [[{ b }]] = await pool.query('SELECT COUNT(*) AS b FROM brand_media WHERE url = ?', [url])
+    if (Number(n) > 0 || Number(b) > 0) return false
+    await fsp.unlink(full)
+    return true
+  } catch (err) {
+    if (err?.code !== 'ENOENT') console.error('[products] görsel dosyası silinemedi:', err?.message)
+    return false
+  }
+}
+
+function sameUpdatedAt(expected, row) {
+  if (expected === row.updated_at) return true
+  const t = Date.parse(expected)
+  return /T/.test(expected) && !Number.isNaN(t) && Math.floor(t / 1000) === Number(row.ts)
+}
+
 export async function updateProduct(id, patch) {
   await assertProductExists(id)
+  const removedMediaUrls = []
   const conn = await pool.getConnection()
   try {
     await conn.beginTransaction()
+
+    // İyimser kilit: istemci son gördüğü updatedAt'i gönderdiyse ve DB'deki farklıysa 409 (başka sekme/kullanıcı değiştirdi).
+    const [lockRows] = await conn.query('SELECT updated_at, UNIX_TIMESTAMP(updated_at) AS ts FROM products WHERE id = ? FOR UPDATE', [id])
+    if (patch.expectedUpdatedAt != null && lockRows[0] && !sameUpdatedAt(String(patch.expectedUpdatedAt), lockRows[0])) {
+      throw conflict('Ürün siz düzenlerken başka bir oturumda değiştirildi. Sayfayı yenileyip tekrar deneyin.', 'conflict', {
+        updatedAt: lockRows[0].updated_at,
+      })
+    }
 
     const fields = []
     const values = []
@@ -237,6 +282,12 @@ export async function updateProduct(id, patch) {
       // istemciler EN etiketlerini sessizce silerdi.
       const [prevRows] = await conn.query('SELECT color_id, label_en FROM product_colors WHERE product_id = ?', [id])
       const prevEn = new Map(prevRows.map((r) => [r.color_id, r.label_en]))
+      // Listeden çıkarılan renklerin stok satırları da silinir — aksi hâlde renk yeniden eklenince eski stok geri gelirdi.
+      const keepIds = patch.colors.map((c) => c.id)
+      const removedIds = prevRows.map((r) => r.color_id).filter((cid) => !keepIds.includes(cid))
+      if (removedIds.length) {
+        await conn.query(`DELETE FROM product_stock WHERE product_id = ? AND color_id IN (${removedIds.map(() => '?').join(', ')})`, [id, ...removedIds])
+      }
       await conn.query('DELETE FROM product_colors WHERE product_id = ?', [id])
       let i = 0
       for (const c of patch.colors) {
@@ -285,6 +336,15 @@ export async function updateProduct(id, patch) {
     if (patch.media && typeof patch.media === 'object') {
       for (const [kind, url] of Object.entries(patch.media)) {
         if (!MEDIA_KINDS.includes(kind)) continue
+        if (url === null) {
+          // Yuva boşaltılır: satır silinir; dosya commit SONRASI (kullanılmıyorsa) uploads'tan silinir.
+          const [old] = await conn.query('SELECT url FROM product_media WHERE product_id = ? AND kind = ? FOR UPDATE', [id, kind])
+          if (old[0]) {
+            await conn.query('DELETE FROM product_media WHERE product_id = ? AND kind = ?', [id, kind])
+            removedMediaUrls.push(old[0].url)
+          }
+          continue
+        }
         await conn.query(
           'INSERT INTO product_media (product_id, kind, url) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE url = VALUES(url)',
           [id, kind, url],
@@ -292,6 +352,9 @@ export async function updateProduct(id, patch) {
       }
     }
 
+    // Stok/renk/görsel değişiklikleri products satırına dokunmadığından updated_at elle ilerletilir
+    // (aynı saniyede iki kayıtta da değişsin diye en az +1 sn).
+    await conn.query('UPDATE products SET updated_at = GREATEST(NOW(), updated_at + INTERVAL 1 SECOND) WHERE id = ?', [id])
     await conn.commit()
   } catch (err) {
     await conn.rollback()
@@ -300,6 +363,7 @@ export async function updateProduct(id, patch) {
     conn.release()
   }
 
+  for (const url of removedMediaUrls) await deleteUploadIfUnused(url)
   return getProductById(id)
 }
 

@@ -70,6 +70,10 @@ const orderSchema = z.object({
     .max(100, 'Sepette en fazla 100 satır olabilir'),
   /** E-posta dili (mağazanın /en önekinden gelir); yoksa Türkçe. */
   locale: z.enum(['tr', 'en']).optional(),
+  /** İndirim kodu (isteğe bağlı; büyük/küçük harf duyarsız). Geçersizse 400/409 coupon_* hatası. */
+  couponCode: z.string().trim().max(40).optional().nullable(),
+  /** İstemcinin gösterdiği genel toplam; sunucu hesabından > 0,01 TL farklıysa 409 price_changed. */
+  expectedTotal: z.number().min(0).max(100_000_000).optional().nullable(),
 })
 
 router.post('/', orderCreateLimiter, optionalCustomer, async (req, res, next) => {

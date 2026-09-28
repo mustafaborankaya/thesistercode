@@ -1,6 +1,6 @@
 import type { CartLine, CartTotals } from '../../data/types'
 import { S } from '../../i18n'
-import { lineProduct, lineTotal } from '../../lib/cart'
+import { lineProduct, lineTotal, type SummaryTotals } from '../../lib/cart'
 import { CartSummary } from '../cart/CartSummary'
 import { MediaSlot } from '../ui/MediaSlot'
 import { Price } from '../ui/Price'
@@ -24,7 +24,8 @@ interface OrderSummaryProps {
   lines?: CartLine[]
   /** Sipariş sonucu sayfası için sunucu anlık görüntüsü — `lines` yerine kullanılır. */
   items?: OrderSummaryItem[]
-  totals: CartTotals
+  /** Sepet toplamları (kupon/ücretsiz kargo alanlarıyla) ya da sonuç sayfasında sunucu toplamları. */
+  totals: CartTotals | SummaryTotals
 }
 
 interface Row {
@@ -83,7 +84,8 @@ export function OrderSummary({ lines, items, totals }: OrderSummaryProps) {
           </li>
         ))}
       </ul>
-      <CartSummary totals={totals} showDiscountHint={false} />
+      {/* İndirim kodu alanı yalnızca ödeme formunda (sepet satırları); sipariş sonucu özetinde gösterilmez. */}
+      <CartSummary totals={totals} showDiscountHint={false} showCouponInput={!items} />
     </div>
   )
 }
