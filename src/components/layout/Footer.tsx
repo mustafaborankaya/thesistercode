@@ -101,6 +101,11 @@ export function Footer() {
         </div>
       </div>
 
+      <div className={styles.payment}>
+        <span className={styles.payLabel}>{S.footer.securePayment}</span>
+        <img src="/logos/iyzico-kart-bandi.svg" alt={S.checkout.securePaymentAlt} className={styles.payLogos} width={429} height={32} loading="lazy" />
+      </div>
+
       <div className={styles.bottom}>
         <span className={styles.copy}>
           {S.footer.copyright(year)}

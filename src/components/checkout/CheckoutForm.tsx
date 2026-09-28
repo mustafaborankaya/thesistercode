@@ -178,12 +178,24 @@ export function CheckoutForm({ values, errors, onChange }: CheckoutFormProps) {
             <span>{errors.paymentMethod}</span>
           </div>
         ) : null}
+        <div className={styles.paymentTrust}>
+          <img src="/logos/iyzico-kart-bandi.svg" alt={S.checkout.securePaymentAlt} className={styles.paymentLogos} width={429} height={32} loading="lazy" />
+          <p className={styles.paymentPending}>{S.checkout.securePaymentNote}</p>
+        </div>
         <Checkbox
           id="checkout-agree"
           label={
-            <Link to="/bilgi/alisveris-kosullari" className="link">
-              {S.checkout.agreementLabel}
-            </Link>
+            <span>
+              {S.checkout.agreementPrefix}
+              <Link to="/bilgi/on-bilgilendirme-formu" className="link">
+                {S.checkout.agreementForm}
+              </Link>
+              {S.checkout.agreementAnd}
+              <Link to="/bilgi/mesafeli-satis-sozlesmesi" className="link">
+                {S.checkout.agreementContract}
+              </Link>
+              {S.checkout.agreementSuffix}
+            </span>
           }
           checked={values.agree}
           error={errors.agree}

@@ -170,3 +170,31 @@
     align-items: flex-start;
   }
 }
+
+/* Güvenli ödeme logoları (iyzico ile Öde, Mastercard, Visa, Amex, Troy) */
+.payment {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3) var(--sp-5);
+  margin-top: var(--sp-8);
+}
+
+.payLabel {
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+
+.payLogos {
+  height: 22px;
+  width: auto;
+  max-width: 100%;
+}
+
+@media (max-width: 639px) {
+  .payLogos {
+    height: 18px;
+  }
+}

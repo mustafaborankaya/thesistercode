@@ -117,6 +117,17 @@ const infoDefsTr: { slug: string; title: string; labels: string[] }[] = [
   { slug: 'gizlilik', title: 'Gizlilik Politikası', labels: ['Gizlilik politikası metni', 'Kişisel verilerin korunması aydınlatma metni'] },
   { slug: 'cerez-politikasi', title: 'Çerez Politikası', labels: ['Çerez açıklama metni'] },
   { slug: 'alisveris-kosullari', title: 'Alışveriş Koşulları', labels: ['Mesafeli satış sözleşmesi metni', 'Kullanım koşulları metni'] },
+  // iyzico üye işyeri kriterleri: mesafeli satış sözleşmesi ve ön bilgilendirme formu ayrı sayfalar olarak yayında olmalı.
+  {
+    slug: 'mesafeli-satis-sozlesmesi',
+    title: 'Mesafeli Satış Sözleşmesi',
+    labels: ['Taraflar', 'Sözleşmenin konusu ve ürün bilgileri', 'Teslimat ve ödeme', 'Cayma hakkı', 'İade ve değişim prosedürü', 'Uyuşmazlıkların çözümü ve yürürlük'],
+  },
+  {
+    slug: 'on-bilgilendirme-formu',
+    title: 'Ön Bilgilendirme Formu',
+    labels: ['Satıcı bilgileri', 'Ürün, fiyat ve teslimat bilgileri', 'Cayma hakkı ve iade', 'Şikâyet ve uyuşmazlık başvuruları'],
+  },
 ]
 
 /** `/en` sitesi için aynı sayfa/bölüm başlıkları (slug'lar ve sıra birebir aynı). */
@@ -129,6 +140,14 @@ const infoDefsEn: Record<string, { title: string; labels: string[] }> = {
   gizlilik: { title: 'Privacy Policy', labels: ['Privacy policy', 'Personal data protection notice'] },
   'cerez-politikasi': { title: 'Cookie Policy', labels: ['About cookies'] },
   'alisveris-kosullari': { title: 'Terms of Sale', labels: ['Distance sales contract', 'Terms of use'] },
+  'mesafeli-satis-sozlesmesi': {
+    title: 'Distance Sales Contract',
+    labels: ['Parties', 'Subject of the contract and product details', 'Delivery and payment', 'Right of withdrawal', 'Returns and exchanges procedure', 'Disputes and entry into force'],
+  },
+  'on-bilgilendirme-formu': {
+    title: 'Pre-Information Form',
+    labels: ['Seller details', 'Product, price and delivery details', 'Right of withdrawal and returns', 'Complaints and disputes'],
+  },
 }
 
 const infoDefs = isEn ? infoDefsTr.map((d) => ({ ...d, ...(infoDefsEn[d.slug] ?? {}) })) : infoDefsTr
@@ -201,6 +220,8 @@ export const footerGroups: FooterGroup[] = [
       { label: tl('Çerez Politikası', 'Cookie Policy'), to: '/bilgi/cerez-politikasi' },
       { label: tl('Çerez Tercihleri', 'Cookie Preferences'), action: 'cookie-preferences' },
       { label: tl('Alışveriş Koşulları', 'Terms of Sale'), to: '/bilgi/alisveris-kosullari' },
+      { label: tl('Mesafeli Satış Sözleşmesi', 'Distance Sales Contract'), to: '/bilgi/mesafeli-satis-sozlesmesi' },
+      { label: tl('Ön Bilgilendirme Formu', 'Pre-Information Form'), to: '/bilgi/on-bilgilendirme-formu' },
     ],
   },
 ]

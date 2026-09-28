@@ -161,3 +161,22 @@
   font-size: var(--fs-sm);
   white-space: nowrap;
 }
+
+/* Güvenli ödeme logoları (iyzico üye işyeri kriteri) */
+.paymentTrust {
+  display: grid;
+  gap: var(--sp-2);
+  margin: var(--sp-4) 0;
+}
+
+.paymentLogos {
+  height: 22px;
+  width: auto;
+  max-width: 100%;
+}
+
+@media (max-width: 639px) {
+  .paymentLogos {
+    height: 18px;
+  }
+}

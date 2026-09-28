@@ -155,6 +155,8 @@ const CONTENT_FIELD_KEYS = [
   'info.cerez-politikasi.0',
   'info.alisveris-kosullari.0',
   'info.alisveris-kosullari.1',
+  'info.mesafeli-satis-sozlesmesi.0', 'info.mesafeli-satis-sozlesmesi.1', 'info.mesafeli-satis-sozlesmesi.2', 'info.mesafeli-satis-sozlesmesi.3', 'info.mesafeli-satis-sozlesmesi.4', 'info.mesafeli-satis-sozlesmesi.5',
+  'info.on-bilgilendirme-formu.0', 'info.on-bilgilendirme-formu.1', 'info.on-bilgilendirme-formu.2', 'info.on-bilgilendirme-formu.3',
 ]
 
 async function seedContentFields() {
