@@ -214,6 +214,7 @@ export const tr = {
     agreementSuffix: ' okudum, kabul ediyorum.',
     agreementRequired: 'Devam etmek için Ön Bilgilendirme Formu, Mesafeli Satış Sözleşmesi ve Teslimat ve İade Politikası\'nı kabul etmelisiniz.',
     openInNewTab: 'Yeni sekmede aç',
+    sellerLabel: 'Satıcı',
     securePaymentNote: 'Ödemeler iyzico güvenli ödeme altyapısı ve 3D Secure ile alınır; kart bilgileriniz sitemizde saklanmaz.',
     securePaymentAlt: 'iyzico ile Öde — Mastercard, Visa, American Express, Troy',
     placeOrder: 'Siparişi Tamamla (Demo)',

@@ -198,3 +198,12 @@
     height: 18px;
   }
 }
+
+/* Yasal kimlik satırı (unvan, adres, vergi/MERSİS) */
+.legal {
+  margin: var(--sp-4) 0 0;
+  font-size: var(--fs-2xs);
+  line-height: 1.6;
+  color: var(--color-ink-faint);
+  max-width: 90ch;
+}

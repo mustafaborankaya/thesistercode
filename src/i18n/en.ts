@@ -214,6 +214,7 @@ export const en: Strings = {
     agreementSuffix: '.',
     agreementRequired: 'You must accept the Pre-Information Form, the Distance Sales Contract and the Delivery and Returns Policy to continue.',
     openInNewTab: 'Open in a new tab',
+    sellerLabel: 'Seller',
     securePaymentNote: 'Payments are collected through the iyzico secure payment infrastructure with 3D Secure; your card details are never stored on our site.',
     securePaymentAlt: 'Pay with iyzico — Mastercard, Visa, American Express, Troy',
     placeOrder: 'Place order (demo)',

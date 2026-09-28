@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { siteSettings } from '../../config/settings'
-import { footerGroups, type FooterLink } from '../../data/content'
+import { brandContent, footerGroups, type FooterLink } from '../../data/content'
 import { useIsDesktop, useReducedMotion } from '../../hooks/useMediaQuery'
 import { S, locale, pathForLocale } from '../../i18n'
 import { usePanels } from '../../state/PanelContext'
@@ -105,6 +105,12 @@ export function Footer() {
         <span className={styles.payLabel}>{S.footer.securePayment}</span>
         <img src="/logos/iyzico-kart-bandi.svg" alt={S.checkout.securePaymentAlt} className={styles.payLogos} width={429} height={32} loading="lazy" />
       </div>
+
+      {brandContent.companyName.value ? (
+        <p className={styles.legal}>
+          {[brandContent.companyName.value, brandContent.address.value, brandContent.registry.value].filter(Boolean).join(' · ')}
+        </p>
+      ) : null}
 
       <div className={styles.bottom}>
         <span className={styles.copy}>

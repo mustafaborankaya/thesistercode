@@ -10,6 +10,7 @@ import { LegalDialog, type LegalSlug } from './LegalDialog'
 import { useAccount } from '../../state/AccountContext'
 import { siteSettings } from '../../config/settings'
 import { onlinePaymentEnabled } from '../../services/ordersApi'
+import { brandContent } from '../../data/content'
 
 interface CheckoutFormProps {
   values: CheckoutFormValues
@@ -183,6 +184,11 @@ export function CheckoutForm({ values, errors, onChange }: CheckoutFormProps) {
         <div className={styles.paymentTrust}>
           <img src="/logos/iyzico-kart-bandi.svg" alt={S.checkout.securePaymentAlt} className={styles.paymentLogos} width={429} height={32} loading="lazy" />
           <p className={styles.paymentPending}>{S.checkout.securePaymentNote}</p>
+          {brandContent.companyName.value ? (
+            <p className={styles.paymentPending}>
+              {S.checkout.sellerLabel}: {[brandContent.companyName.value, brandContent.address.value, brandContent.registry.value].filter(Boolean).join(' · ')}
+            </p>
+          ) : null}
         </div>
         <Checkbox
           id="checkout-agree"

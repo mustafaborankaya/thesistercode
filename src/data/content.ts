@@ -60,12 +60,12 @@ export const brandContent = {
   /** Arama panelindeki "Popüler aramalar" listesi (virgülle ayrılır); boşsa S.search.popularDefault. */
   popularSearches: field(tl('Popüler aramalar (virgülle ayır)', 'Popular searches (comma separated)'), ov(b.popularSearches, 'brand.popularSearches')),
   // companyName/address/phone/email: gerçek işletme bilgisi gerektirir, contentTexts.ts'te tanımlı değildir — API ya da panel override'ı ile dolar.
-  companyName: field(tl('Şirket unvanı alanı', 'Company name field'), ov(b.companyName, 'brand.companyName')),
-  address: field(tl('Şirket adresi alanı', 'Company address field'), ov(b.address, 'brand.address')),
-  phone: field(tl('Telefon numarası alanı', 'Phone number field'), ov(b.phone, 'brand.phone')),
-  email: field(tl('E-posta adresi alanı', 'E-mail address field'), ov(b.email, 'brand.email')),
+  companyName: field(tl('Şirket unvanı', 'Company name'), ov(b.companyName, 'brand.companyName')),
+  address: field(tl('Adres', 'Address'), ov(b.address, 'brand.address')),
+  phone: field(tl('Telefon', 'Phone'), ov(b.phone, 'brand.phone')),
+  email: field(tl('E-posta', 'E-mail'), ov(b.email, 'brand.email')),
   registry: field(tl('Vergi ve MERSİS numarası', 'Tax and MERSIS numbers'), ov(b.registry, 'brand.registry')),
-  workingHours: field(tl('Çalışma saatleri alanı', 'Business hours field'), ov(b.workingHours, 'brand.workingHours')),
+  workingHours: field(tl('Çalışma saatleri', 'Business hours'), ov(b.workingHours, 'brand.workingHours')),
 }
 
 const p = overrides.production ?? {}

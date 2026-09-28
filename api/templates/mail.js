@@ -8,7 +8,8 @@ function esc(s) {
 }
 
 function layout(title, bodyHtml, locale) {
-  const footer = locale === 'en' ? 'This message was sent automatically by teshvikiye.com.' : 'Bu ileti teshvikiye.com tarafından otomatik gönderilmiştir.'
+  const company = 'Biçeroğlu Tekstil Konfeksiyon Sanayi Dış Ticaret Limited Şirketi (TESHVIKIYE) · Çağlayan Mahallesi Cihanşah Sokak No:15 K:4 Kağıthane / İstanbul · Vergi No: 1691101908 · MERSİS No: 0169110190800001 · info@teshvikiye.com'
+  const footer = locale === 'en' ? `This message was sent automatically by teshvikiye.com. ${company}` : `Bu ileti teshvikiye.com tarafından otomatik gönderilmiştir. ${company}`
   return `<!doctype html><html lang="${locale}"><body style="margin:0;padding:32px;background:#fff;color:#000;font-family:Gill Sans,Arial,sans-serif;font-size:15px;line-height:1.5">
 <div style="max-width:560px;margin:0 auto">
 <p style="letter-spacing:.3em;text-transform:uppercase;font-size:12px;margin:0 0 24px">Teshvikiye</p>
