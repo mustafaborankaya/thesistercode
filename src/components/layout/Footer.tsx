@@ -125,7 +125,7 @@ export function Footer() {
           <Link to="/bilgi/gizlilik" className={styles.bottomLink}>
             {S.footer.privacy}
           </Link>
-          <Link to="/bilgi/alisveris-kosullari" className={styles.bottomLink}>
+          <Link to="/bilgi/mesafeli-satis-sozlesmesi" className={styles.bottomLink}>
             {S.footer.terms}
           </Link>
           <FooterLinkItem link={{ label: S.cookie.title, action: 'cookie-preferences' }} />

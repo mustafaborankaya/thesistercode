@@ -417,7 +417,7 @@ export const tr = {
     backToTop: 'Yukarı dön',
     privacy: 'Gizlilik',
     securePayment: 'Güvenli ödeme',
-    terms: 'Alışveriş Koşulları',
+    terms: 'Mesafeli Satış Sözleşmesi',
     groupToggle: (title: string) => `${title} grubunu aç/kapat`,
   },
 

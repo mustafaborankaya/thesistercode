@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom'
+import { useParams, Navigate } from 'react-router-dom'
 import { FaqPage } from '../components/info/FaqPage'
 import { ContentText } from '../components/ui/ContentText'
 import { infoPageBySlug } from '../data/content'
@@ -8,6 +8,8 @@ import styles from './Page.module.css'
 /** Bilgi sayfaları: içerik kesinleşene kadar her bölüm alan adıyla gösterilir. */
 export function InfoPage() {
   const { slug } = useParams()
+  // Eski "Alışveriş Koşulları" adresi: içerik Mesafeli Satış Sözleşmesi'ne taşındı.
+  if (slug === 'alisveris-kosullari') return <Navigate to="/bilgi/mesafeli-satis-sozlesmesi" replace />
   const page = slug ? infoPageBySlug[slug] : undefined
   if (!page) return <NotFoundPage />
   if (page.slug === 'sss') return <FaqPage page={page} />

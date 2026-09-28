@@ -117,7 +117,6 @@ const infoDefsTr: { slug: string; title: string; labels: string[] }[] = [
   { slug: 'sss', title: 'Sıkça Sorulan Sorular', labels: ['Sipariş soruları', 'Teslimat soruları', 'İade soruları', 'Üyelik soruları'] },
   { slug: 'gizlilik', title: 'Gizlilik Politikası', labels: ['Gizlilik politikası metni', 'Kişisel verilerin korunması aydınlatma metni'] },
   { slug: 'cerez-politikasi', title: 'Çerez Politikası', labels: ['Çerez açıklama metni'] },
-  { slug: 'alisveris-kosullari', title: 'Alışveriş Koşulları', labels: ['Mesafeli satış sözleşmesi metni', 'Kullanım koşulları metni'] },
   // iyzico üye işyeri kriterleri: mesafeli satış sözleşmesi ve ön bilgilendirme formu ayrı sayfalar olarak yayında olmalı.
   {
     slug: 'mesafeli-satis-sozlesmesi',
@@ -141,7 +140,6 @@ const infoDefsEn: Record<string, { title: string; labels: string[] }> = {
   sss: { title: 'Frequently Asked Questions', labels: ['Orders', 'Delivery', 'Returns', 'Membership'] },
   gizlilik: { title: 'Privacy Policy', labels: ['Privacy policy', 'Personal data protection notice'] },
   'cerez-politikasi': { title: 'Cookie Policy', labels: ['About cookies'] },
-  'alisveris-kosullari': { title: 'Terms of Sale', labels: ['Distance sales contract', 'Terms of use'] },
   'mesafeli-satis-sozlesmesi': {
     title: 'Distance Sales Contract',
     labels: ['Contract text'],
@@ -221,7 +219,6 @@ export const footerGroups: FooterGroup[] = [
       { label: tl('Gizlilik Politikası', 'Privacy Policy'), to: '/bilgi/gizlilik' },
       { label: tl('Çerez Politikası', 'Cookie Policy'), to: '/bilgi/cerez-politikasi' },
       { label: tl('Çerez Tercihleri', 'Cookie Preferences'), action: 'cookie-preferences' },
-      { label: tl('Alışveriş Koşulları', 'Terms of Sale'), to: '/bilgi/alisveris-kosullari' },
       { label: tl('Mesafeli Satış Sözleşmesi', 'Distance Sales Contract'), to: '/bilgi/mesafeli-satis-sozlesmesi' },
       { label: tl('Ön Bilgilendirme Formu', 'Pre-Information Form'), to: '/bilgi/on-bilgilendirme-formu' },
     ],

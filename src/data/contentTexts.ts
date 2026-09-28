@@ -185,10 +185,6 @@ export const infoSectionTexts: Record<string, string[]> = {
     ].join('\n'),
   ],
 
-  'alisveris-kosullari': [
-    'Bu metin, Biçeroğlu Tekstil Konfeksiyon Sanayi Dış Ticaret Limited Şirketi ("Satıcı") ile sitemiz üzerinden alışveriş yapan müşteri ("Alıcı") arasında kurulan mesafeli satış sözleşmesinin genel esaslarını özetler. Sözleşmenin konusunu, Alıcı\'nın sitemiz üzerinden elektronik ortamda sipariş verdiği ürünün satışı ve teslimi oluşturur. Alıcı, 14 gün içinde herhangi bir gerekçe göstermeksizin cayma hakkını kullanabilir; cayma hakkına ilişkin ayrıntılar İade ve Değişim sayfamızda yer alır. Sözleşmenin uygulanmasından doğabilecek uyuşmazlıklarda, değeri Ticaret Bakanlığınca ilan edilen parasal sınırlar dahilinde Tüketici Hakem Heyetleri, bu sınırların üzerindeki uyuşmazlıklarda ise Tüketici Mahkemeleri yetkilidir.',
-    "Bu siteyi kullanarak aşağıdaki koşulları kabul etmiş sayılırsınız. Sitedeki ürün görselleri, açıklamaları ve fiyat bilgileri tanıtım amaçlıdır; olası yazım ve sistem hatalarından doğabilecek farklılıklar için sitedeki güncel bilgiler esas alınır. Hesabınızla gerçekleştirdiğiniz tüm işlemlerden ve hesap bilgilerinizin gizliliğinin korunmasından siz sorumlusunuz. Site içeriğinin (metin, görsel, tasarım) izinsiz kopyalanması veya çoğaltılması yasaktır.",
-  ],
 }
 
 /* ======================================================================================
@@ -369,8 +365,4 @@ export const infoSectionTextsEn: Record<string, string[]> = {
     ].join('\n'),
   ],
 
-  'alisveris-kosullari': [
-    'This text summarises the general principles of the distance sales contract concluded between Biçeroğlu Tekstil Konfeksiyon Sanayi Dış Ticaret Limited Şirketi ("Seller") and the customer shopping on our site ("Buyer"). The subject of the contract is the sale and delivery of the product the Buyer orders electronically through our site. The Buyer may exercise the right of withdrawal within 14 days without giving any reason; details of the right of withdrawal can be found on our Returns & Exchanges page. Disputes arising from the performance of the contract fall under the jurisdiction of the Consumer Arbitration Committees within the monetary limits announced by the Turkish Ministry of Trade, and of the Consumer Courts for disputes above those limits.',
-    'By using this site, you are deemed to have accepted the following terms. Product images, descriptions and prices on the site are provided for promotional purposes; in the event of any discrepancies caused by typing or system errors, the current information on the site prevails. You are responsible for all transactions carried out with your account and for keeping your account details confidential. Copying or reproducing the site content (text, images, design) without permission is prohibited.',
-  ],
 }

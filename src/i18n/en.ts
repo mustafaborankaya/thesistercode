@@ -417,7 +417,7 @@ export const en: Strings = {
     backToTop: 'Back to top',
     privacy: 'Privacy',
     securePayment: 'Secure payment',
-    terms: 'Terms of Sale',
+    terms: 'Distance Sales Contract',
     groupToggle: (title: string) => `Toggle ${title} group`,
   },
 
