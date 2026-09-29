@@ -107,3 +107,5 @@ Bu klasördeki fotoğraflar **geçici mock** içeriktir; Unsplash License kapsam
 | `uretim-kesim.jpg` | Behnam Norouzi | https://unsplash.com/@behy_studio | https://unsplash.com/photos/a-pair-of-scissors-on-a-table-5aQDudtFEHo |
 | `uretim-dikim.jpg` | Paulo Pescada | https://unsplash.com/@paulo_pescada | https://unsplash.com/photos/a-red-dress-hanging-on-a-rack-with-spools-of-thread-krKax_qLX2A |
 | `uretim-kalite.jpg` | Darling Arias | https://unsplash.com/@darlingarias | https://unsplash.com/photos/threads-with-spools-beside-scissors-tX62O5F3AfU |
+
+| `logo.png` | Teshvikiye marka logosu (kullanıcı tarafından sağlandı, 05_gorsel2_logo11) | — | — |
