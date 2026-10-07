@@ -28,7 +28,7 @@ interface AccountContextValue {
   discountEligible: boolean
   discountUsed: boolean
   register: (input: { name: string; email: string; password: string }) => Promise<AuthResult>
-  login: (input: { email: string; password: string }) => Promise<AuthResult>
+  login: (input: { email: string; password: string; remember?: boolean }) => Promise<AuthResult>
   logout: () => void
   /**
    * Hesap bilgisini (özellikle indirim hakkını) tazeler. API modunda `GET /account/me` yeniden okunur;
@@ -89,7 +89,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = useCallback(
-    async (input: { email: string; password: string }) => {
+    async (input: { email: string; password: string; remember?: boolean }) => {
       if (isApiMode()) {
         const result = await authProvider.login({ ...input, knownAccount: true })
         if (result.ok) {

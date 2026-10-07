@@ -6,6 +6,7 @@ import { isAdminSession } from './adminStore'
 import { isOwner, verifyAdminSession } from './adminAuth'
 import { useApiMode } from './adminApi'
 import { AS } from './adminStrings'
+import { AnalyticsPage } from './pages/AnalyticsPage'
 import { ContentPage } from './pages/ContentPage'
 import { CouponsPage } from './pages/CouponsPage'
 import { CustomersPage } from './pages/CustomersPage'
@@ -83,6 +84,7 @@ export function AdminApp() {
         <Route path="giris" element={<RedirectAfterLogin />} />
         <Route element={<AdminLayout onLogout={() => setSession('out')} />}>
           <Route index element={<Dashboard />} />
+          <Route path="analitik" element={<AnalyticsPage />} />
           <Route path="siparisler" element={<OrdersPage />} />
           <Route path="kuponlar" element={<CouponsPage />} />
           <Route path="musteriler" element={<CustomersPage />} />

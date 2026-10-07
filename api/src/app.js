@@ -29,6 +29,8 @@ import couponsRoutes from './routes/coupons.js'
 import adminCouponsRoutes from './routes/admin-coupons.js'
 import adminCustomersRoutes from './routes/admin-customers.js'
 import adminStatsRoutes from './routes/admin-stats.js'
+import eventsRoutes from './routes/events.js'
+import adminAnalyticsRoutes from './routes/admin-analytics.js'
 import paymentsRoutes, { callbackRouter as paymentCallbackRouter } from './routes/payments.js'
 
 const PKG_VERSION = '1.0.0'
@@ -92,9 +94,11 @@ export function createApp() {
   router.use('/orders', ordersRoutes)
   router.use('/payments', paymentsRoutes)
   router.use('/coupons', couponsRoutes)
+  router.use('/events', eventsRoutes) // analitik olay toplama (public)
   router.use('/admin/coupons', adminCouponsRoutes)
   router.use('/admin/customers', adminCustomersRoutes)
   router.use('/admin/stats', adminStatsRoutes)
+  router.use('/admin/analytics', adminAnalyticsRoutes)
   router.use('/admin/products', adminProductsRoutes)
   router.use('/admin/orders', adminOrdersRoutes)
   router.use('/admin/inventory', adminInventoryRoutes)

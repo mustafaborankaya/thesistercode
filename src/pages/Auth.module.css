@@ -43,3 +43,18 @@
 .accordionGroup {
   margin-bottom: var(--sp-8);
 }
+
+/* Giriş: "Beni hatırla" ile "Parolamı unuttum" aynı satırda; dar ekranda alt alta sarar. */
+.rememberRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2) var(--sp-4);
+}
+
+.rememberHint {
+  font-size: var(--fs-xs);
+  color: var(--color-ink-soft);
+  line-height: 1.5;
+}

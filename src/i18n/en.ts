@@ -285,6 +285,8 @@ export const en: Strings = {
     name: 'Full name',
     email: 'Email',
     password: 'Password',
+    rememberMe: 'Remember me',
+    rememberMeHint: 'Stay signed in on this device for 30 days.',
     showPassword: 'Show password',
     hidePassword: 'Hide password',
     passwordHint: 'At least 8 characters.',
@@ -392,7 +394,8 @@ export const en: Strings = {
     demoText: 'On this demo site, necessary cookies keep your session and cart. Analytics and marketing cookies are only used with your consent.',
     policyPending: 'Full cookie policy text coming soon.',
     necessaryDemo: 'Required to keep your session, cart and cookie preference; cannot be turned off.',
-    analyticsDemo: 'Used to measure site usage anonymously; only runs with your consent.',
+    analyticsDemo:
+      'We measure which pages and products are viewed, searches and cart activity on our own server only, without sharing it with third parties. The visitor ID is a random identifier stored only with your consent; without it, visits are counted without any identifier. IP addresses are not stored.',
     marketingDemo: 'Used for personalised campaign communications; only runs with your consent.',
   },
 

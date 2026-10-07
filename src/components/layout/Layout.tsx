@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Outlet, useLocation, useNavigationType } from 'react-router-dom'
 import { brandMedia } from '../../data/media'
 import { S } from '../../i18n'
+import { trackPageView } from '../../services/analytics'
 import { usePanels } from '../../state/PanelContext'
 import { CartDrawer } from '../cart/CartDrawer'
 import { CookieBanner } from '../panels/CookieBanner'
@@ -14,16 +15,25 @@ import { Header, type HeaderMode } from './Header'
 import { MobileMenu } from './MobileMenu'
 import styles from './Layout.module.css'
 
-/** Rota değişiminde: panelleri kapat, PUSH gezinmede yukarı kaydır, hash varsa hedefe git. */
+/** Rota değişiminde: panelleri kapat, sayfa görüntülemesini ölç, PUSH gezinmede yukarı kaydır, hash varsa hedefe git. */
 function RouteEffects() {
   const location = useLocation()
   const navType = useNavigationType()
   const { closePanel } = usePanels()
   const prevPath = useRef(location.pathname)
+  // StrictMode'da efekt iki kez çalışır; aynı yol+sorgu için tek page_view gönderilir.
+  const lastTracked = useRef<string | null>(null)
 
   useEffect(() => {
     closePanel()
   }, [location.pathname, location.search, closePanel])
+
+  useEffect(() => {
+    const key = location.pathname + location.search
+    if (lastTracked.current === key) return
+    lastTracked.current = key
+    trackPageView(location.pathname)
+  }, [location.pathname, location.search])
 
   useEffect(() => {
     if (location.hash) {

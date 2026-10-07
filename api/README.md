@@ -127,6 +127,40 @@ Tüm hatalar `{ error: { code, message } }` biçiminde, mesajlar Türkçedir.
 - `GET /admin/inventory` — stok özeti (bkz. "Stok takibi")
 - `GET/POST /admin/coupons`, `PUT/DELETE /admin/coupons/:id` (bkz. "Kuponlar")
 - `GET /admin/customers`, `GET/PATCH /admin/customers/:id`, `GET /admin/stats` (bkz. "Müşteriler ve istatistik")
+- `GET /admin/analytics?range=7d|30d|90d|12m` (bkz. "Analitik")
+
+## Analitik
+
+Birinci taraf, çerez onayına saygılı olay toplama. Migration `010_analytics.sql` (`analytics_events`),
+servis `src/services/analytics.js`, rotalar `src/routes/events.js` ve `src/routes/admin-analytics.js`.
+
+- **`POST /events`** (herkese açık; `originCheck`'ten geçer, auth yok): gövde `{ events: [ … ] }`, tek istekte en
+  fazla 20 olay. Olay türleri: `page_view | product_view | add_to_cart | search | checkout_start | order_complete |
+  consent | favorite_add`; alanlar `path` (`/` ile başlar, sorgu/hash yok, ≤255), `locale`, `vid`/`sid` (32 hex ya da
+  null), `entry`, `ref`, `utm{source,medium,campaign}`, `vw`, `productId`, `query` (≤120), `value` (0..9.999.999),
+  `meta` (düz JSON nesnesi, ≤1 KB). Yanıt her zaman **204**; yalnızca geçersiz gövde **400 `validation_error`**.
+  Bot UA'ları (`bot|crawler|spider|headless|lighthouse|curl|wget|python-requests`) sessizce 204 ile atlanır.
+  Hız sınırı **120 istek / dk / IP**.
+- **Gizlilik:** IP adresi ve ham User-Agent **saklanmaz** — UA'dan yalnızca cihaz sınıfı (`desktop|mobile|tablet|other`),
+  tarayıcı ve işletim sistemi adı türetilir (`parseUserAgent`; UA belirsizse `vw` yedek). Ziyaretçi/oturum kimlikleri
+  (`vid`/`sid`) yalnızca mağazada analitik çerez onayı varsa gelir, onaysız ziyaretçi NULL ile sayılır (sayfa
+  görüntüleme/ziyaret yine sayılır, ziyaretçi/oturum sayılmaz). `is_member` yalnızca "müşteri çerezi geçerli mi"
+  bayrağıdır; müşteri kimliği olaya yazılmaz. Kendi alan adımızdan gelen `ref` (CORS_ORIGIN/SITE_URL host'ları) NULL
+  (doğrudan ziyaret) sayılır; `www.` öneki atılır.
+- **Saklama süresi:** ayar `analytics.retentionDays` (yalnızca `GET/PUT /admin/settings`; varsayılan 400, en az 30).
+  Ingest her ~200 istekte bir süresi dolan satırlardan en fazla 5000'ini siler (`maybePrune`).
+- **`GET /admin/analytics?range=7d|30d|90d|12m`** (`requireAdmin`; varsayılan `30d`, geçersiz → 400): `AnalyticsOverview`
+  — `tracking` (ilk olay, olay sayısı, onaylı pay, saklama günü), `kpis` (pageviews, visits, visitors, sessions, orders,
+  revenue, conversion, aov; her biri `{ value, previous }`, önceki dönem yoksa `previous: null`), günlük `series` (boş
+  günler 0), `hours`/`weekdays`/`heatmap` (page_view), `devices`/`browsers`/`os`/`locales`, `referrers`, `campaigns`,
+  `pages`, `products` (ad `products` tablosundan; satış `order_items`), `searches`, `funnel` (onaylı oturum varsa
+  `basis:'sessions'`, yoksa `'events'`), `consent`, `sales` (durum/kupon/şehir/saat/dil), `customers`. Sipariş metrikleri
+  `status IN ('new','paid','shipped')` ile sayılır; `sales.byStatus` demo hariç tüm durumları içerir. Gün/saat kovaları
+  İstanbul (UTC+3) takvimine göredir; aralık sınırları `istanbulDayStartEpoch` ile epoch olarak hesaplanır, kovalar
+  `UNIX_TIMESTAMP` üzerinden türetilir (DB oturum saat diliminden bağımsız). Yanıt ~25 parametreli sorguyla üretilir.
+- **"Beni hatırla"**: `POST /account/login` gövdesine `remember: true` eklenirse müşteri çerezi 30 gün kalıcı
+  (`Max-Age=2592000`) ve JWT 30 gün; verilmezse **oturum çerezi** (Max-Age/Expires yok) + 24 saatlik JWT.
+  `POST /account/register` her zaman 30 gün kalıcı oturum açar.
 
 ## Stok takibi
 

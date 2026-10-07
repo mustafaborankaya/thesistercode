@@ -1,0 +1,140 @@
+/* Analitik sayfası — bölüm içi yerleşimler. Grafik bileşen stilleri: ui/charts/charts.module.css. */
+
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 28px;
+}
+
+.grid3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px 28px;
+}
+
+.grid21 {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 20px 28px;
+}
+
+.block {
+  min-width: 0;
+}
+
+.blockTitle {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 8px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.blockMeta {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--a-ink-faint);
+}
+
+.blockDesc {
+  font-size: 12px;
+  color: var(--a-ink-soft);
+  margin: -4px 0 8px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Yeniden yüklenirken önceki çizim yarı saydam tutulur (iskelet yok, düzen zıplamaz). */
+.stale {
+  opacity: 0.55;
+  transition: opacity var(--dur) var(--ease);
+  pointer-events: none;
+}
+
+.miniKpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+  gap: 8px;
+}
+
+.miniKpi {
+  padding: 10px 12px;
+  border: 1px solid var(--a-line);
+  border-radius: var(--a-radius);
+  min-width: 0;
+}
+
+.miniKpiLabel {
+  display: block;
+  font-size: 12px;
+  color: var(--a-ink-soft);
+  line-height: 1.3;
+}
+
+.miniKpiValue {
+  display: block;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+
+.miniKpiSub {
+  display: block;
+  font-size: 11px;
+  color: var(--a-ink-faint);
+}
+
+.footer {
+  font-size: 12px;
+  color: var(--a-ink-faint);
+  margin: 4px 0 8px;
+}
+
+.skeletonCard {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 1023px) {
+  .grid3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .grid21 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 719px) {
+  .grid2,
+  .grid3 {
+    grid-template-columns: 1fr;
+  }
+  .kpiGrid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+}
+
+/* Dar telefon: para değerleri ("139.372,79 TL") iki sütunda kırılıyor → tek sütun. */
+@media (max-width: 479px) {
+  .kpiGrid {
+    grid-template-columns: 1fr;
+  }
+}

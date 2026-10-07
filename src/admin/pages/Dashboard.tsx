@@ -3,13 +3,14 @@ import { allProducts } from '../../data/catalog'
 import { missingBrandMedia } from '../../data/media'
 import { apiErrorMessage } from '../../i18n/apiMessages'
 import { listDemoOrders } from '../../services/checkout'
-import { getAdminInventory, getAdminStats, isUnavailable, queryAdminOrders, useApiMode, type AdminInventory, type AdminStats, type ApiOrder } from '../adminApi'
+import { getAdminAnalytics, getAdminInventory, getAdminStats, isUnavailable, queryAdminOrders, useApiMode, type AdminInventory, type AdminStats, type AnalyticsOverview, type ApiOrder } from '../adminApi'
 import { currentAdmin } from '../adminAuth'
 import { readAdminData } from '../adminStore'
 import { AS } from '../adminStrings'
 import { localInventoryConfig, summarizeInventory } from '../inventory'
 import { AdminIcon } from '../ui/AdminIcon'
 import { Btn } from '../ui/Button'
+import { fmtInt } from '../ui/charts'
 import { DataTable, type Column } from '../ui/DataTable'
 import { FormSection } from '../ui/FormSection'
 import { KpiCard } from '../ui/KpiCard'
@@ -103,6 +104,8 @@ export function Dashboard() {
   const dash = useLoader<DashData>(() =>
     useApiMode ? loadApiDashboard(getAdminInventory().catch(() => null)) : Promise.resolve(loadLocalDashboard()),
   )
+  // Son 7 günün ziyaret özeti (analitik uç noktası yoksa/hata verirse kart gizlenir).
+  const traffic = useLoader<AnalyticsOverview | null>(() => (useApiMode ? getAdminAnalytics('7d').catch(() => null) : Promise.resolve(null)))
   const stats = dash.data?.stats
   const loading = !dash.data && !dash.error
   const threshold = inventory.data?.threshold ?? localInventoryConfig().lowStockThreshold
@@ -180,6 +183,15 @@ export function Dashboard() {
           to="/admin/urunler?stok=low"
           loading={loading}
         />
+        {traffic.data ? (
+          <KpiCard
+            label={AS.dashboard.visits7d}
+            icon="chart"
+            value={fmtInt(traffic.data.kpis.visits.value)}
+            sub={AS.dashboard.visits7dSub(traffic.data.kpis.pageviews.value)}
+            to="/admin/analitik?aralik=7d"
+          />
+        ) : null}
       </div>
       {dash.data?.computed ? <p className={[ui.hint].join(' ')} style={{ margin: '-4px 0 16px' }}>{useApiMode ? AS.dashboard.computedNote : AS.dashboard.demoOrdersNote}</p> : null}
 

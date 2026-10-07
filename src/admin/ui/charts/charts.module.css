@@ -1,0 +1,574 @@
+/*
+ * Analitik grafikleri — saf inline SVG + React. Renkler panelin mürekkep tonlarından türer; tek vurgu
+ * (--c-accent) yalnızca etkin/hover işaretinde ve eğilim grafiğinin son noktasında kullanılır.
+ * Durum renkleri (başarı/uyarı/hata) grafiklerde seri rengi olarak KULLANILMAZ.
+ */
+
+.root {
+  --c-accent: #2f6fd0;
+  --c-ink-1: var(--a-ink);
+  --c-ink-2: var(--a-ink-soft);
+  --c-ink-3: var(--a-ink-faint);
+  --c-ink-4: #b5b5b0;
+  --c-ink-5: #d6d6d2;
+  --c-ink-6: #ebebe8;
+  --c-grid: var(--a-line);
+  --c-axis: var(--a-line-strong);
+  --c-track: var(--a-neutral-bg);
+  --c-surface: var(--a-card);
+  --c-label: var(--a-ink-soft);
+  --c-label-faint: var(--a-ink-faint);
+
+  position: relative;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--a-ink);
+}
+
+.focusable {
+  outline: none;
+  border-radius: var(--a-radius-sm);
+}
+
+.focusable:focus-visible {
+  box-shadow: var(--a-ring);
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  touch-action: pan-y;
+}
+
+.tick {
+  font-size: 11px;
+  fill: var(--c-label);
+  font-variant-numeric: tabular-nums;
+}
+
+.tickFaint {
+  font-size: 11px;
+  fill: var(--c-label-faint);
+}
+
+.endLabel {
+  font-size: 11px;
+  fill: var(--c-label);
+  font-weight: 500;
+}
+
+.capLabel {
+  font-size: 11px;
+  fill: var(--c-label);
+  font-variant-numeric: tabular-nums;
+}
+
+.gridLine {
+  stroke: var(--c-grid);
+  stroke-width: 1;
+}
+
+.axisLine {
+  stroke: var(--c-axis);
+  stroke-width: 1;
+}
+
+.crosshair {
+  stroke: var(--c-axis);
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+.line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.area {
+  opacity: 0.08;
+}
+
+.marker {
+  stroke: var(--c-surface);
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+.hit {
+  fill: transparent;
+  cursor: crosshair;
+}
+
+.bar {
+  transition: fill var(--dur) var(--ease);
+}
+
+.barActive {
+  fill: var(--c-accent) !important;
+}
+
+.cell {
+  fill: var(--c-ink-1);
+  transition: fill-opacity var(--dur) var(--ease);
+}
+
+.cellActive {
+  stroke: var(--c-accent);
+  stroke-width: 2;
+}
+
+/* ---------------- İpucu ---------------- */
+
+.tooltip {
+  position: absolute;
+  z-index: 3;
+  transform: translate(10px, 0);
+  min-width: 120px;
+  max-width: 260px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #1c1c1c;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.4;
+  box-shadow: var(--a-shadow-pop);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.tooltipFlip {
+  transform: translate(calc(-100% - 10px), 0);
+}
+
+.tipTitle {
+  color: rgba(255, 255, 255, 0.72);
+  margin-bottom: 4px;
+}
+
+.tipRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tipRow + .tipRow {
+  margin-top: 2px;
+}
+
+.tipValue {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.tipLabel {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.tipLine {
+  display: inline-block;
+  width: 10px;
+  height: 2px;
+  border-radius: 1px;
+  flex: none;
+}
+
+.tipSwatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: none;
+}
+
+/* Koyu ipucu üzerinde mürekkep tonları görünmez → ipucu renk anahtarını açık tonlara çevir. */
+.tooltip .tipLine,
+.tooltip .tipSwatch {
+  filter: invert(1) brightness(1.6);
+}
+
+/* ---------------- Lejant ---------------- */
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  font-size: 12px;
+  color: var(--c-label);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legendSwatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex: none;
+}
+
+.legendLine {
+  display: inline-block;
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
+  flex: none;
+}
+
+/* ---------------- Veri tablosu (erişilebilir ikiz) ---------------- */
+
+.details {
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.summary {
+  cursor: pointer;
+  color: var(--c-label);
+  user-select: none;
+  width: fit-content;
+  border-radius: 3px;
+}
+
+.summary:hover {
+  color: var(--a-ink);
+}
+
+.summary:focus-visible {
+  outline: 2px solid var(--a-ink);
+  outline-offset: 2px;
+}
+
+.detailsScroll {
+  margin-top: 6px;
+  max-height: 280px;
+  overflow: auto;
+  border: 1px solid var(--a-line);
+  border-radius: var(--a-radius-sm);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--a-line);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.table thead th {
+  position: sticky;
+  top: 0;
+  background: #fafaf8;
+  font-weight: 600;
+  color: var(--c-label);
+}
+
+.table tbody th {
+  font-weight: 400;
+}
+
+.table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+.cellLeft {
+  text-align: left !important;
+}
+
+/* ---------------- Boş durum ---------------- */
+
+.emptyBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  padding: 16px;
+  border: 1px dashed var(--a-line-strong);
+  border-radius: var(--a-radius);
+  color: var(--c-label);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ---------------- Yatay liste (HBarList) ---------------- */
+
+.hList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.hHead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.hLabel {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.hLabelText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hSub {
+  font-size: 11px;
+  color: var(--c-label-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hBadge {
+  flex: none;
+}
+
+.hValue {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.hShare {
+  flex: none;
+  width: 44px;
+  text-align: right;
+  font-size: 12px;
+  color: var(--c-label);
+  font-variant-numeric: tabular-nums;
+}
+
+.hTrack {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--c-track);
+  overflow: hidden;
+}
+
+.hFill {
+  height: 100%;
+  border-radius: 0 3px 3px 0;
+  background: var(--c-ink-1);
+  min-width: 2px;
+}
+
+/* ---------------- Donut ---------------- */
+
+.donut {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.donutSvg {
+  flex: none;
+  display: block;
+  overflow: visible;
+}
+
+.donutSlice {
+  transition: opacity var(--dur) var(--ease);
+  cursor: default;
+}
+
+.donutSliceDim {
+  opacity: 0.45;
+}
+
+.donutCenterValue {
+  font-size: 18px;
+  font-weight: 600;
+  fill: var(--a-ink);
+}
+
+.donutCenterLabel {
+  font-size: 11px;
+  fill: var(--c-label);
+}
+
+.donutLegend {
+  flex: 1 1 140px;
+  min-width: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.donutLegendRow {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto 44px;
+  gap: 8px;
+  align-items: center;
+  padding: 2px 4px;
+  margin: 0 -4px;
+  border-radius: 3px;
+}
+
+.donutLegendRowActive {
+  background: var(--a-hover);
+}
+
+.donutLegendLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.donutLegendValue {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.donutLegendShare {
+  text-align: right;
+  color: var(--c-label);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------- Isı haritası ---------------- */
+
+.scale {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--c-label);
+}
+
+.scaleSteps {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.scaleStep {
+  width: 14px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--c-ink-1);
+}
+
+/* ---------------- Huni ---------------- */
+
+.funnel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.funnelStep {
+  display: grid;
+  grid-template-columns: minmax(96px, 150px) minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 30px;
+  font-size: 13px;
+}
+
+.funnelLabel {
+  color: var(--a-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.funnelTrack {
+  display: block;
+  height: 22px;
+  min-width: 0;
+}
+
+.funnelBar {
+  display: block;
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+  min-width: 2px;
+}
+
+.funnelValue {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  text-align: right;
+  min-width: 56px;
+}
+
+.funnelRate {
+  grid-column: 2 / 4;
+  font-size: 11px;
+  color: var(--c-label-faint);
+  padding: 1px 0 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+.funnelTotal {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--c-label);
+}
+
+/* ---------------- Eğilim (sparkline) ---------------- */
+
+.spark {
+  display: block;
+  overflow: visible;
+}
+
+@media (max-width: 719px) {
+  .funnelStep {
+    grid-template-columns: minmax(84px, 110px) minmax(0, 1fr) auto;
+  }
+  .tooltip {
+    max-width: 200px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar,
+  .cell,
+  .donutSlice {
+    transition: none;
+  }
+}

@@ -24,7 +24,13 @@ interface NavItem {
 function navGroups(): { label: string | null; items: NavItem[] }[] {
   const owner = isOwner()
   return [
-    { label: null, items: [{ to: '/admin', label: AS.nav.dashboard, icon: 'dashboard', end: true }] },
+    {
+      label: null,
+      items: [
+        { to: '/admin', label: AS.nav.dashboard, icon: 'dashboard', end: true },
+        { to: '/admin/analitik', label: AS.nav.analytics, icon: 'chart' },
+      ],
+    },
     {
       label: AS.nav.groupSales,
       items: [

@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { productById } from '../data/catalog'
 import { readJSON, storageKeys, writeJSON } from '../lib/storage'
+import { trackFavoriteAdd } from '../services/analytics'
 
 interface FavoritesContextValue {
   ids: string[]
@@ -20,7 +21,14 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
   }, [ids])
 
   const has = useCallback((id: string) => ids.includes(id), [ids])
-  const toggle = useCallback((id: string) => setIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id])), [])
+  const toggle = useCallback(
+    (id: string) => {
+      // Yalnızca ekleme yönü ölçülür (güncelleyici saf kalsın diye olay dışarıda gönderilir).
+      if (!ids.includes(id)) trackFavoriteAdd(id)
+      setIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
+    },
+    [ids],
+  )
   const remove = useCallback((id: string) => setIds((s) => s.filter((x) => x !== id)), [])
 
   const value = useMemo(() => ({ ids, has, toggle, remove, count: ids.length }), [ids, has, toggle, remove])

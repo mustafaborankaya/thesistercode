@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { firstVisitPreview } from '../lib/preview'
 import { readJSON, storageKeys, writeJSON } from '../lib/storage'
-import { startAnalytics, startMarketing } from '../services/analytics'
+import { startAnalytics, startMarketing, stopAnalytics, trackConsent } from '../services/analytics'
 
 export interface ConsentState {
   status: 'pending' | 'decided'
@@ -31,11 +31,15 @@ export function ConsentProvider({ children }: { children: ReactNode }) {
     // İzin verilmeyen servisler başlatılmaz.
     if (consent.status === 'decided') {
       if (consent.analytics) startAnalytics()
+      else stopAnalytics()
       if (consent.marketing) startMarketing()
     }
   }, [consent])
 
   const save = useCallback((prefs: { analytics: boolean; marketing: boolean }) => {
+    // Karar olayı (kimlikler gönderim anında, yeni onay durumuna göre eklenir); onay geri alındıysa kimlikler hemen silinir.
+    trackConsent(prefs)
+    if (!prefs.analytics) stopAnalytics()
     setConsent({ status: 'decided', necessary: true, analytics: prefs.analytics, marketing: prefs.marketing, decidedAt: new Date().toISOString() })
   }, [])
   const acceptAll = useCallback(() => save({ analytics: true, marketing: true }), [save])

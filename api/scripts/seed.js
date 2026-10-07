@@ -198,6 +198,8 @@ const DEFAULT_SETTINGS = {
   // Çevrim içi ödeme taksit seçenekleri (iyzico: 1,2,3,6,9,12). null → env PAYMENT_INSTALLMENTS (varsayılan 1).
   // Sağlayıcı (payment.provider) bilinçli olarak burada YOK: env PAYMENT_PROVIDER'dan gelir.
   'payment.installments': null,
+  // Analitik olaylarının (analytics_events) saklama süresi, gün (en az 30; bkz. migrations/010_analytics.sql).
+  'analytics.retentionDays': 400,
 }
 
 async function seedSettings() {

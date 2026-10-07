@@ -27,6 +27,8 @@ interface RequestOptions {
   signal?: AbortSignal
   /** Ek istek başlıkları (örn. `Authorization: Bearer <token>`) — asla URL sorgu parametresine token koyma. */
   headers?: Record<string, string>
+  /** Sayfa kapanırken de tamamlanması gereken küçük istekler (ölçüm olayları) için `fetch` keepalive. */
+  keepalive?: boolean
 }
 
 export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T> {
@@ -39,7 +41,7 @@ export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T
   }
   let res: Response
   try {
-    res = await fetch(`${API_BASE}${path}`, { method: opts.method ?? 'GET', headers, body, credentials: 'include', signal: opts.signal })
+    res = await fetch(`${API_BASE}${path}`, { method: opts.method ?? 'GET', headers, body, credentials: 'include', signal: opts.signal, keepalive: opts.keepalive })
   } catch {
     throw new ApiError(0, 'network', 'Sunucuya ulaşılamadı.')
   }

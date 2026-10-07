@@ -50,6 +50,7 @@ const paths = {
   collapse: 'M8 3.5v13M3.5 3.5h13v13h-13zM13 8l-2 2 2 2',
   expand: 'M8 3.5v13M3.5 3.5h13v13h-13zM11 8l2 2-2 2',
   grip: 'M7.5 5h.01M12.5 5h.01M7.5 10h.01M12.5 10h.01M7.5 15h.01M12.5 15h.01',
+  chart: 'M3 17h14M5.5 14V9.5M10 14V4.5M14.5 14V7.5',
 } as const
 
 export type AdminIconName = keyof typeof paths

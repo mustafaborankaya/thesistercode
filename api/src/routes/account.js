@@ -79,6 +79,8 @@ async function issueEmailVerification(customer, locale) {
 const loginSchema = z.object({
   email: z.string().email('Geçerli bir e-posta girin'),
   password: z.string().min(1, 'Parola gerekli'),
+  /** "Beni hatırla": true → 30 gün kalıcı çerez + JWT; yoksa/false → oturum çerezi + 24 saat JWT. */
+  remember: z.boolean().optional(),
 })
 
 router.post('/register', authLimiter, async (req, res, next) => {
@@ -96,8 +98,9 @@ router.post('/register', authLimiter, async (req, res, next) => {
     )
     const customer = { id: result.insertId, email: normalizedEmail, name: name.trim() }
 
-    const token = signCustomerToken(customer)
-    setCustomerCookie(res, token)
+    // Kayıt sonrası oturum her zaman kalıcıdır (30 gün) — "Beni hatırla" yalnızca girişte sorulur.
+    const token = signCustomerToken(customer, { remember: true })
+    setCustomerCookie(res, token, { remember: true })
     res.status(201).json({ customer })
     // Hoş geldin + e-posta doğrulama; sağlayıcı yoksa mail_log'a "skipped" yazılır, kayıt akışını etkilemez.
     sendMail({ to: customer.email, template: 'welcome', data: { name: customer.name }, locale, refType: 'customer', refId: String(customer.id) }).catch(() => undefined)
@@ -109,7 +112,7 @@ router.post('/register', authLimiter, async (req, res, next) => {
 
 router.post('/login', loginLimiter, async (req, res, next) => {
   try {
-    const { email, password } = parseBody(loginSchema, req.body)
+    const { email, password, remember = false } = parseBody(loginSchema, req.body)
     const normalizedEmail = email.trim().toLowerCase()
 
     const [rows] = await pool.query('SELECT id, email, name, password_hash FROM customers WHERE email = ? LIMIT 1', [
@@ -121,8 +124,9 @@ router.post('/login', loginLimiter, async (req, res, next) => {
     const ok = await bcrypt.compare(password, user?.password_hash ?? DUMMY_BCRYPT_HASH)
     if (!user || !ok) return next(unauthorized('E-posta veya parola hatalı', 'invalid_credentials'))
 
-    const token = signCustomerToken(user)
-    setCustomerCookie(res, token)
+    // remember=true → 30 gün kalıcı; aksi halde oturum çerezi + 24 saatlik JWT (bkz. auth.js).
+    const token = signCustomerToken(user, { remember })
+    setCustomerCookie(res, token, { remember })
     res.json({ customer: { id: user.id, email: user.email, name: user.name } })
   } catch (err) {
     next(err)

@@ -26,7 +26,8 @@ export interface AccountInfo {
 
 export interface AuthProvider {
   register(input: { name: string; email: string; password: string }): Promise<AuthResult>
-  login(input: { email: string; password: string; knownAccount: boolean }): Promise<AuthResult>
+  /** `remember`: "Beni hatırla" — API modunda 30 günlük kalıcı oturum, aksi hâlde tarayıcı oturumu (demo sağlayıcı yok sayar). */
+  login(input: { email: string; password: string; remember?: boolean; knownAccount: boolean }): Promise<AuthResult>
   /** Sunucu oturumundaki güncel hesap bilgisini döner (API modu); demo modda kullanılmaz. */
   me(): Promise<AccountInfo | null>
   logout(): Promise<void>
@@ -87,9 +88,9 @@ const apiAuthProvider: AuthProvider = {
       return mapApiError(e)
     }
   },
-  async login({ email, password }) {
+  async login({ email, password, remember }) {
     try {
-      await api('/account/login', { method: 'POST', body: { email, password } })
+      await api('/account/login', { method: 'POST', body: { email, password, remember: remember === true } })
       return { ok: true }
     } catch (e) {
       return mapApiError(e)

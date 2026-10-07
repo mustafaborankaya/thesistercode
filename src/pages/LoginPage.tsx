@@ -3,10 +3,11 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { AuthLayout } from '../components/account/AuthLayout'
 import { PasswordField } from '../components/account/PasswordField'
 import { Button } from '../components/ui/Button'
-import { Field } from '../components/ui/Field'
+import { Checkbox, Field } from '../components/ui/Field'
 import { Icon } from '../components/ui/Icon'
 import { isApiMode } from '../data/remote'
 import { S } from '../i18n'
+import { readJSON, removeKey, storageKeys, writeJSON } from '../lib/storage'
 import { useAccount } from '../state/AccountContext'
 import authStyles from './Auth.module.css'
 
@@ -17,11 +18,19 @@ interface LoginValues {
 
 type LoginErrors = Partial<Record<keyof LoginValues, string>>
 
+/** "Beni hatırla" ile kaydedilmiş e-posta (yoksa boş). Parola asla saklanmaz. */
+function rememberedEmail(): string {
+  const v = readJSON<unknown>(storageKeys.rememberEmail, '')
+  return typeof v === 'string' ? v : ''
+}
+
 export function LoginPage() {
   const { isLoggedIn, login } = useAccount()
   const navigate = useNavigate()
   const location = useLocation()
-  const [values, setValues] = useState<LoginValues>({ email: '', password: '' })
+  const [values, setValues] = useState<LoginValues>(() => ({ email: rememberedEmail(), password: '' }))
+  // Varsayılan işaretsiz; önceki girişte "Beni hatırla" seçildiyse (e-posta kayıtlı) işaretli gelir.
+  const [remember, setRemember] = useState(() => rememberedEmail() !== '')
   const [errors, setErrors] = useState<LoginErrors>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
@@ -53,9 +62,11 @@ export function LoginPage() {
     }
     setSubmitError(null)
     setPending(true)
-    const result = await login(values)
+    const result = await login({ ...values, remember })
     setPending(false)
     if (result.ok) {
+      if (remember) writeJSON(storageKeys.rememberEmail, values.email.trim())
+      else removeKey(storageKeys.rememberEmail)
       justLoggedIn.current = true
       const from = (location.state as { from?: string } | null)?.from
       navigate(from ?? '/hesap', { replace: true })
@@ -116,9 +127,23 @@ export function LoginPage() {
           error={errors.password}
           onChange={(e) => update('password', e.target.value)}
         />
-        <Link to="/sifre-sifirla" className="link text-sm">
-          {S.authFlow.forgotPasswordLink}
-        </Link>
+        <div>
+          <div className={authStyles.rememberRow}>
+            <Checkbox
+              id="login-remember"
+              label={S.account.rememberMe}
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+              aria-describedby="login-remember-hint"
+            />
+            <Link to="/sifre-sifirla" className="link text-sm">
+              {S.authFlow.forgotPasswordLink}
+            </Link>
+          </div>
+          <p id="login-remember-hint" className={authStyles.rememberHint}>
+            {S.account.rememberMeHint}
+          </p>
+        </div>
         {submitError ? (
           <div role="alert" className={authStyles.formError}>
             <Icon name="info" size={14} />

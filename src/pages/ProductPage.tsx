@@ -18,6 +18,7 @@ import { productBySlug } from '../data/catalog'
 import { useIsDesktop } from '../hooks/useMediaQuery'
 import { S } from '../i18n'
 import { getCompleteLook } from '../lib/recommendations'
+import { trackProductView } from '../services/analytics'
 import { useFavorites } from '../state/FavoritesContext'
 import { usePanels } from '../state/PanelContext'
 import { NotFoundPage } from './NotFoundPage'
@@ -78,6 +79,14 @@ export function ProductPage() {
   useEffect(() => {
     setGalleryIndex(0)
   }, [product?.id])
+
+  // Ürün çözülünce bir kez product_view (StrictMode çift çalışmasına karşı son ölçülen id tutulur).
+  const trackedProduct = useRef<string | null>(null)
+  useEffect(() => {
+    if (!product || trackedProduct.current === product.id) return
+    trackedProduct.current = product.id
+    trackProductView(product.id)
+  }, [product])
 
   if (!product) return <NotFoundPage />
 

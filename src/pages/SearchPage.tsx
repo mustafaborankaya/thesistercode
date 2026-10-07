@@ -1,10 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ProductGrid } from '../components/product/ProductCard'
 import { Button } from '../components/ui/Button'
 import { Field } from '../components/ui/Field'
 import { S } from '../i18n'
 import { searchProducts } from '../lib/catalog'
+import { trackSearch } from '../services/analytics'
 import styles from './Page.module.css'
 
 export function SearchPage() {
@@ -17,6 +18,16 @@ export function SearchPage() {
   }, [q])
 
   const results = q.trim() ? searchProducts(q) : []
+
+  // Arama URL'den gelir; her yeni sorgu bir kez sonuç sayısıyla ölçülür.
+  const trackedQuery = useRef<string | null>(null)
+  const resultCount = results.length
+  useEffect(() => {
+    const query = q.trim()
+    if (!query || trackedQuery.current === query) return
+    trackedQuery.current = query
+    trackSearch(query, resultCount)
+  }, [q, resultCount])
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()

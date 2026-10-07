@@ -58,7 +58,8 @@ export const contentTexts: Record<string, string> = {
   'cookie.bannerText':
     'Bu internet sitesinde deneyiminizi iyileştirmek amacıyla çerezler kullanılmaktadır. Gerekli çerezler dışındaki çerezler yalnızca onayınızla etkinleştirilir; tercihlerinizi dilediğiniz zaman değiştirebilirsiniz.',
   'cookie.necessary': 'Sitenin temel işlevlerini, oturumunuzu ve sepetinizi çalışır tutmak için gereklidir; bu nedenle devre dışı bırakılamaz.',
-  'cookie.analytics': 'Site kullanımını anonim biçimde analiz ederek deneyimi geliştirmemize yardımcı olur; yalnızca onayınızla etkinleştirilir.',
+  'cookie.analytics':
+    'Hangi sayfaların ve ürünlerin görüntülendiğini, aramaları ve sepet hareketlerini yalnızca kendi sunucumuzda, üçüncü taraflara aktarmadan ölçeriz. Ziyaretçi kimliği rastgele bir tanımlayıcıdır ve yalnızca onayınızla saklanır; onay vermezseniz ziyaretler kimliksiz sayılır. IP adresi saklanmaz.',
   'cookie.marketing': 'İlginizi çekebilecek içerik ve kampanyaları size özel sunmak için kullanılır; yalnızca onayınızla etkinleştirilir.',
 
   // --- Üretim ---
@@ -175,7 +176,7 @@ export const infoSectionTexts: Record<string, string[]> = {
     [
       'Çerezler, ziyaret ettiğiniz internet siteleri tarafından tarayıcınıza kaydedilen küçük metin dosyalarıdır. Bu dosyalar, sitenin düzgün çalışmasını sağlamak, tercihlerinizi hatırlamak ve deneyiminizi iyileştirmek amacıyla kullanılır.',
       '',
-      'Sitemizde üç kategori çerez kullanılır. Gerekli çerezler; oturumunuzun, sepetinizin ve çerez tercihinizin saklanması için zorunludur ve kapatılamaz. Analitik çerezler; site kullanımını anonim biçimde ölçerek deneyimi geliştirmemize yardımcı olur ve yalnızca onayınızla etkinleştirilir. Pazarlama çerezleri; ilginizi çekebilecek içerik ve kampanyaları size özel sunmak için kullanılır ve yalnızca onayınızla etkinleştirilir.',
+      'Sitemizde üç kategori çerez kullanılır. Gerekli çerezler; oturumunuzun, sepetinizin ve çerez tercihinizin saklanması için zorunludur ve kapatılamaz. Analitik çerezler; sayfa, ürün, arama ve sepet hareketlerini yalnızca kendi sunucumuzda, üçüncü taraflara aktarmadan ölçmemize yardımcı olur; rastgele ziyaretçi kimliği yalnızca onayınızla saklanır, IP adresi saklanmaz. Pazarlama çerezleri; ilginizi çekebilecek içerik ve kampanyaları size özel sunmak için kullanılır ve yalnızca onayınızla etkinleştirilir.',
       '',
       'Çerez tercihlerinizi dilediğiniz zaman değiştirebilirsiniz. Bunun için sayfanın alt kısmındaki "Çerez Tercihleri" bağlantısını kullanabilir, ayrıca tarayıcınızın ayarlarından çerezleri yönetebilir veya silebilirsiniz. Tarayıcı ayarlarından çerezleri tamamen devre dışı bırakmanız halinde sitenin bazı bölümleri beklendiği gibi çalışmayabilir.',
       '',
@@ -238,7 +239,8 @@ export const contentTextsEn: Record<string, string> = {
   'cookie.bannerText':
     'This website uses cookies to improve your experience. Cookies other than those strictly necessary are only activated with your consent, and you can change your preferences at any time.',
   'cookie.necessary': 'Required to keep the core functions of the site, your session and your cart working; they therefore cannot be turned off.',
-  'cookie.analytics': 'Help us improve the experience by analysing site usage anonymously; only activated with your consent.',
+  'cookie.analytics':
+    'We measure which pages and products are viewed, searches and cart activity on our own server only, without sharing it with third parties. The visitor ID is a random identifier stored only with your consent; without it, visits are counted without any identifier. IP addresses are not stored.',
   'cookie.marketing': 'Used to offer you content and campaigns that may interest you; only activated with your consent.',
 
   // --- Production ---
@@ -355,7 +357,7 @@ export const infoSectionTextsEn: Record<string, string[]> = {
     [
       'Cookies are small text files saved to your browser by the websites you visit. They are used to make the site work properly, remember your preferences and improve your experience.',
       '',
-      'We use three categories of cookies on our site. Necessary cookies are required to keep your session, your cart and your cookie choice, and cannot be turned off. Analytics cookies help us improve the experience by measuring site usage anonymously and are only activated with your consent. Marketing cookies are used to offer you content and campaigns that may interest you and are only activated with your consent.',
+      'We use three categories of cookies on our site. Necessary cookies are required to keep your session, your cart and your cookie choice, and cannot be turned off. Analytics cookies help us measure page, product, search and cart activity on our own server only, without sharing it with third parties; a random visitor ID is stored only with your consent, and IP addresses are not stored. Marketing cookies are used to offer you content and campaigns that may interest you and are only activated with your consent.',
       '',
       'You can change your cookie preferences at any time using the "Cookie preferences" link at the bottom of the page. You can also manage or delete cookies in your browser settings. If you disable cookies entirely in your browser, some parts of the site may not work as expected.',
       '',

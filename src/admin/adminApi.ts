@@ -328,6 +328,112 @@ export async function getAdminStats(): Promise<AdminStats> {
   return api<AdminStats>('/admin/stats')
 }
 
+/* ---------------- Analitik ---------------- */
+
+/** Rapor aralığı — `GET /admin/analytics?range=` (varsayılan 30d). */
+export type AnalyticsRange = '7d' | '30d' | '90d' | '12m'
+
+/** `previous`: aynı uzunluktaki önceki dönemin değeri (yoksa null). */
+export interface AnalyticsDelta {
+  value: number
+  previous: number | null
+}
+
+export interface AnalyticsShare {
+  key: string
+  label: string
+  count: number
+}
+
+/**
+ * `GET /admin/analytics` yanıtı — birinci taraf olay tablosu (analytics_events) + siparişler/müşteriler.
+ * Gün/saat kovaları İstanbul saatine göredir. Ziyaretçi/oturum sayıları yalnızca analitik çerez onayı
+ * verenleri kapsar; sayfa görüntülemeleri herkesi. Sunucu eski sürümse 404 → `isUnavailable`.
+ */
+export interface AnalyticsOverview {
+  range: AnalyticsRange
+  /** 'YYYY-MM-DD' (İstanbul), dahil */
+  from: string
+  /** 'YYYY-MM-DD', dahil (bugün) */
+  to: string
+  days: number
+  /** ISO */
+  generatedAt: string
+  /** since: ilk olayın ISO zamanı (hiç yoksa null); events: aralıktaki olay sayısı; consentedShare: vid'li page_view oranı 0..1 */
+  tracking: { since: string | null; events: number; consentedShare: number; retentionDays: number }
+  kpis: {
+    /** page_view sayısı (herkes) */
+    pageviews: AnalyticsDelta
+    /** is_entry=1 page_view sayısı (tam sayfa yüklemesi ≈ ziyaret; herkes) */
+    visits: AnalyticsDelta
+    /** COUNT(DISTINCT visitor_id) (yalnızca onaylı) */
+    visitors: AnalyticsDelta
+    /** COUNT(DISTINCT session_id) (yalnızca onaylı) */
+    sessions: AnalyticsDelta
+    /** orders tablosu, status IN ('new','paid','shipped') */
+    orders: AnalyticsDelta
+    /** aynı siparişlerin SUM(total) */
+    revenue: AnalyticsDelta
+    /** orders / visits * 100 (visits 0 ise 0), yüzde, 2 ondalık */
+    conversion: AnalyticsDelta
+    /** ortalama sipariş tutarı */
+    aov: AnalyticsDelta
+  }
+  /** Aralıktaki HER gün (boş günler 0). */
+  series: { date: string; pageviews: number; visits: number; visitors: number; orders: number; revenue: number }[]
+  /** 24 eleman, page_view (İstanbul saati) */
+  hours: number[]
+  /** 7 eleman, Pzt..Paz page_view */
+  weekdays: number[]
+  /** 7 x 24 page_view */
+  heatmap: number[][]
+  /** key: desktop|mobile|tablet|other, label TR, count = page_view */
+  devices: AnalyticsShare[]
+  /** ilk 6 + 'Diğer' */
+  browsers: AnalyticsShare[]
+  os: AnalyticsShare[]
+  /** tr/en → 'Türkçe'/'English' */
+  locales: AnalyticsShare[]
+  /** entry page_view, host NULL = doğrudan; ilk 10 */
+  referrers: { host: string | null; visits: number }[]
+  /** utm_source dolu entry'ler; ilk 10 */
+  campaigns: { source: string; medium: string | null; campaign: string | null; visits: number }[]
+  /** ilk 10 (path '/' → ana sayfa; UI etiketler) */
+  pages: { path: string; pageviews: number; visitors: number }[]
+  /** views/addToCarts olaylardan; ordered/revenue order_items'tan; görüntülenmeye göre ilk 10; name products tablosundan (yoksa null) */
+  products: { productId: string; name: string | null; views: number; addToCarts: number; ordered: number; revenue: number }[]
+  /** LOWER(TRIM(query)) gruplu, ilk 15; zeroResults = meta.results = 0 olanlar */
+  searches: { query: string; count: number; zeroResults: number }[]
+  /** basis 'sessions': onaylı oturum varsa her adım COUNT(DISTINCT session_id); yoksa 'events' = olay sayıları */
+  funnel: { basis: 'sessions' | 'events'; pageview: number; productView: number; addToCart: number; checkout: number; order: number }
+  /** consent olaylarından (meta.choice) */
+  consent: { decisions: number; acceptAll: number; necessaryOnly: number; custom: number; analyticsOptIn: number }
+  sales: {
+    /** aralıkta oluşturulan tüm siparişler (demo hariç), tüm durumlar */
+    byStatus: { status: string; count: number; revenue: number }[]
+    memberOrders: number
+    guestOrders: number
+    couponOrders: number
+    /** discount_amount > 0 */
+    firstOrderDiscountOrders: number
+    /** orders.coupon_code, ilk 5 */
+    topCoupons: { code: string; count: number; discount: number }[]
+    /** ilk 8 */
+    byCity: { city: string; count: number }[]
+    /** 24, sipariş oluşturulma saati (İstanbul) */
+    byHour: number[]
+    /** orders.locale */
+    byLocale: AnalyticsShare[]
+  }
+  /** repeatBuyers: aralıkta 2+ siparişi olan (e-posta bazlı) alıcı sayısı */
+  customers: { total: number; newInRange: number; newSeries: { date: string; count: number }[]; buyersInRange: number; repeatBuyers: number }
+}
+
+/** `GET /admin/analytics?range=7d|30d|90d|12m` — eski sunucuda 404 (bkz. isUnavailable). */
+export async function getAdminAnalytics(range: AnalyticsRange): Promise<AnalyticsOverview> {
+  return api<AnalyticsOverview>(`/admin/analytics?range=${encodeURIComponent(range)}`)
+}
+
 /* ---------------- Kuponlar ---------------- */
 
 export type CouponType = 'percent' | 'fixed'

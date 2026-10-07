@@ -51,4 +51,9 @@ export const storageKeys = {
   offerState: 'tsc.offer.v2',
   collectionState: 'tsc.collection.state.v1',
   demoOrders: 'tsc.demo-orders.v1',
+  /** "Beni hatırla" işaretliyken son giriş e-postası (parola asla saklanmaz). */
+  rememberEmail: 'tsc.remember-email.v1',
+  /** Birinci taraf ölçüm kimlikleri — yalnızca analitik çerez onayıyla: ziyaretçi (localStorage), oturum (sessionStorage). */
+  visitorId: 'tsc.vid.v1',
+  sessionId: 'tsc.sid.v1',
 } as const

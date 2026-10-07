@@ -285,6 +285,8 @@ export const tr = {
     name: 'Ad Soyad',
     email: 'E-posta',
     password: 'Şifre',
+    rememberMe: 'Beni hatırla',
+    rememberMeHint: '30 gün boyunca bu cihazda oturumunuz açık kalır.',
     showPassword: 'Şifreyi göster',
     hidePassword: 'Şifreyi gizle',
     passwordHint: 'En az 8 karakter.',
@@ -392,7 +394,8 @@ export const tr = {
     demoText: 'Bu demo sitede gerekli çerezler oturumunuzu ve sepetinizi tutar. Analitik ve pazarlama çerezleri yalnızca siz izin verirseniz kullanılır.',
     policyPending: 'Gerçek çerez politikası metni eklenecek.',
     necessaryDemo: 'Oturum, sepet ve çerez tercihinizin saklanması için gereklidir; kapatılamaz.',
-    analyticsDemo: 'Site kullanımını anonim olarak ölçmek için; izin verilmeden başlatılmaz.',
+    analyticsDemo:
+      'Hangi sayfaların ve ürünlerin görüntülendiğini, aramaları ve sepet hareketlerini yalnızca kendi sunucumuzda, üçüncü taraflara aktarmadan ölçeriz. Ziyaretçi kimliği rastgele bir tanımlayıcıdır ve yalnızca onayınızla saklanır; onay vermezseniz ziyaretler kimliksiz sayılır. IP adresi saklanmaz.',
     marketingDemo: 'Kişiselleştirilmiş kampanya iletişimi için; izin verilmeden başlatılmaz.',
   },
 

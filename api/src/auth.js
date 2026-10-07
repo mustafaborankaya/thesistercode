@@ -8,20 +8,25 @@ export const ADMIN_COOKIE = 'tsc_admin'
 export const CUSTOMER_COOKIE = 'tsc_customer'
 
 const ADMIN_TTL_SEC = 12 * 60 * 60 // 12 saat
-const CUSTOMER_TTL_SEC = 30 * 24 * 60 * 60 // 30 gün
+/** Müşteri oturumu — "Beni hatırla" işaretliyse (ve kayıtta) 30 gün kalıcı. */
+export const CUSTOMER_TTL_SEC = 30 * 24 * 60 * 60 // 30 gün
+/** "Beni hatırla" işaretsizse JWT 24 saat; çerez oturum çerezi (tarayıcı kapanınca silinir). */
+export const CUSTOMER_SESSION_TTL_SEC = 24 * 60 * 60 // 24 saat
 
 // JWT imza/algoritma sabitlenir (HS256) — algoritma karışıklığı saldırılarına (ör. "none" veya
 // asimetrik/simetrik karışıklığı) karşı imzalarken ve doğrularken açıkça tek algoritmaya kilitlenir.
 const JWT_ALGORITHM = 'HS256'
 
+/** maxAgeMs null → oturum çerezi (Max-Age/Expires yazılmaz; tarayıcı kapanınca silinir). */
 function cookieOptions(maxAgeMs) {
-  return {
+  const options = {
     httpOnly: true,
     secure: isProd,
     sameSite: 'lax',
     path: '/',
-    maxAge: maxAgeMs,
   }
+  if (maxAgeMs != null) options.maxAge = maxAgeMs
+  return options
 }
 
 /* ---------------- Yönetici oturumu ---------------- */
@@ -77,15 +82,20 @@ export function requireOwner(req, res, next) {
 
 /* ---------------- Müşteri oturumu ---------------- */
 
-export function signCustomerToken(customer) {
+/**
+ * "Beni hatırla" (remember) → 30 gün; değilse 24 saat. Çerez ömrü setCustomerCookie ile AYNI
+ * seçenekle verilmelidir — JWT süresi çerez ömrünü aşmaz (oturum çerezi silinse de token 24 saatte düşer).
+ */
+export function signCustomerToken(customer, { remember = false } = {}) {
   return jwt.sign({ type: 'customer', sub: customer.id, email: customer.email }, env.SESSION_SECRET, {
     algorithm: JWT_ALGORITHM,
-    expiresIn: CUSTOMER_TTL_SEC,
+    expiresIn: remember ? CUSTOMER_TTL_SEC : CUSTOMER_SESSION_TTL_SEC,
   })
 }
 
-export function setCustomerCookie(res, token) {
-  res.cookie(CUSTOMER_COOKIE, token, cookieOptions(CUSTOMER_TTL_SEC * 1000))
+/** remember → 30 gün Max-Age; değilse oturum çerezi (Max-Age/Expires yok). */
+export function setCustomerCookie(res, token, { remember = false } = {}) {
+  res.cookie(CUSTOMER_COOKIE, token, cookieOptions(remember ? CUSTOMER_TTL_SEC * 1000 : null))
 }
 
 export function clearCustomerCookie(res) {

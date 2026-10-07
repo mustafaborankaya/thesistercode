@@ -14,6 +14,7 @@ import { S } from '../i18n'
 import { apiErrorMessage, isCouponError, priceChangedDetails, stockShortageMessage, stockShortages } from '../i18n/apiMessages'
 import { applyKnownStock, computeTotals, lineKey } from '../lib/cart'
 import { formatPrice } from '../lib/format'
+import { trackCheckoutStart } from '../services/analytics'
 import { paymentProvider } from '../services/checkout'
 import { listAddresses, loadAddresses, sameAddress, saveAddress, subscribeCustomer, type SavedAddress } from '../services/customer'
 import { createApiOrder, initPayment, onlinePaymentEnabled } from '../services/ordersApi'
@@ -92,6 +93,15 @@ export function CheckoutPage() {
       cancelled = true
     }
   }, [accountEmail])
+
+  // Ödeme sayfası açılışında (sepet doluysa) bir kez checkout_start; StrictMode çift çalışmasına karşı ref ile korunur.
+  const checkoutTracked = useRef(false)
+  const itemCount = lines.reduce((n, l) => n + l.qty, 0)
+  useEffect(() => {
+    if (checkoutTracked.current || itemCount === 0) return
+    checkoutTracked.current = true
+    trackCheckoutStart(totals.total, itemCount)
+  }, [itemCount, totals.total])
 
   const deliveryInput = {
     firstName: values.firstName,

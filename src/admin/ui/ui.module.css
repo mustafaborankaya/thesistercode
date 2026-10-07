@@ -634,6 +634,46 @@ a.kpi:focus-visible {
   border-radius: 50%;
 }
 
+/* KPI: değer + değişim solda, küçük eğilim grafiği sağda (Analitik). */
+.kpiMain {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap; /* dar kartta sayı kırılmasın; eğilim grafiği alt satıra insin */
+  gap: 4px 10px;
+  min-width: 0;
+}
+
+.kpiMainText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.kpiTrend {
+  flex: none;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: flex-end;
+  color: var(--a-ink-faint);
+}
+
+.kpiDelta {
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--a-ink-soft);
+}
+
+.kpiDeltaUp {
+  color: var(--a-success);
+}
+
+.kpiDeltaDown {
+  color: var(--a-danger);
+}
+
 /* ---------------- Tablo ---------------- */
 
 .tableCard {

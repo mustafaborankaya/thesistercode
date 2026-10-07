@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { productById } from '../data/catalog'
 import type { CartLine, SizeId } from '../data/types'
 import { applyKnownPrice, computeTotals, lineKey, normalizeLines, variantStock, type AppliedCoupon, type SummaryTotals } from '../lib/cart'
+import { trackAddToCart } from '../services/analytics'
 import { validateCouponApi, type ValidateCouponResult } from '../services/coupons'
 import { readJSON, storageKeys, writeJSON } from '../lib/storage'
 import { useAccount } from './AccountContext'
@@ -116,6 +117,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       })
       setLastAddedKey(key)
       openPanel('cart')
+      trackAddToCart({ productId, colorId, size, qty: nextQty - current, unitPrice: product.price })
       return { ok: true, key, qty: nextQty }
     },
     [lines, openPanel],

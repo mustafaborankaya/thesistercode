@@ -5,8 +5,10 @@ import { Button } from '../components/ui/Button'
 import { Icon } from '../components/ui/Icon'
 import { allProducts } from '../data/catalog'
 import { isApiMode } from '../data/remote'
+import { readJSON, writeJSON } from '../lib/storage'
 import type { CartTotals } from '../data/types'
 import { S } from '../i18n'
+import { trackOrderComplete } from '../services/analytics'
 import { paymentProvider, type DemoOrder } from '../services/checkout'
 import { apiErrorMessage } from '../i18n/apiMessages'
 import { getApiOrder, getPaymentStatus, initPayment, onlinePaymentEnabled, type ApiOrder } from '../services/ordersApi'
@@ -104,6 +106,15 @@ export function CheckoutResultPage() {
       clear()
     }
   }, [apiOrder, payHint, viewOnly, clear])
+
+  // Sipariş ilk kez 'paid'/'new' görüldüğünde order_complete; aynı sekmede tekrar gönderilmez (hesap geçmişinden açılış hariç).
+  useEffect(() => {
+    if (!apiOrder || viewOnly || (apiOrder.status !== 'paid' && apiOrder.status !== 'new')) return
+    const key = `tsc.oc.${apiOrder.id}`
+    if (readJSON<boolean>(key, false, 'session')) return
+    writeJSON(key, true, 'session')
+    trackOrderComplete(apiOrder.id, apiOrder.totals.total)
+  }, [apiOrder, viewOnly])
 
   // Başarısız dönüşte son denemenin hata mesajı (iyzico'nun kullanıcıya dönük açıklaması) gösterilir.
   useEffect(() => {
