@@ -817,32 +817,31 @@
 }
 
 .previewFrameWrap {
+  /* iframe sanal cihaz genişliğinde (1280/820/390 px) çizilir, transform ile kaba sığdırılır; kaydırma iframe içinde. */
   position: relative;
-  display: flex;
-  justify-content: center;
   height: 70vh;
   min-height: 360px;
-  overflow: auto;
+  overflow: hidden;
   background: #e9e8e4;
 }
 
 .previewFrame {
+  position: absolute;
+  top: 0;
+  left: 0;
   display: block;
-  flex: none;
-  width: 100%;
-  height: 100%;
   border: 0;
   background: #fff;
+  transform-origin: top left;
+  box-shadow: 0 0 0 1px var(--a-line);
 }
 
-.previewFrame[data-device='tablet'] {
-  width: 820px;
-  max-width: 100%;
-}
-
-.previewFrame[data-device='mobile'] {
-  width: 390px;
-  max-width: 100%;
+.previewScale {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--a-ink-faint);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .previewLoading {

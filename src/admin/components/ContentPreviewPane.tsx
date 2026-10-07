@@ -9,6 +9,13 @@ import styles from '../admin.module.css'
 export type PreviewLang = 'tr' | 'en'
 export type PreviewDevice = 'desktop' | 'tablet' | 'mobile'
 
+/**
+ * Cihaz başına sanal görünüm genişliği (px). Önizleme sütunu dar olduğundan iframe bu genişlikte
+ * çizilir ve CSS `transform: scale()` ile sütuna sığdırılır; böylece "Masaüstü" gerçekten masaüstü
+ * yerleşimini gösterir (aksi hâlde sütun genişliğinde tablet/mobil yerleşimi çıkıyordu).
+ */
+const PREVIEW_DEVICE_WIDTH: Record<PreviewDevice, number> = { desktop: 1280, tablet: 820, mobile: 390 }
+
 /** Son odaklanan/düzenlenen alan; `nonce` her istekte artar ki aynı alana yeniden kaydırılabilsin. */
 export interface PreviewFocus {
   key: string
@@ -79,6 +86,27 @@ export function ContentPreviewPane({ initialPage, pageOf, labelOf, draft, showCo
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const sentFocusNonce = useRef(-1)
   const sentGoNonce = useRef(-1)
+
+  // Çerçeve kabının gerçek ölçüsü: iframe sanal cihaz genişliğinde çizilip bu ölçüye ölçeklenir.
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const [wrapSize, setWrapSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 })
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    const measure = () => setWrapSize({ w: el.clientWidth, h: el.clientHeight })
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const deviceWidth = PREVIEW_DEVICE_WIDTH[device]
+  const scale = wrapSize.w > 0 ? Math.min(1, wrapSize.w / deviceWidth) : 1
+  const frameStyle = {
+    width: deviceWidth,
+    height: wrapSize.h > 0 ? Math.round(wrapSize.h / scale) : '100%',
+    transform: `scale(${scale})`,
+    left: Math.max(0, Math.round((wrapSize.w - deviceWidth * scale) / 2)),
+  } as const
 
   const src = previewUrl(page, lang, true)
   const frameKey = `${src}#${reload}`
@@ -181,15 +209,18 @@ export function ContentPreviewPane({ initialPage, pageOf, labelOf, draft, showCo
           </button>
         </span>
         <span className={ui.segmented} role="group" aria-label={AS.content.previewDeviceLabel}>
-          <button type="button" aria-pressed={device === 'desktop'} onClick={() => setDevice('desktop')}>
+          <button type="button" aria-pressed={device === 'desktop'} title={`${PREVIEW_DEVICE_WIDTH.desktop} px`} onClick={() => setDevice('desktop')}>
             {AS.content.previewDesktop}
           </button>
-          <button type="button" aria-pressed={device === 'tablet'} onClick={() => setDevice('tablet')}>
+          <button type="button" aria-pressed={device === 'tablet'} title={`${PREVIEW_DEVICE_WIDTH.tablet} px`} onClick={() => setDevice('tablet')}>
             {AS.content.previewTablet}
           </button>
-          <button type="button" aria-pressed={device === 'mobile'} onClick={() => setDevice('mobile')}>
+          <button type="button" aria-pressed={device === 'mobile'} title={`${PREVIEW_DEVICE_WIDTH.mobile} px`} onClick={() => setDevice('mobile')}>
             {AS.content.previewMobile}
           </button>
+        </span>
+        <span className={styles.previewScale} aria-live="polite">
+          {deviceWidth} px · %{Math.round(scale * 100)}
         </span>
         <Btn size="sm" variant="ghost" onClick={goToChanged} disabled={!ready || active.changed.length === 0}>
           {AS.content.previewGoToChanged}
@@ -200,14 +231,14 @@ export function ContentPreviewPane({ initialPage, pageOf, labelOf, draft, showCo
         </a>
         <Btn size="sm" variant="ghost" icon="close" iconOnly label={AS.content.previewClose} onClick={onClose} />
       </div>
-      <div className={styles.previewFrameWrap}>
+      <div ref={wrapRef} className={styles.previewFrameWrap} data-device={device}>
         <iframe
           key={frameKey}
           ref={iframeRef}
           src={src}
           title={AS.content.previewTitle}
           className={styles.previewFrame}
-          data-device={device}
+          style={frameStyle}
           sandbox="allow-scripts allow-same-origin allow-forms"
         />
         {!ready ? (
