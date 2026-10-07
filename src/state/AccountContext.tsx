@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { siteSettings } from '../config/settings'
 import { isApiMode } from '../data/remote'
+import { contentPreview } from '../lib/preview'
 import { readJSON, storageKeys, writeJSON } from '../lib/storage'
 import { authProvider, type AccountInfo, type AuthResult } from '../services/auth'
 import { CUSTOMER_CHANGED } from '../lib/customerStorage'
@@ -45,9 +46,11 @@ function accountFromInfo(info: AccountInfo, createdAt: string): Account {
 }
 
 export function AccountProvider({ children }: { children: ReactNode }) {
-  const [store, setStore] = useState<AccountStore>(() => readJSON<AccountStore>(storageKeys.account, emptyStore))
+  // İçerik önizlemesinde (panel iframe'i) hesap önbelleği okunmaz/yazılmaz: sayfa ziyaretçi gözüyle görünür.
+  const [store, setStore] = useState<AccountStore>(() => (contentPreview ? emptyStore : readJSON<AccountStore>(storageKeys.account, emptyStore)))
 
   useEffect(() => {
+    if (contentPreview) return
     writeJSON(storageKeys.account, store)
     window.dispatchEvent(new Event(CUSTOMER_CHANGED))
   }, [store])
@@ -56,7 +59,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   // ile doğrulanır/tazelenir — yerel önbellek (localStorage) yalnızca AdminApp'teki gibi ilk an için
   // iyimser bir tahmindir (bkz. src/admin/AdminApp.tsx aynı desen).
   useEffect(() => {
-    if (!isApiMode()) return
+    if (!isApiMode() || contentPreview) return
     // Oturum çerezi httpOnly olduğundan JS'ten okunamaz; yerel önbellekte bir oturum izi yoksa
     // `/account/me` hiç çağrılmaz — aksi hâlde her ziyaretçide her sayfada gereksiz bir 401 ve
     // konsol hatası oluşur. Giriş/kayıt sonrası önbellek dolar, çıkışta boşalır.

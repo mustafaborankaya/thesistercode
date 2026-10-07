@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { firstVisitPreview } from '../lib/preview'
+import { contentPreview, firstVisitPreview } from '../lib/preview'
 import { readJSON, storageKeys, writeJSON } from '../lib/storage'
 import { startAnalytics, startMarketing, stopAnalytics, trackConsent } from '../services/analytics'
 
@@ -12,22 +12,26 @@ export interface ConsentState {
 }
 
 const defaultConsent: ConsentState = { status: 'pending', necessary: true, analytics: false, marketing: false, decidedAt: null }
+/** İçerik önizlemesi: karar verilmiş, yalnızca gerekli çerezler — banner görünmez, teklif/ölçüm devreye girmez. */
+const previewConsent: ConsentState = { status: 'decided', necessary: true, analytics: false, marketing: false, decidedAt: null }
 
 interface ConsentContextValue {
   consent: ConsentState
   acceptAll: () => void
   necessaryOnly: () => void
   save: (prefs: { analytics: boolean; marketing: boolean }) => void
+  /** Yalnızca içerik önizlemesinde: paneldeki çerez metni düzenlenirken banner'ı göster/gizle. Diğer modlarda etkisiz. */
+  setBannerPreview: (show: boolean) => void
 }
 
 const ConsentContext = createContext<ConsentContextValue | null>(null)
 
 export function ConsentProvider({ children }: { children: ReactNode }) {
-  // Önizleme modunda kayıtlı tercih okunmaz; karar yalnızca bellekte tutulur.
-  const [consent, setConsent] = useState<ConsentState>(() => (firstVisitPreview ? defaultConsent : readJSON<ConsentState>(storageKeys.consent, defaultConsent)))
+  // Önizleme modlarında kayıtlı tercih okunmaz; karar yalnızca bellekte tutulur.
+  const [consent, setConsent] = useState<ConsentState>(() => (contentPreview ? previewConsent : firstVisitPreview ? defaultConsent : readJSON<ConsentState>(storageKeys.consent, defaultConsent)))
 
   useEffect(() => {
-    if (!firstVisitPreview) writeJSON(storageKeys.consent, consent)
+    if (!firstVisitPreview && !contentPreview) writeJSON(storageKeys.consent, consent)
     // İzin verilmeyen servisler başlatılmaz.
     if (consent.status === 'decided') {
       if (consent.analytics) startAnalytics()
@@ -44,8 +48,12 @@ export function ConsentProvider({ children }: { children: ReactNode }) {
   }, [])
   const acceptAll = useCallback(() => save({ analytics: true, marketing: true }), [save])
   const necessaryOnly = useCallback(() => save({ analytics: false, marketing: false }), [save])
+  const setBannerPreview = useCallback((show: boolean) => {
+    if (!contentPreview) return
+    setConsent((c) => (show ? (c.status === 'pending' ? c : defaultConsent) : c.status === 'decided' ? c : previewConsent))
+  }, [])
 
-  const value = useMemo(() => ({ consent, acceptAll, necessaryOnly, save }), [consent, acceptAll, necessaryOnly, save])
+  const value = useMemo(() => ({ consent, acceptAll, necessaryOnly, save, setBannerPreview }), [consent, acceptAll, necessaryOnly, save, setBannerPreview])
   return <ConsentContext.Provider value={value}>{children}</ConsentContext.Provider>
 }
 

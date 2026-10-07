@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { cookieContent } from '../../data/content'
+import { cookieContent, usePreviewVersion } from '../../data/content'
 import { S } from '../../i18n'
 import { useConsent } from '../../state/ConsentContext'
 import { usePanels } from '../../state/PanelContext'
@@ -14,6 +14,8 @@ import styles from './Panels.module.css'
 export function CookieBanner() {
   const { consent, acceptAll, necessaryOnly } = useConsent()
   const { openPanel, isOpen } = usePanels()
+  // Panel önizlemesinde çerez metni taslağı değişince yeniden çizilsin.
+  usePreviewVersion()
   if (consent.status !== 'pending') return null
   if (isOpen('cookie-preferences')) return null
 
@@ -21,7 +23,7 @@ export function CookieBanner() {
     <section className={styles.cookieBar} role="region" aria-label={S.cookie.title} data-cookie-banner>
       <div className={styles.cookieBody}>
         <h2 className={styles.cookieTitle}>{S.cookie.title}</h2>
-        <p className={styles.cookieText}>
+        <p className={styles.cookieText} data-content-key={cookieContent.bannerText.key ?? undefined}>
           {cookieContent.bannerText.value ?? S.cookie.demoText}{' '}
           <Link to="/bilgi/cerez-politikasi" className="link">
             {S.cookie.policyLink}

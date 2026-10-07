@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { cookieContent } from '../../data/content'
+import { cookieContent, usePreviewVersion } from '../../data/content'
 import { S } from '../../i18n'
 import { useConsent } from '../../state/ConsentContext'
 import { usePanels } from '../../state/PanelContext'
@@ -22,6 +22,8 @@ function CookiePreferencesDialog() {
   const { closePanel } = usePanels()
   const [analytics, setAnalytics] = useState(consent.analytics)
   const [marketing, setMarketing] = useState(consent.marketing)
+  // Panel önizlemesinde çerez metinleri taslağı değişince yeniden çizilsin.
+  usePreviewVersion()
   const close = () => closePanel('cookie-preferences')
 
   return (
@@ -56,9 +58,11 @@ function CookiePreferencesDialog() {
       }
     >
       <div className={styles.prefList}>
-        <p className="text-sm">{cookieContent.bannerText.value ?? S.cookie.demoText}</p>
+        <p className="text-sm" data-content-key={cookieContent.bannerText.key ?? undefined}>
+          {cookieContent.bannerText.value ?? S.cookie.demoText}
+        </p>
         {cookieContent.categories.map((c) => (
-          <div key={c.id} className={styles.prefItem}>
+          <div key={c.id} className={styles.prefItem} data-content-key={c.description.key ?? undefined}>
             {c.required ? (
               <Switch label={c.label} checked disabled readOnly description={c.description.value ?? S.cookie.necessaryDemo} />
             ) : (

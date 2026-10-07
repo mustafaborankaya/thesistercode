@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigationType, useSearchParams } from 'react-router-dom'
 import { siteSettings } from '../../config/settings'
 import { categories } from '../../data/catalog'
-import { brandContent } from '../../data/content'
+import { brandContent, usePreviewVersion } from '../../data/content'
 import type { CategoryId, CollectionFilters, SizeId, SortId } from '../../data/types'
 import { useIsDesktop } from '../../hooks/useMediaQuery'
 import { S } from '../../i18n'
@@ -62,6 +62,8 @@ interface CollectionViewProps {
 /** Ana sayfa ve /koleksiyon/:categoryId tarafından paylaşılan koleksiyon görünümü: başlık, kategori şeridi,
  * listeleme araçları, etkin filtreler, ürün ızgarası ve filtre paneli. Durum URL search param'larında tutulur. */
 export function CollectionView({ categoryId = 'tum-urunler' }: CollectionViewProps) {
+  // Panel önizlemesinde koleksiyon adı taslağı değişince yeniden çizilsin.
+  usePreviewVersion()
   const [searchParams, setSearchParams] = useSearchParams()
   const location = useLocation()
   const navigationType = useNavigationType()
@@ -134,7 +136,9 @@ export function CollectionView({ categoryId = 'tum-urunler' }: CollectionViewPro
   return (
     <section className={styles.wrap}>
       <header className={styles.head}>
-        <h1 className={styles.heading}>{brandContent.collectionTitle.value ?? S.collection.title}</h1>
+        <h1 className={styles.heading} data-content-key={brandContent.collectionTitle.key ?? undefined}>
+          {brandContent.collectionTitle.value ?? S.collection.title}
+        </h1>
         {categoryLabel ? <p className={styles.categoryLabel}>{categoryLabel}</p> : null}
       </header>
 

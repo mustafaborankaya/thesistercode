@@ -50,6 +50,14 @@ export function mediaByName(name: string): string | null {
   return byBaseName[name] ?? null
 }
 
+/**
+ * Yalnızca pakette gelen (src/assets/media) dosya — API/override zincirine BAKMAZ. Yönetici paneli
+ * "Varsayılan (sitede görünen)" rozetini buna göre verir: sunucuda yüklenmiş görsel yoksa mağaza bunu gösterir.
+ */
+export function bundledMediaByName(name: string): string | null {
+  return byBaseName[name] ?? null
+}
+
 /** Klasördeki dosya adları — teslim notunda "hangi görseller var" bilgisi için. */
 export const availableMediaNames: string[] = Object.keys(byBaseName).sort()
 

@@ -1,6 +1,6 @@
-import { useId, useMemo, useState } from 'react'
+import { useId, useState } from 'react'
 import { Link } from 'react-router-dom'
-import type { InfoPageDef } from '../../data/content'
+import { usePreviewVersion, type InfoPageDef } from '../../data/content'
 import { S } from '../../i18n'
 import { ContentText } from '../ui/ContentText'
 import { Icon } from '../ui/Icon'
@@ -38,15 +38,14 @@ function FaqQuestion({ item }: { item: FaqItem }) {
 
 /** `/bilgi/sss`: bölümlere ayrılmış, animasyonlu akordeon. Metinler panelden `S:`/`C:` düz metin biçiminde gelir. */
 export function FaqPage({ page }: { page: InfoPageDef }) {
-  const sections = useMemo(
-    () =>
-      page.sections.map((field, i) => ({
-        field,
-        id: SECTION_IDS[i] ?? `bolum-${i + 1}`,
-        parsed: parseFaq(field.value),
-      })),
-    [page.sections],
-  )
+  // Panel önizlemesinde taslak değişince yeniden çizilir; sorular her çizimde ayrıştırılır (4 kısa metin,
+  // bileşen yalnızca rota/önizleme değişiminde çizildiğinden memo gerekmez — field.value getter'ı taslağı okur).
+  usePreviewVersion()
+  const sections = page.sections.map((field, i) => ({
+    field,
+    id: SECTION_IDS[i] ?? `bolum-${i + 1}`,
+    parsed: parseFaq(field.value),
+  }))
   const hasAny = sections.some((s) => s.parsed.items.length > 0)
 
   // Hiç soru ayrıştırılamadı: eski düz metin görünümü.
@@ -90,7 +89,15 @@ export function FaqPage({ page }: { page: InfoPageDef }) {
 
         <div className={styles.content}>
           {sections.map((s) => (
-            <section key={s.id} id={s.id} tabIndex={-1} className={styles.section} aria-labelledby={`${s.id}-title`}>
+            // Sorular ContentText ile çizilmediğinden bölüm anahtarı burada (yalnızca ayrıştırılmış dal; boş dal ContentText'te).
+            <section
+              key={s.id}
+              id={s.id}
+              tabIndex={-1}
+              className={styles.section}
+              aria-labelledby={`${s.id}-title`}
+              data-content-key={s.parsed.items.length || s.parsed.intro.length ? (s.field.key ?? undefined) : undefined}
+            >
               <h2 id={`${s.id}-title`} className={styles.sectionTitle}>
                 {s.field.label}
               </h2>

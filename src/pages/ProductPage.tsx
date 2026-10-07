@@ -109,7 +109,6 @@ export function ProductPage() {
         <div ref={infoRef} className={[styles.info, infoFits ? styles.sticky : ''].join(' ').trim()}>
           <div className={styles.header}>
             <div>
-              <p className={styles.eyebrow}>{S.product.productNumber(product.number)}</p>
               <h1 className={styles.name}>{product.name}</h1>
             </div>
             <button

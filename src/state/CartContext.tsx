@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { productById } from '../data/catalog'
 import type { CartLine, SizeId } from '../data/types'
 import { applyKnownPrice, computeTotals, lineKey, normalizeLines, variantStock, type AppliedCoupon, type SummaryTotals } from '../lib/cart'
+import { contentPreview } from '../lib/preview'
 import { trackAddToCart } from '../services/analytics'
 import { validateCouponApi, type ValidateCouponResult } from '../services/coupons'
 import { readJSON, storageKeys, writeJSON } from '../lib/storage'
@@ -58,7 +59,8 @@ function writeCoupon(c: AppliedCoupon | null): void {
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [lines, setLines] = useState<CartLine[]>(() => normalizeLines(readJSON<CartLine[]>(storageKeys.cart, [])))
+  // İçerik önizlemesinde (panel iframe'i) sepet tarayıcı depolamasından okunmaz ve oraya yazılmaz.
+  const [lines, setLines] = useState<CartLine[]>(() => (contentPreview ? [] : normalizeLines(readJSON<CartLine[]>(storageKeys.cart, []))))
   const [lastAddedKey, setLastAddedKey] = useState<string | null>(null)
   const { discountEligible } = useAccount()
   const { openPanel } = usePanels()
@@ -72,7 +74,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [coupon])
 
   useEffect(() => {
-    writeJSON(storageKeys.cart, lines)
+    if (!contentPreview) writeJSON(storageKeys.cart, lines)
   }, [lines])
 
   // Başka sekmede değişen sepeti yansıt.

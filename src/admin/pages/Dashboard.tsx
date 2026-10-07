@@ -285,7 +285,7 @@ export function Dashboard() {
                     <span className={styles.lowName}>
                       <Link to={`/admin/urunler/${v.productId}`}>{v.name}</Link>
                       <span className={ui.cellSub} style={{ display: 'block' }}>
-                        {AS.products.number(v.number)} · {AS.dashboard.lowStockRow(v.colorLabel, v.size)}
+                        {AS.dashboard.lowStockRow(v.colorLabel, v.size)}
                       </span>
                     </span>
                     <StatusBadge tone="warning">{AS.dashboard.qty(v.qty)}</StatusBadge>

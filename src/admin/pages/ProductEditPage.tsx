@@ -1,16 +1,17 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { allProducts, allSizes, baseSeeds, categories, colorOptions } from '../../data/catalog'
 import { mediaByName, productMediaName } from '../../data/media'
 import type { MediaKind, Product, SizeId } from '../../data/types'
 import { apiErrorMessage } from '../../i18n/apiMessages'
 import { ApiError } from '../../services/api'
-import { getAdminSettings, listAdminProducts, updateAdminProduct, useApiMode, type AdminProduct, type AdminProductPatch, type NewBadgeMode } from '../adminApi'
+import { deleteAdminProduct, getAdminSettings, listAdminProducts, updateAdminProduct, useApiMode, type AdminProduct, type AdminProductPatch, type NewBadgeMode } from '../adminApi'
+import { currentAdmin } from '../adminAuth'
 import { readAdminData, updateAdminData, type ProductOverride } from '../adminStore'
 import { AS } from '../adminStrings'
 import { ApiMediaField } from '../components/ApiMediaField'
 import { MediaField } from '../components/MediaField'
-import { inventoryConfigFrom, localInventoryConfig, MAX_STOCK_QTY, stockLevel, type InventoryConfig } from '../inventory'
+import { inventoryConfigFrom, localInventoryConfig, MAX_STOCK_QTY, productStockInfo, stockLevel, type InventoryConfig } from '../inventory'
 import { isConflict, withExpected } from '../productUtils'
 import { Btn } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
@@ -32,6 +33,11 @@ type CategoryValue = Product['category']
 type AnyProduct = (Product | AdminProduct) & { updatedAt?: string | null }
 
 const editableCategories = categories.filter((c) => !c.virtual)
+const categoryLabel = (id: string) => categories.find((c) => c.id === id)?.label ?? id
+/** API modunda bir üründe en fazla renk (sunucu şemasıyla aynı: api/src/routes/admin-products.js MAX_COLORS). */
+const MAX_COLORS = 20
+/** Panelin ürettiği renk id biçimi: `renk-N` (sunucu `^[a-z0-9-]{1,32}$` ister). */
+const COLOR_ID_RE = /^renk-(\d+)$/
 const MEDIA_KINDS: { kind: MediaKind; label: string }[] = [
   { kind: 'front', label: AS.productEdit.frontLabel },
   { kind: 'back', label: AS.productEdit.backLabel },
@@ -179,6 +185,30 @@ function sameSet(a: string[], b: string[]): boolean {
   return sa.every((v, i) => v === sb[i])
 }
 
+/** Sıra duyarlı karşılaştırma — ilişkili ürün listelerinde sıra, mağazadaki gösterim sırasıdır. */
+function sameList(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((v, i) => v === b[i])
+}
+
+/** Yeni renk id'si: mevcut `renk-N` id'lerinin en büyüğü + 1 (hiç yoksa liste uzunluğu + 1; çakışırsa artırılır). */
+function nextColorId(existing: string[]): { id: string; n: number } {
+  let max = 0
+  for (const id of existing) {
+    const m = COLOR_ID_RE.exec(id)
+    if (m) max = Math.max(max, Number(m[1]))
+  }
+  let n = Math.max(max, existing.length) + 1
+  while (existing.includes(`renk-${n}`)) n++
+  return { id: `renk-${n}`, n }
+}
+
+/** Formdaki bir rengin toplam stoğu (geçersiz hücreler 0 sayılır). */
+function colorStockTotal(stock: FormState['stock'], colorId: string): number {
+  const row = stock[colorId]
+  if (!row) return 0
+  return allSizes.reduce((sum, s) => sum + (validStockValue(row[s] ?? '0') ? Number(row[s]) : 0), 0)
+}
+
 /** Ortak doğrulama: ad (boş/200+), fiyat (sayı ≥ 0), stok hücreleri, renk adları. */
 function validate(form: FormState, apiMode: boolean): { errors: Errors; price: number | null } {
   const errors: Errors = {}
@@ -250,8 +280,8 @@ function buildApiPatch(form: FormState, product: AdminProduct, price: number): A
   const dr = form.deliveryReturns.trim()
   if (dr !== product.content.deliveryReturns) patch.deliveryReturns = dr
 
-  if (!sameSet(form.similarProductIds, product.similarProductIds ?? [])) patch.similarProductIds = form.similarProductIds
-  if (!sameSet(form.completeLookProductIds, product.completeLookProductIds ?? [])) patch.completeLookProductIds = form.completeLookProductIds
+  if (!sameList(form.similarProductIds, product.similarProductIds ?? [])) patch.similarProductIds = form.similarProductIds
+  if (!sameList(form.completeLookProductIds, product.completeLookProductIds ?? [])) patch.completeLookProductIds = form.completeLookProductIds
   return patch
 }
 
@@ -265,6 +295,7 @@ export function ProductEditPage() {
 
 function ApiProductEditPage({ id }: { id: string }) {
   const toast = useToast()
+  const navigate = useNavigate()
   const list = useLoader(listAdminProducts)
   const config = useLoader<InventoryConfig>(() => getAdminSettings().then(inventoryConfigFrom))
   const cfg = config.data ?? localInventoryConfig()
@@ -280,6 +311,10 @@ function ApiProductEditPage({ id }: { id: string }) {
   const [confirmZero, setConfirmZero] = useState(false)
   const [removeKind, setRemoveKind] = useState<MediaKind | null>(null)
   const [removing, setRemoving] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  // Silme yalnızca owner için (sunucu editöre 403 döner); editör ürünü gizleyebilir.
+  const isOwner = currentAdmin?.role === 'owner'
 
   // Ürün ilk kez yüklenince (ya da "Yenile" sonrası) formu kur — render sırasında, efektsiz.
   const productStamp = product ? `${product.id}@${product.updatedAt ?? ''}#${list.data?.length}` : null
@@ -368,6 +403,20 @@ function ApiProductEditPage({ id }: { id: string }) {
     }
   }
 
+  async function confirmDeleteProduct() {
+    if (!product) return
+    setDeleting(true)
+    try {
+      const { orderItems } = await deleteAdminProduct(product.id)
+      toast.success(orderItems > 0 ? AS.productEdit.deletedWithOrders(product.name, orderItems) : AS.productEdit.deleted(product.name))
+      setConfirmDelete(false)
+      navigate('/admin/urunler', { replace: true })
+    } catch (e) {
+      toast.error(apiErrorMessage(e))
+      setDeleting(false)
+    }
+  }
+
   const mediaByKind = Object.fromEntries(product.media.map((m) => [m.kind, m]))
   const others = (list.data ?? []).filter((p) => p.id !== product.id)
 
@@ -415,7 +464,13 @@ function ApiProductEditPage({ id }: { id: string }) {
                     name={productMediaName(product.number, kind)}
                     label={label}
                     src={serverSrc ?? fallback}
-                    meta={fallback ? AS.productEdit.mediaDefault : undefined}
+                    badge={
+                      serverSrc ? (
+                        <StatusBadge tone="success">{AS.productEdit.mediaUploadedBadge}</StatusBadge>
+                      ) : fallback ? (
+                        <StatusBadge tone="neutral">{AS.productEdit.mediaDefaultBadge}</StatusBadge>
+                      ) : null
+                    }
                     savedMessage={AS.productEdit.mediaSaved}
                     pendingExternal={removing && removeKind === kind}
                     onUpload={(url) => uploadMedia(kind, url)}
@@ -426,6 +481,28 @@ function ApiProductEditPage({ id }: { id: string }) {
             </div>
           </>
         }
+        footer={
+          <FormSection title={AS.productEdit.dangerTitle} description={AS.productEdit.dangerDesc}>
+            <div className={ui.stackSm}>
+              <div>
+                <Btn variant="danger" icon="trash" disabled={!isOwner || pending} onClick={() => setConfirmDelete(true)}>
+                  {AS.productEdit.deleteButton}
+                </Btn>
+              </div>
+              {!isOwner ? <p className={ui.hint}>{AS.productEdit.deleteOwnerOnly}</p> : null}
+            </div>
+          </FormSection>
+        }
+      />
+      <ConfirmDialog
+        open={confirmDelete}
+        title={AS.productEdit.deleteTitle(product.name)}
+        message={AS.productEdit.deleteText}
+        confirmLabel={AS.productEdit.deleteConfirm}
+        tone="danger"
+        pending={deleting}
+        onCancel={() => setConfirmDelete(false)}
+        onConfirm={() => void confirmDeleteProduct()}
       />
       <StickySaveBar
         dirty={dirty && !conflict}
@@ -537,8 +614,8 @@ function LocalProductEditPage({ id }: { id: string }) {
     if (f.nameEn.trim()) override.nameEn = f.nameEn.trim()
     if (f.descriptionEn.trim()) override.descriptionEn = f.descriptionEn.trim()
     if (f.fabricCareEn.trim()) override.fabricCareEn = f.fabricCareEn.trim()
-    if (!sameSet(f.similarProductIds, sd.similarProductIds ?? [])) override.similarProductIds = f.similarProductIds
-    if (!sameSet(f.completeLookProductIds, sd.completeLookProductIds ?? [])) override.completeLookProductIds = f.completeLookProductIds
+    if (!sameList(f.similarProductIds, sd.similarProductIds ?? [])) override.similarProductIds = f.similarProductIds
+    if (!sameList(f.completeLookProductIds, sd.completeLookProductIds ?? [])) override.completeLookProductIds = f.completeLookProductIds
     const productId = currentProduct.id
     updateAdminData((current) => {
       const products = { ...current.products }
@@ -666,11 +743,12 @@ function NotFound() {
 }
 
 function EditHeader({ product, form, extra }: { product: AnyProduct; form: FormState; extra?: ReactNode }) {
+  // Ürün numarası kullanıcıya gösterilmez (yalnızca dahili id/slug/görsel adı kuralı); açıklama kategori adıdır.
   return (
     <PageHeader
       back={{ to: '/admin/urunler', label: AS.productEdit.backToList }}
-      title={form.name.trim() || AS.productEdit.title(product.number)}
-      description={AS.productEdit.title(product.number)}
+      title={form.name.trim() || AS.productEdit.untitled}
+      description={categoryLabel(form.category)}
       meta={product.hidden ? <StatusBadge tone="neutral">{AS.productEdit.hiddenBadge}</StatusBadge> : <StatusBadge tone="success">{AS.productEdit.visibleBadge}</StatusBadge>}
       actions={
         <>
@@ -703,12 +781,51 @@ interface FormViewProps {
   /** Yerel modda yeni eklenen rengin varsayılan stoğu (tohum veri). */
   seedDefault?: (colorId: string, size: SizeId) => number
   media: ReactNode
+  /** Sekmelerin altında, her sekmede görünen bölüm (ör. "Tehlikeli bölge"). */
+  footer?: ReactNode
 }
 
-function ProductFormView({ mode, tab, onTab, form, changed, errors, update, setForm, config, others, currentBadgeActive, savedBadgeMode, productColorLabel, seedDefault, media }: FormViewProps) {
+function ProductFormView({ mode, tab, onTab, form, changed, errors, update, setForm, config, others, currentBadgeActive, savedBadgeMode, productColorLabel, seedDefault, media, footer }: FormViewProps) {
   const api = mode === 'api'
   const tabHas = (t: TabId) => TAB_FIELDS[t].some((k) => changed.has(k)) || (Object.keys(errors) as (keyof Errors)[]).some((k) => errors[k] && ERROR_TAB[k] === t)
   const labelOf = (cid: string) => (api ? form.colorLabels[cid]?.trim() || productColorLabel(cid) : productColorLabel(cid))
+  // API modu: stoklu bir renk kaldırılırken onay istenir (stok satırları sunucuda silinir).
+  const [removeColorId, setRemoveColorId] = useState<string | null>(null)
+
+  /** API modu: yeni renk satırı — id `renk-N`, ad "Renk N", stok 0. */
+  function addColor() {
+    setForm((f) => {
+      if (!f || f.colors.length >= MAX_COLORS) return f
+      const { id, n } = nextColorId(f.colors)
+      const row = Object.fromEntries(allSizes.map((s) => [s, '0'])) as Record<SizeId, string>
+      return {
+        ...f,
+        colors: [...f.colors, id],
+        colorLabels: { ...f.colorLabels, [id]: AS.productEdit.colorDefaultLabel(n) },
+        stock: { ...f.stock, [id]: row },
+      }
+    })
+  }
+
+  /** API modu: rengi listeden çıkarır (son renk kaldırılamaz); stok/etiket girdileri de temizlenir. */
+  function removeColor(colorId: string) {
+    setForm((f) => {
+      if (!f || f.colors.length <= 1) return f
+      const stock = { ...f.stock }
+      delete stock[colorId]
+      const colorLabels = { ...f.colorLabels }
+      delete colorLabels[colorId]
+      const colorLabelsEn = { ...f.colorLabelsEn }
+      delete colorLabelsEn[colorId]
+      return { ...f, colors: f.colors.filter((c) => c !== colorId), stock, colorLabels, colorLabelsEn }
+    })
+  }
+
+  function requestRemoveColor(colorId: string) {
+    if (form.colors.length <= 1) return
+    if (colorStockTotal(form.stock, colorId) > 0) setRemoveColorId(colorId)
+    else removeColor(colorId)
+  }
 
   function toggleColor(colorId: string, checked: boolean) {
     setForm((f) => {
@@ -726,8 +843,21 @@ function ProductFormView({ mode, tab, onTab, form, changed, errors, update, setF
     })
   }
 
+  /** Seçim sırası korunur: yeni seçilen listenin sonuna eklenir (mağazada gösterim sırası). */
   function toggleRelated(field: 'similarProductIds' | 'completeLookProductIds', otherId: string, checked: boolean) {
-    setForm((f) => (f ? { ...f, [field]: checked ? [...f[field], otherId] : f[field].filter((v) => v !== otherId) } : f))
+    setForm((f) => (f ? { ...f, [field]: checked ? [...f[field].filter((v) => v !== otherId), otherId] : f[field].filter((v) => v !== otherId) } : f))
+  }
+
+  function moveRelated(field: 'similarProductIds' | 'completeLookProductIds', otherId: string, dir: -1 | 1) {
+    setForm((f) => {
+      if (!f) return f
+      const list = [...f[field]]
+      const i = list.indexOf(otherId)
+      const j = i + dir
+      if (i < 0 || j < 0 || j >= list.length) return f
+      ;[list[i], list[j]] = [list[j], list[i]]
+      return { ...f, [field]: list }
+    })
   }
 
   const tabs = [
@@ -798,34 +928,71 @@ function ProductFormView({ mode, tab, onTab, form, changed, errors, update, setF
             <TextField label={AS.productEdit.priceLabel} inputMode="decimal" suffix="TL" value={form.price} error={errors.price} onChange={(e) => update('price', e.target.value)} />
           </div>
         </FormSection>
-        <FormSection title={AS.productEdit.colorsTitle} description={AS.productEdit.colorsHint}>
-          <div>
-            {colorOptions.map((opt) => {
-              const checked = form.colors.includes(opt.id)
-              return (
-                <div key={opt.id} className={styles.colorRow}>
-                  <CheckField
-                    label={api ? <span className="sr-only">{productColorLabel(opt.id)}</span> : productColorLabel(opt.id)}
-                    checked={checked}
-                    onChange={(e) => toggleColor(opt.id, e.target.checked)}
-                    aria-label={productColorLabel(opt.id)}
+        {api ? (
+          /* API modu: sınırsız (en fazla MAX_COLORS) dinamik renk listesi — sunucu product_colors tablosu N rengi destekler. */
+          <FormSection title={AS.productEdit.colorsTitle} description={AS.productEdit.colorsHintApi(MAX_COLORS)}>
+            <div>
+              {form.colors.map((cid, i) => (
+                <div key={cid} className={styles.colorRowApi}>
+                  <span className={styles.colorIndex} aria-hidden="true">
+                    {i + 1}
+                  </span>
+                  <TextField
+                    label={AS.productEdit.colorNameLabel(cid)}
+                    hideLabel
+                    maxLength={64}
+                    value={form.colorLabels[cid] ?? ''}
+                    error={errors.colorLabels && !(form.colorLabels[cid] ?? '').trim() ? errors.colorLabels : null}
+                    onChange={(e) => update('colorLabels', { ...form.colorLabels, [cid]: e.target.value })}
                   />
-                  {api ? (
-                    <TextField
-                      label={AS.productEdit.colorNameLabel(opt.id)}
-                      hideLabel
-                      maxLength={64}
-                      disabled={!checked}
-                      value={checked ? (form.colorLabels[opt.id] ?? '') : productColorLabel(opt.id)}
-                      error={checked && errors.colorLabels && !(form.colorLabels[opt.id] ?? '').trim() ? errors.colorLabels : null}
-                      onChange={(e) => update('colorLabels', { ...form.colorLabels, [opt.id]: e.target.value })}
-                    />
-                  ) : null}
+                  <Btn
+                    size="sm"
+                    variant="ghost"
+                    icon="trash"
+                    disabled={form.colors.length <= 1}
+                    title={form.colors.length <= 1 ? AS.productEdit.colorRemoveLastHint : undefined}
+                    aria-label={AS.productEdit.colorRemoveAria(labelOf(cid))}
+                    onClick={() => requestRemoveColor(cid)}
+                  >
+                    {AS.productEdit.colorRemove}
+                  </Btn>
                 </div>
-              )
-            })}
-          </div>
-        </FormSection>
+              ))}
+              <div className={styles.colorListFoot}>
+                <Btn icon="plus" disabled={form.colors.length >= MAX_COLORS} onClick={addColor}>
+                  {AS.productEdit.colorAdd}
+                </Btn>
+                {form.colors.length >= MAX_COLORS ? <span className={ui.hint}>{AS.productEdit.colorAddMax(MAX_COLORS)}</span> : null}
+              </div>
+            </div>
+            <ConfirmDialog
+              open={removeColorId != null}
+              title={removeColorId ? AS.productEdit.colorRemoveTitle(labelOf(removeColorId)) : ''}
+              message={removeColorId ? AS.productEdit.colorRemoveText(colorStockTotal(form.stock, removeColorId)) : ''}
+              confirmLabel={AS.productEdit.colorRemoveConfirm}
+              tone="danger"
+              onCancel={() => setRemoveColorId(null)}
+              onConfirm={() => {
+                if (removeColorId) removeColor(removeColorId)
+                setRemoveColorId(null)
+              }}
+            />
+          </FormSection>
+        ) : (
+          /* Yerel demo modu: katalog 3 renkle sınırlı (data/catalog.ts colorOptions) — eski onay kutuları. */
+          <FormSection title={AS.productEdit.colorsTitle} description={AS.productEdit.colorsHint}>
+            <div>
+              {colorOptions.map((opt) => {
+                const checked = form.colors.includes(opt.id)
+                return (
+                  <div key={opt.id} className={styles.colorRow}>
+                    <CheckField label={productColorLabel(opt.id)} checked={checked} onChange={(e) => toggleColor(opt.id, e.target.checked)} aria-label={productColorLabel(opt.id)} />
+                  </div>
+                )
+              })}
+            </div>
+          </FormSection>
+        )}
         <FormSection title={AS.productEdit.stockTitle} description={AS.productEdit.stockHint(config.lowStockThreshold)}>
           {errors.stock ? <Notice tone="danger">{errors.stock}</Notice> : null}
           <StockMatrix colors={form.colors} labelOf={labelOf} stock={form.stock} threshold={config.lowStockThreshold} onChange={(stock) => update('stock', stock)} />
@@ -893,6 +1060,7 @@ function ProductFormView({ mode, tab, onTab, form, changed, errors, update, setF
           others={others}
           selected={form.similarProductIds}
           onToggle={(pid, on) => toggleRelated('similarProductIds', pid, on)}
+          onMove={(pid, dir) => moveRelated('similarProductIds', pid, dir)}
         />
         <RelatedPicker
           title={AS.productEdit.completeLookTitle}
@@ -900,24 +1068,74 @@ function ProductFormView({ mode, tab, onTab, form, changed, errors, update, setF
           others={others}
           selected={form.completeLookProductIds}
           onToggle={(pid, on) => toggleRelated('completeLookProductIds', pid, on)}
+          onMove={(pid, dir) => moveRelated('completeLookProductIds', pid, dir)}
         />
       </div>
+
+      {footer}
     </div>
   )
 }
 
-function RelatedPicker({ title, hint, others, selected, onToggle }: { title: string; hint: string; others: (Product | AdminProduct)[]; selected: string[]; onToggle: (id: string, on: boolean) => void }) {
+interface RelatedPickerProps {
+  title: string
+  hint: string
+  others: (Product | AdminProduct)[]
+  /** Seçim sırası = mağazadaki gösterim sırası. */
+  selected: string[]
+  onToggle: (id: string, on: boolean) => void
+  onMove: (id: string, dir: -1 | 1) => void
+}
+
+/**
+ * İlişkili ürün seçici: seçililer üstte (sırayla, yukarı/aşağı oklarla sıralanır), diğerleri altta.
+ * Gizli ya da tamamen stoksuz ürünler rozetle işaretlenir — mağaza bunları göstermez (bkz.
+ * src/lib/recommendations.ts), seçilmiş olsalar da sessizce elenirler.
+ */
+function RelatedPicker({ title, hint, others, selected, onToggle, onMove }: RelatedPickerProps) {
   const [q, setQ] = useState('')
   const needle = q.trim().toLocaleLowerCase('tr-TR')
-  const list = needle ? others.filter((p) => p.name.toLocaleLowerCase('tr-TR').includes(needle) || p.number.includes(needle)) : others
+  const byId = new Map(others.map((p) => [p.id, p]))
+  // Ürün adının yanında numara gösterilmez; arama yine de gizlice numarayla da eşleşir.
+  const matches = (p: Product | AdminProduct) => !needle || p.name.toLocaleLowerCase('tr-TR').includes(needle) || p.number.includes(needle)
+  const selectedRows = selected.map((id) => byId.get(id)).filter((p): p is Product | AdminProduct => !!p && matches(p))
+  const otherRows = others.filter((p) => !selected.includes(p.id) && matches(p))
+
+  function row(p: Product | AdminProduct, index: number | null) {
+    const soldOut = productStockInfo(p, 0).soldOut
+    return (
+      <div key={p.id} className={styles.relatedRow}>
+        <label className={ui.check} style={{ minWidth: 0 }}>
+          <input type="checkbox" checked={index != null} onChange={(e) => onToggle(p.id, e.target.checked)} />
+          <span className={styles.relatedName}>
+            <span>{p.name}</span>
+            <span className={styles.relatedCat}>{categoryLabel(p.category)}</span>
+          </span>
+        </label>
+        <span className={styles.relatedSide}>
+          {p.hidden ? <StatusBadge tone="neutral">{AS.productEdit.relatedHidden}</StatusBadge> : null}
+          {soldOut ? <StatusBadge tone="warning">{AS.productEdit.relatedSoldOut}</StatusBadge> : null}
+          {index != null ? (
+            <>
+              <Btn size="sm" variant="ghost" icon="chevron-up" iconOnly label={AS.productEdit.relatedMoveUp(p.name)} disabled={index === 0} onClick={() => onMove(p.id, -1)} />
+              <Btn size="sm" variant="ghost" icon="chevron-down" iconOnly label={AS.productEdit.relatedMoveDown(p.name)} disabled={index === selected.length - 1} onClick={() => onMove(p.id, 1)} />
+            </>
+          ) : null}
+        </span>
+      </div>
+    )
+  }
+
   return (
-    <FormSection title={title} description={hint} actions={<StatusBadge tone="neutral" dot={false}>{AS.productEdit.selectedCount(selected.length)}</StatusBadge>}>
+    <FormSection title={title} description={`${hint} ${AS.productEdit.relatedNote}`} actions={<StatusBadge tone="neutral" dot={false}>{AS.productEdit.selectedCount(selected.length)}</StatusBadge>}>
       <div className={ui.stack}>
         <TextField label={AS.productEdit.relatedFilter} hideLabel type="search" placeholder={AS.productEdit.relatedFilter} value={q} onChange={(e) => setQ(e.target.value)} />
-        <div className={styles.checkGrid} role="group" aria-label={title}>
-          {list.map((p) => (
-            <CheckField key={p.id} label={`${p.number} — ${p.name}`} checked={selected.includes(p.id)} onChange={(e) => onToggle(p.id, e.target.checked)} />
-          ))}
+        <div className={styles.relatedList} role="group" aria-label={title}>
+          {selectedRows.length ? <div className={styles.relatedGroupTitle}>{AS.productEdit.relatedSelectedGroup}</div> : null}
+          {selectedRows.map((p) => row(p, selected.indexOf(p.id)))}
+          {selectedRows.length && otherRows.length ? <div className={styles.relatedGroupTitle}>{AS.productEdit.relatedOthersGroup}</div> : null}
+          {otherRows.map((p) => row(p, null))}
+          {!selectedRows.length && !otherRows.length ? <p className={ui.muted}>{AS.productEdit.relatedNoMatch}</p> : null}
         </div>
       </div>
     </FormSection>

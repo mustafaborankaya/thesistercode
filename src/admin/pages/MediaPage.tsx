@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { brandMedia, brandMediaNames } from '../../data/media'
+import { brandMediaNames, bundledMediaByName } from '../../data/media'
+import { remote } from '../../data/remote'
 import { apiErrorMessage } from '../../i18n/apiMessages'
 import { getAdminContent, updateAdminBrandMedia, useApiMode } from '../adminApi'
 import { AS } from '../adminStrings'
@@ -8,6 +9,7 @@ import { MediaField } from '../components/MediaField'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { FormSection } from '../ui/FormSection'
 import { ErrorState, Notice, PageHeader } from '../ui/Page'
+import { StatusBadge } from '../ui/StatusBadge'
 import { useToast } from '../ui/toastContext'
 import { useLoader } from '../ui/useLoader'
 import styles from '../admin.module.css'
@@ -20,6 +22,23 @@ interface Slot {
   ratioLabel: string
   kind: 'image' | 'video'
 }
+
+/** Görselin mağazada kullanıldığı sayfa ("Mağazada gör" bağlantısı). */
+const storePath: Record<MediaKey, string> = {
+  heroDesktop: '/',
+  heroMobile: '/',
+  collection: '/',
+  auth: '/giris',
+  logo: '/',
+  productionVideo: '/#uretim',
+  productionVideoPoster: '/#uretim',
+  productionCutting: '/#uretim',
+  productionSewing: '/#uretim',
+  productionQuality: '/#uretim',
+}
+
+/** Yuvanın kaynağı: sunucuya yüklenen dosya / pakette gelen varsayılan (mağaza bunu gösterir) / boş. */
+type SlotSource = 'uploaded' | 'default' | null
 
 const groups: { title: string; desc: string; slots: Slot[]; wide?: boolean }[] = [
   {
@@ -68,19 +87,31 @@ export function MediaPage() {
 }
 
 function ApiMediaGroups() {
-  // `brandMedia` (data/media.ts) yalnızca açılış anı görüntüsüdür; taze değerler GET /admin/content'ten.
+  // Açılış anındaki `remote.content.brandMedia` yalnızca ilk görüntüdür; taze değerler GET /admin/content'ten.
   const loader = useLoader(() => getAdminContent().then((c) => c.brandMedia))
   const [overrides, setOverrides] = useState<Partial<Record<MediaKey, string | null>>>({})
   const [confirmKey, setConfirmKey] = useState<MediaKey | null>(null)
   const [removing, setRemoving] = useState(false)
   const toast = useToast()
 
-  function srcOf(key: MediaKey): string | null {
+  /** Sunucuda kayıtlı (yüklenen) URL — bu oturumda yazılan > taze GET /admin/content > açılış anı. */
+  function uploadedOf(key: MediaKey): string | null {
     if (key in overrides) return overrides[key] ?? null
     const fresh = loader.data
     const name = brandMediaNames[key]
     if (fresh && name in fresh) return fresh[name] ?? null
-    return brandMedia[key]
+    return remote?.content.brandMedia[name] ?? null
+  }
+
+  /**
+   * Yuvada gösterilecek görsel ve kaynağı. Sunucuda URL yoksa mağazanın da gösterdiği pakette gelen
+   * varsayılana (src/assets/media) düşülür — panel boş yuva gösterirken sitede fotoğraf olmasın.
+   */
+  function slotOf(key: MediaKey): { src: string | null; source: SlotSource } {
+    const uploaded = uploadedOf(key)
+    if (uploaded) return { src: uploaded, source: 'uploaded' }
+    const bundled = bundledMediaByName(brandMediaNames[key])
+    return bundled ? { src: bundled, source: 'default' } : { src: null, source: null }
   }
 
   async function write(key: MediaKey, url: string | null) {
@@ -107,25 +138,38 @@ function ApiMediaGroups() {
 
   return (
     <>
-      <Notice tone="neutral">{AS.mediaPage.hint}</Notice>
+      <Notice tone="neutral">
+        <div>{AS.mediaPage.hint}</div>
+        <div style={{ marginTop: 4 }}>{AS.mediaPage.defaultHint}</div>
+      </Notice>
       {groups.map((g) => (
         <FormSection key={g.title} title={g.title} description={g.desc}>
           <div className={g.wide ? styles.mediaGridWide : styles.mediaGrid}>
             {g.slots.map((m) => {
               const label = AS.settings.mediaLabels[m.key]
+              const { src, source } = slotOf(m.key)
               return (
                 <ApiMediaField
                   key={m.key}
                   name={brandMediaNames[m.key]}
                   label={label}
-                  src={srcOf(m.key)}
+                  src={src}
                   ratio={m.ratio}
                   kind={m.kind}
                   meta={m.ratioLabel}
+                  badge={
+                    source === 'uploaded' ? (
+                      <StatusBadge tone="success">{AS.mediaPage.badgeUploaded}</StatusBadge>
+                    ) : source === 'default' ? (
+                      <StatusBadge tone="neutral">{AS.mediaPage.badgeDefault}</StatusBadge>
+                    ) : null
+                  }
+                  storeLink={{ href: storePath[m.key], label: AS.mediaPage.viewInStore }}
                   pendingExternal={loader.initial || (removing && confirmKey === m.key)}
                   savedMessage={AS.mediaPage.saved(label)}
                   onUpload={(url) => write(m.key, url)}
-                  onRequestRemove={() => setConfirmKey(m.key)}
+                  // "Kaldır" yalnızca sunucuya yüklenen görsel için; varsayılan dosya kaldırılamaz, "Değiştir" ile üstüne yüklenir.
+                  onRequestRemove={source === 'uploaded' ? () => setConfirmKey(m.key) : undefined}
                 />
               )
             })}
@@ -135,7 +179,7 @@ function ApiMediaGroups() {
       <ConfirmDialog
         open={confirmKey != null}
         title={confirmKey ? AS.mediaPage.removeTitle(AS.settings.mediaLabels[confirmKey]) : ''}
-        message={AS.mediaPage.removeText}
+        message={confirmKey && bundledMediaByName(brandMediaNames[confirmKey]) ? AS.mediaPage.removeTextDefault : AS.mediaPage.removeText}
         confirmLabel={AS.mediaPage.removeConfirm}
         tone="danger"
         pending={removing}

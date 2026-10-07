@@ -5,6 +5,7 @@
  * ya da yönetici paneli (src/admin/adminStore.ts → content) üzerinden doldurulur; bileşenler değişmez.
  */
 
+import { useSyncExternalStore } from 'react'
 import { readAdminData } from '../admin/adminStore'
 import { S, locale } from '../i18n'
 import { brandMedia } from './media'
@@ -12,15 +13,65 @@ import { remote } from './remote'
 import { contentTexts, contentTextsEn, infoSectionTexts, infoSectionTextsEn } from './contentTexts'
 
 export interface ContentField {
+  /**
+   * API içerik anahtarı (`brand.collectionTitle`, `info.sss.0` …) — yönetici panelinin önizlemesi alanı bununla
+   * eşler; mağaza bileşenleri `data-content-key` olarak basar. Metin olmayan (logo/görsel/video) alanlarda null.
+   */
+  key: string | null
   /** Alanın kullanıcıya görünen adı — örn. "Şirket adresi alanı". */
   label: string
-  /** Gerçek metin geldiğinde buraya yazılır; null iken alan adı gösterilir. */
-  value: string | null
+  /** Gerçek metin geldiğinde buraya yazılır; null iken alan adı gösterilir. Önizlemede taslak değer öne geçer. */
+  readonly value: string | null
 }
 
 const overrides = readAdminData().content
 const clean = (v: string | null | undefined): string | null => (v && v.trim() ? v : null)
-const field = (label: string, value: string | null = null): ContentField => ({ label, value: clean(value) })
+
+/* ---------------- İçerik önizlemesi (yönetici paneli iframe'i) ---------------- */
+
+/**
+ * Panelden gelen taslak değerler: anahtar → metin ya da null (alan boşaltıldı → yer tutucu görünür).
+ * Map'te OLMAYAN anahtar için override yoktur, normal zincir çalışır. Yalnızca `?onizleme=icerik`
+ * modunda, ContentPreviewBridge tarafından doldurulur; normal ziyarette hep boştur.
+ */
+const previewOverrides = new Map<string, string | null>()
+let previewVersion = 0
+const previewListeners = new Set<() => void>()
+
+/** Taslak kümesini BÜTÜNÜYLE değiştirir (önceki anahtarlar düşer) ve abone bileşenleri yeniden çizdirir. */
+export function setPreviewOverrides(entries: Record<string, string | null | undefined>): void {
+  previewOverrides.clear()
+  for (const [key, value] of Object.entries(entries)) previewOverrides.set(key, clean(value))
+  previewVersion++
+  for (const cb of previewListeners) cb()
+}
+
+export function subscribePreview(cb: () => void): () => void {
+  previewListeners.add(cb)
+  return () => {
+    previewListeners.delete(cb)
+  }
+}
+
+const getPreviewVersion = () => previewVersion
+
+/** İçerik değerini doğrudan okuyan bileşenler bunu çağırır: önizleme taslağı değişince yeniden çizilirler. */
+export function usePreviewVersion(): number {
+  return useSyncExternalStore(subscribePreview, getPreviewVersion, getPreviewVersion)
+}
+
+/** `value` bir getter'dır: önizleme taslağı varsa o, yoksa açılışta çözülen değer. */
+const field = (label: string, value: string | null = null, key: string | null = null): ContentField => {
+  const resolved = clean(value)
+  return {
+    key,
+    label,
+    get value(): string | null {
+      if (key !== null && previewOverrides.has(key)) return previewOverrides.get(key) ?? null
+      return resolved
+    },
+  }
+}
 
 const isEn = locale === 'en'
 /** Yapısal etiket/başlık seçimi (sayfa başlıkları, bölüm adları) — içerik değeri değildir. */
@@ -50,29 +101,32 @@ export type BrandContentKey = (typeof brandContentKeys)[number]
 
 const b = overrides.brand ?? {}
 
+/** Anahtarlı metin alanı: `ov()` zinciri + aynı API anahtarı (önizleme eşlemesi için). */
+const keyed = (label: string, local: string | null | undefined, key: string): ContentField => field(label, ov(local, key), key)
+
 export const brandContent = {
   logo: field(tl('Teshvikiye — Logo alanı', 'Teshvikiye — Logo area')),
-  collectionTitle: field(tl('Koleksiyon adı alanı', 'Collection name field'), ov(b.collectionTitle, 'brand.collectionTitle')),
-  collectionIntro: field(tl('Koleksiyon tanıtım metni alanı', 'Collection introduction text field'), ov(b.collectionIntro, 'brand.collectionIntro')),
+  collectionTitle: keyed(tl('Koleksiyon adı alanı', 'Collection name field'), b.collectionTitle, 'brand.collectionTitle'),
+  collectionIntro: keyed(tl('Koleksiyon tanıtım metni alanı', 'Collection introduction text field'), b.collectionIntro, 'brand.collectionIntro'),
   collectionVisual: field(tl('Koleksiyon tanıtım görseli', 'Collection introduction image')),
   /** Ana sayfa açılış görselinin altındaki tek bağlantı yazısı; boşsa S.common.heroDiscover. */
-  heroCta: field(tl('Açılış görseli üzerindeki yazı', 'Text on the opening image'), ov(b.heroCta, 'brand.heroCta')),
+  heroCta: keyed(tl('Açılış görseli üzerindeki yazı', 'Text on the opening image'), b.heroCta, 'brand.heroCta'),
   /** Arama panelindeki "Popüler aramalar" listesi (virgülle ayrılır); boşsa S.search.popularDefault. */
-  popularSearches: field(tl('Popüler aramalar (virgülle ayır)', 'Popular searches (comma separated)'), ov(b.popularSearches, 'brand.popularSearches')),
+  popularSearches: keyed(tl('Popüler aramalar (virgülle ayır)', 'Popular searches (comma separated)'), b.popularSearches, 'brand.popularSearches'),
   // companyName/address/phone/email: gerçek işletme bilgisi gerektirir, contentTexts.ts'te tanımlı değildir — API ya da panel override'ı ile dolar.
-  companyName: field(tl('Şirket unvanı', 'Company name'), ov(b.companyName, 'brand.companyName')),
-  address: field(tl('Adres', 'Address'), ov(b.address, 'brand.address')),
-  phone: field(tl('Telefon', 'Phone'), ov(b.phone, 'brand.phone')),
-  email: field(tl('E-posta', 'E-mail'), ov(b.email, 'brand.email')),
-  registry: field(tl('Vergi ve MERSİS numarası', 'Tax and MERSIS numbers'), ov(b.registry, 'brand.registry')),
-  workingHours: field(tl('Çalışma saatleri', 'Business hours'), ov(b.workingHours, 'brand.workingHours')),
+  companyName: keyed(tl('Şirket unvanı', 'Company name'), b.companyName, 'brand.companyName'),
+  address: keyed(tl('Adres', 'Address'), b.address, 'brand.address'),
+  phone: keyed(tl('Telefon', 'Phone'), b.phone, 'brand.phone'),
+  email: keyed(tl('E-posta', 'E-mail'), b.email, 'brand.email'),
+  registry: keyed(tl('Vergi ve MERSİS numarası', 'Tax and MERSIS numbers'), b.registry, 'brand.registry'),
+  workingHours: keyed(tl('Çalışma saatleri', 'Business hours'), b.workingHours, 'brand.workingHours'),
 }
 
 const p = overrides.production ?? {}
 
 export const productionContent = {
   title: tl('Üretim', 'Production'),
-  intro: field(tl('Üretim süreci açıklaması', 'Production process description'), ov(p.intro, 'production.intro')),
+  intro: keyed(tl('Üretim süreci açıklaması', 'Production process description'), p.intro, 'production.intro'),
   /** src/assets/media/uretim-video.mp4 sağlanınca (ya da panelden yüklenince) value otomatik dolar. */
   video: field(tl('Üretim videosu', 'Production video'), brandMedia.productionVideo),
   videoPoster: brandMedia.productionVideoPoster,
@@ -80,24 +134,24 @@ export const productionContent = {
   steps: [
     {
       id: 'kesim',
-      title: field(tl('Kumaş kesim aşaması başlığı', 'Fabric cutting stage title'), ov(p.steps?.kesim?.title, 'production.kesim.title')),
+      title: keyed(tl('Kumaş kesim aşaması başlığı', 'Fabric cutting stage title'), p.steps?.kesim?.title, 'production.kesim.title'),
       media: tl('Kumaş kesim aşaması görseli', 'Fabric cutting stage image'),
       src: brandMedia.productionCutting,
-      text: field(tl('Kumaş kesim aşaması açıklaması', 'Fabric cutting stage description'), ov(p.steps?.kesim?.text, 'production.kesim.text')),
+      text: keyed(tl('Kumaş kesim aşaması açıklaması', 'Fabric cutting stage description'), p.steps?.kesim?.text, 'production.kesim.text'),
     },
     {
       id: 'dikim',
-      title: field(tl('Dikim aşaması başlığı', 'Sewing stage title'), ov(p.steps?.dikim?.title, 'production.dikim.title')),
+      title: keyed(tl('Dikim aşaması başlığı', 'Sewing stage title'), p.steps?.dikim?.title, 'production.dikim.title'),
       media: tl('Dikim aşaması görseli', 'Sewing stage image'),
       src: brandMedia.productionSewing,
-      text: field(tl('Dikim aşaması açıklaması', 'Sewing stage description'), ov(p.steps?.dikim?.text, 'production.dikim.text')),
+      text: keyed(tl('Dikim aşaması açıklaması', 'Sewing stage description'), p.steps?.dikim?.text, 'production.dikim.text'),
     },
     {
       id: 'kalite',
-      title: field(tl('Kalite kontrol başlığı', 'Quality control title'), ov(p.steps?.kalite?.title, 'production.kalite.title')),
+      title: keyed(tl('Kalite kontrol başlığı', 'Quality control title'), p.steps?.kalite?.title, 'production.kalite.title'),
       media: tl('Kalite kontrol görseli', 'Quality control image'),
       src: brandMedia.productionQuality,
-      text: field(tl('Kalite kontrol açıklaması', 'Quality control description'), ov(p.steps?.kalite?.text, 'production.kalite.text')),
+      text: keyed(tl('Kalite kontrol açıklaması', 'Quality control description'), p.steps?.kalite?.text, 'production.kalite.text'),
     },
   ],
 }
@@ -157,7 +211,7 @@ const infoDefs = isEn ? infoDefsTr.map((d) => ({ ...d, ...(infoDefsEn[d.slug] ??
 // NOT: önceki sürüm burada `ov()`'u atlayıp doğrudan `clean(overrides...) ?? infoSectionTexts[...]` kullanıyordu —
 // bu, yönetici panelinin API'ye kaydettiği bilgi sayfası metinlerinin mağazada HİÇ görünmemesine yol açan bir
 // hataydı (remote hiç okunmuyordu).
-const infoField = (label: string, slug: string, i: number, fallback: string | undefined) => field(label, ov(clean(overrides.infoPages?.[slug]?.[i]), `info.${slug}.${i}`) ?? fallback)
+const infoField = (label: string, slug: string, i: number, fallback: string | undefined) => field(label, ov(clean(overrides.infoPages?.[slug]?.[i]), `info.${slug}.${i}`) ?? fallback, `info.${slug}.${i}`)
 
 export const infoPages: InfoPageDef[] = [
   ...infoDefs.slice(0, 1).map((d) => ({ slug: d.slug, title: d.title, sections: d.labels.map((l, i) => infoField(l, d.slug, i, infoSectionTexts[d.slug]?.[i])) })),
@@ -229,16 +283,16 @@ const cc = overrides.cookieCategories ?? {}
 
 export const cookieContent = {
   /** Gerçek çerez açıklama metni ayrı içerik alanından gelir. */
-  bannerText: field(tl('Çerez açıklama metni', 'Cookie notice text'), ov(overrides.cookieText, 'cookie.bannerText')),
+  bannerText: keyed(tl('Çerez açıklama metni', 'Cookie notice text'), overrides.cookieText, 'cookie.bannerText'),
   categories: [
-    { id: 'necessary', label: tl('Gerekli çerezler', 'Necessary cookies'), description: field(tl('Gerekli çerezler açıklaması', 'Necessary cookies description'), ov(cc.necessary, 'cookie.necessary')), required: true },
-    { id: 'analytics', label: tl('Analitik çerezler', 'Analytics cookies'), description: field(tl('Analitik çerezler açıklaması', 'Analytics cookies description'), ov(cc.analytics, 'cookie.analytics')), required: false },
-    { id: 'marketing', label: tl('Pazarlama çerezleri', 'Marketing cookies'), description: field(tl('Pazarlama çerezleri açıklaması', 'Marketing cookies description'), ov(cc.marketing, 'cookie.marketing')), required: false },
+    { id: 'necessary', label: tl('Gerekli çerezler', 'Necessary cookies'), description: keyed(tl('Gerekli çerezler açıklaması', 'Necessary cookies description'), cc.necessary, 'cookie.necessary'), required: true },
+    { id: 'analytics', label: tl('Analitik çerezler', 'Analytics cookies'), description: keyed(tl('Analitik çerezler açıklaması', 'Analytics cookies description'), cc.analytics, 'cookie.analytics'), required: false },
+    { id: 'marketing', label: tl('Pazarlama çerezleri', 'Marketing cookies'), description: keyed(tl('Pazarlama çerezleri açıklaması', 'Marketing cookies description'), cc.marketing, 'cookie.marketing'), required: false },
   ] as const,
 }
 
 export const sizeGuideContent = {
   title: tl('Beden Rehberi', 'Size Guide'),
-  table: field(tl('Beden ölçü tablosu', 'Size chart'), ov(overrides.sizeGuide?.table, 'sizeGuide.table')),
-  note: field(tl('Ölçü alma açıklaması', 'How to measure'), ov(overrides.sizeGuide?.note, 'sizeGuide.note')),
+  table: keyed(tl('Beden ölçü tablosu', 'Size chart'), overrides.sizeGuide?.table, 'sizeGuide.table'),
+  note: keyed(tl('Ölçü alma açıklaması', 'How to measure'), overrides.sizeGuide?.note, 'sizeGuide.note'),
 }

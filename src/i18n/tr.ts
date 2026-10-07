@@ -150,7 +150,6 @@ export const tr = {
     prev: 'Önceki görsel',
     next: 'Sonraki görsel',
     notFound: 'Ürün bulunamadı.',
-    productNumber: (n: string) => `Ürün ${n}`,
     colorSelected: (label: string) => `Seçili renk: ${label}`,
     sizeSelected: (label: string) => `Seçili beden: ${label}`,
   },

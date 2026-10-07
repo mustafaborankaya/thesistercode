@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { siteSettings } from '../../config/settings'
 import { S } from '../../i18n'
+import { contentPreview } from '../../lib/preview'
 import { useAccount } from '../../state/AccountContext'
 import { useConsent } from '../../state/ConsentContext'
 import { usePanels } from '../../state/PanelContext'
@@ -47,8 +48,9 @@ export function DiscountOffer() {
   }, [closePanel])
 
   // Otomatik gösterim zamanlaması — koşullar her değiştiğinde yeniden değerlendirilir.
+  // İçerik önizlemesinde (panel iframe'i) teklif kendiliğinden açılmaz.
   useEffect(() => {
-    if (!campaign.enabled || consent.status !== 'decided' || isLoggedIn) return
+    if (!campaign.enabled || contentPreview || consent.status !== 'decided' || isLoggedIn) return
     if (onBlockedPath(location.pathname)) return
     if (open !== null) return // başka panel açık — kapanınca bu efekt yeniden çalışır
     const state = readOfferState()

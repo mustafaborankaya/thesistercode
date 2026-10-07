@@ -7,7 +7,7 @@ import { Button } from '../components/ui/Button'
 import { ContentText } from '../components/ui/ContentText'
 import { MediaSlot } from '../components/ui/MediaSlot'
 import { products } from '../data/catalog'
-import { brandContent } from '../data/content'
+import { brandContent, usePreviewVersion } from '../data/content'
 import { brandMedia } from '../data/media'
 import { S } from '../i18n'
 import styles from './HomePage.module.css'
@@ -40,7 +40,7 @@ function Hero() {
       <h1 id="hero-title" className="sr-only">
         {brandContent.collectionTitle.value ?? S.common.heroTitle}
       </h1>
-      <Link to="/koleksiyon" className={styles.heroLink}>
+      <Link to="/koleksiyon" className={styles.heroLink} data-content-key={brandContent.heroCta.key ?? undefined}>
         {brandContent.heroCta.value ?? S.common.heroDiscover}
       </Link>
     </section>
@@ -52,6 +52,8 @@ function Hero() {
  * üretim bölümü (#uretim) → bilgilendirme → footer (Layout). Filtre araçları koleksiyon sayfasındadır.
  */
 export function HomePage() {
+  // Panel önizlemesinde taslak metin değişince yeniden çizilsin (koleksiyon adı / açılış yazısı doğrudan okunuyor).
+  usePreviewVersion()
   const featured = [...products.filter((p) => p.isNew), ...products.filter((p) => !p.isNew)].slice(0, FEATURED_COUNT)
 
   return (
@@ -81,7 +83,9 @@ export function HomePage() {
       <section className={styles.intro} aria-label={brandContent.collectionVisual.label}>
         <MediaSlot label={brandContent.collectionVisual.label} src={brandMedia.collection} ratio="16 / 10" />
         <div className={styles.introText}>
-          <h2 className={styles.introTitle}>{brandContent.collectionTitle.value ?? S.common.heroTitle}</h2>
+          <h2 className={styles.introTitle} data-content-key={brandContent.collectionTitle.key ?? undefined}>
+            {brandContent.collectionTitle.value ?? S.common.heroTitle}
+          </h2>
           <ContentText field={brandContent.collectionIntro} as="p" className="text-soft" />
           <div>
             <Link to="/koleksiyon" className="link caps">

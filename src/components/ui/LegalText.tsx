@@ -19,7 +19,8 @@ function inline(text: string, key: string): ReactNode {
   })
 }
 
-export function LegalText({ text, className }: { text: string; className?: string }) {
+/** `contentKey`: sarmalayıcı div'e basılan `data-content-key` (panel önizlemesi eşlemesi; görünümü etkilemez). */
+export function LegalText({ text, className, contentKey }: { text: string; className?: string; contentKey?: string }) {
   const lines = text.replace(/\r\n?/g, '\n').split('\n')
   const out: ReactNode[] = []
   let para: string[] = []
@@ -93,5 +94,9 @@ export function LegalText({ text, className }: { text: string; className?: strin
   }
   flushPara()
   flushList()
-  return <div className={[styles.legal, className ?? ''].join(' ').trim()}>{out}</div>
+  return (
+    <div className={[styles.legal, className ?? ''].join(' ').trim()} data-content-key={contentKey}>
+      {out}
+    </div>
+  )
 }

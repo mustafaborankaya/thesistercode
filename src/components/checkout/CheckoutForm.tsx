@@ -10,7 +10,7 @@ import { LegalDialog, type LegalSlug } from './LegalDialog'
 import { useAccount } from '../../state/AccountContext'
 import { siteSettings } from '../../config/settings'
 import { onlinePaymentEnabled } from '../../services/ordersApi'
-import { brandContent } from '../../data/content'
+import { brandContent, usePreviewVersion } from '../../data/content'
 
 interface CheckoutFormProps {
   values: CheckoutFormValues
@@ -18,8 +18,13 @@ interface CheckoutFormProps {
   onChange: <K extends keyof CheckoutFormValues>(field: K, value: CheckoutFormValues[K]) => void
 }
 
+/** Satıcı satırının içerik anahtarları (panel önizlemesi). */
+const SELLER_KEYS = [brandContent.companyName.key, brandContent.address.key, brandContent.registry.key].filter(Boolean).join(' ')
+
 /** Checkout'un üç adımı: İletişim → Teslimat → Ödeme, tek bir <form> içinde numaralı bölümler. */
 export function CheckoutForm({ values, errors, onChange }: CheckoutFormProps) {
+  // Panel önizlemesinde satıcı bilgisi taslağı değişince yeniden çizilsin.
+  usePreviewVersion()
   const [legal, setLegal] = useState<LegalSlug | null>(null)
   const { account } = useAccount()
   const online = onlinePaymentEnabled()
@@ -185,7 +190,7 @@ export function CheckoutForm({ values, errors, onChange }: CheckoutFormProps) {
           <img src="/logos/iyzico-kart-bandi.svg" alt={S.checkout.securePaymentAlt} className={styles.paymentLogos} width={429} height={32} loading="lazy" />
           <p className={styles.paymentPending}>{S.checkout.securePaymentNote}</p>
           {brandContent.companyName.value ? (
-            <p className={styles.paymentPending}>
+            <p className={styles.paymentPending} data-content-key={SELLER_KEYS}>
               {S.checkout.sellerLabel}: {[brandContent.companyName.value, brandContent.address.value, brandContent.registry.value].filter(Boolean).join(' · ')}
             </p>
           ) : null}

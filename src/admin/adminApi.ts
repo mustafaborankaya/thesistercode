@@ -103,6 +103,15 @@ export async function createAdminProduct(data: AdminProductCreateInput): Promise
   return res.product
 }
 
+/**
+ * `DELETE /admin/products/:id` — yalnızca owner (editor 403 alır). Ürün ve renk/stok/görsel/ilişki
+ * satırları kalıcı olarak silinir; geçmiş sipariş kalemleri korunur (`orderItems`: bilgi amaçlı sayı).
+ */
+export async function deleteAdminProduct(id: string): Promise<{ orderItems: number }> {
+  const res = await api<{ ok: boolean; orderItems?: number } | null>(`/admin/products/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  return { orderItems: res?.orderItems ?? 0 }
+}
+
 /* ---------------- Stok özeti ---------------- */
 
 /** `GET /admin/inventory` — kural: 0 tükendi, 1..threshold düşük stok (bkz. api/README.md "Stok takibi"). */

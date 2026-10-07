@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Outlet, useLocation, useNavigationType } from 'react-router-dom'
+import { usePreviewVersion } from '../../data/content'
 import { brandMedia } from '../../data/media'
 import { S } from '../../i18n'
+import { contentPreview } from '../../lib/preview'
 import { trackPageView } from '../../services/analytics'
 import { usePanels } from '../../state/PanelContext'
 import { CartDrawer } from '../cart/CartDrawer'
@@ -10,6 +12,7 @@ import { CookiePreferences } from '../panels/CookiePreferences'
 import { DiscountOffer } from '../panels/DiscountOffer'
 import { SearchOverlay } from '../panels/SearchOverlay'
 import { SupportButton, SupportPanel } from '../panels/SupportPanel'
+import { ContentPreviewBridge } from './ContentPreviewBridge'
 import { Footer } from './Footer'
 import { Header, type HeaderMode } from './Header'
 import { MobileMenu } from './MobileMenu'
@@ -89,12 +92,15 @@ export function Layout() {
   const { pathname } = useLocation()
   const isHeroPage = pathname === '/' && !!(brandMedia.heroDesktop || brandMedia.heroMobile)
   const headerMode = useHeaderMode(isHeroPage)
+  // Panel önizlemesinde taslak metin değişince kabuk (header/footer/paneller) yeniden çizilsin.
+  usePreviewVersion()
   return (
     <>
       <a href="#main" className={styles.skip}>
         {S.common.skipToContent}
       </a>
       <RouteEffects />
+      {contentPreview ? <ContentPreviewBridge /> : null}
       <Header mode={headerMode} />
       <main id="main" className={styles.main} tabIndex={-1} data-under-header={isHeroPage ? 'true' : undefined}>
         <Outlet />

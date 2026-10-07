@@ -38,8 +38,10 @@ export function getCompleteLook(product: Product, max = 3): Product[] {
 }
 
 /**
- * "Benzer Ürünler" — önce açık `similarProductIds`, ardından aynı kategoriden katalog sırasıyla
- * deterministik doldurma. Farklı kategoriden doldurma YOK. Ana ürün, `exclude` (genelde aynı
+ * "Benzer Ürünler" — panelden açık `similarProductIds` seçilmişse YALNIZCA onlar, seçim sırasıyla
+ * gösterilir (kategoriden doldurma YAPILMAZ; geçersiz/gizli/tamamen tükenmiş olanlar elenir — gizli
+ * ürünler `productById`'de zaten yoktur). Açık liste yoksa aynı kategoriden katalog sırasıyla
+ * deterministik doldurma yapılır; farklı kategoriden doldurma YOK. Ana ürün, `exclude` (genelde aynı
  * ürünün "Kombini Tamamla" listesi — NOT: ProductPage her iki bölüm için de max=3 çağırır; bu
  * değer değişirse iki bölümde aynı ürünün görünmesini önleyen değişmez de güncellenmelidir),
  * geçersiz, yinelenen ve tamamen tükenmiş ürünler elenir.
@@ -57,17 +59,19 @@ export function getSimilar(product: Product, max = 4, exclude: string[] = []): P
     out.push(candidate)
   }
 
-  for (const id of product.similarProductIds ?? []) {
-    if (out.length >= max) break
-    tryAdd(productById[id])
+  const explicit = product.similarProductIds ?? []
+  if (explicit.length > 0) {
+    for (const id of explicit) {
+      if (out.length >= max) break
+      tryAdd(productById[id])
+    }
+    return out
   }
 
-  if (out.length < max) {
-    for (const candidate of products) {
-      if (out.length >= max) break
-      if (candidate.category !== product.category) continue
-      tryAdd(candidate)
-    }
+  for (const candidate of products) {
+    if (out.length >= max) break
+    if (candidate.category !== product.category) continue
+    tryAdd(candidate)
   }
 
   return out

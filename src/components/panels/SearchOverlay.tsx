@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { siteSettings } from '../../config/settings'
 import { products } from '../../data/catalog'
-import { brandContent } from '../../data/content'
+import { brandContent, usePreviewVersion } from '../../data/content'
 import type { Product } from '../../data/types'
 import { S } from '../../i18n'
 import { searchProducts } from '../../lib/catalog'
@@ -16,9 +16,8 @@ import styles from './SearchOverlay.module.css'
 const RESULT_LIMIT = 8
 const FEATURED_COUNT = 4
 
-/** Panelden yönetilen "Popüler aramalar" (virgülle ayrılmış); boşsa dil varsayılanı. */
-function popularTerms(): string[] {
-  const raw = brandContent.popularSearches.value ?? S.search.popularDefault
+/** Panelden yönetilen "Popüler aramalar" (virgülle ayrılmış metin); boşsa dil varsayılanı. */
+function popularTerms(raw: string): string[] {
   return raw
     .split(',')
     .map((t) => t.trim())
@@ -69,7 +68,10 @@ export function SearchOverlay() {
   const trimmed = query.trim()
   const allResults = useMemo(() => (trimmed ? searchProducts(trimmed) : []), [trimmed])
   const results = allResults.slice(0, RESULT_LIMIT)
-  const terms = useMemo(() => popularTerms(), [])
+  // Panel önizlemesinde popüler aramalar taslağı değişince liste yenilensin.
+  usePreviewVersion()
+  const popularRaw = brandContent.popularSearches.value ?? S.search.popularDefault
+  const terms = useMemo(() => popularTerms(popularRaw), [popularRaw])
   const featured = useMemo(() => [...products.filter((p) => p.isNew), ...products.filter((p) => !p.isNew)].slice(0, FEATURED_COUNT), [])
 
   function goToResults(q: string) {
@@ -92,7 +94,7 @@ export function SearchOverlay() {
       <h3 id="search-popular-title" className={styles.blockTitle}>
         {S.search.popularTitle}
       </h3>
-      <ul className={styles.terms}>
+      <ul className={styles.terms} data-content-key={brandContent.popularSearches.key ?? undefined}>
         {terms.map((t) => (
           <li key={t}>
             <button type="button" className={styles.term} onClick={() => applyTerm(t)}>

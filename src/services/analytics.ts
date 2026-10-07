@@ -9,6 +9,7 @@
  */
 import { isApiMode } from '../data/remote'
 import { locale } from '../i18n'
+import { contentPreview } from '../lib/preview'
 import { readJSON, removeKey, storageKeys, writeJSON } from '../lib/storage'
 import { api } from './api'
 
@@ -100,6 +101,8 @@ function doNotTrack(): boolean {
 }
 
 function clearIds(): void {
+  // İçerik önizlemesi (panel iframe'i) ziyaretçi kimliklerine dokunmaz.
+  if (contentPreview) return
   removeKey(storageKeys.visitorId)
   removeKey(storageKeys.sessionId, 'session')
 }
@@ -167,7 +170,8 @@ function currentPathAllowed(): boolean {
 /** Kimlikler olay ANINDAKİ onay durumuna göre eklenir (onaydan önceki olaylar sonradan kimlik almaz). */
 function enqueue(event: Omit<AnalyticsEvent, 'locale' | 'vw' | 'vid' | 'sid'>): void {
   try {
-    if (!isApiMode() || !currentPathAllowed()) return
+    // İçerik önizlemesinde ölçüm tamamen kapalı: olay kuyruğa girmez, kimlik üretilmez.
+    if (contentPreview || !isApiMode() || !currentPathAllowed()) return
     bindPageListeners()
     queue.push({ ...event, locale, vw: Math.max(0, Math.min(65535, Math.round(window.innerWidth))), ...resolveIds(Date.now()) })
     if (queue.length >= MAX_BATCH) {
@@ -203,6 +207,7 @@ let entrySent = false
 /* ---------------- Dışa açık izleme noktaları ---------------- */
 
 export function trackPageView(path: string): void {
+  if (contentPreview) return
   const normalized = normalizePath(path)
   if (normalized === '/admin' || normalized.startsWith('/admin/')) return
   if (!isApiMode()) return

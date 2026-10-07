@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type DragEvent } from 'react'
+import { useId, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { AS } from '../adminStrings'
 import { AdminIcon } from './AdminIcon'
 import { Btn } from './Button'
@@ -12,6 +12,10 @@ interface ImageSlotProps {
   kind?: 'image' | 'video'
   /** Önerilen ölçü vb. kısa bilgi. */
   meta?: string
+  /** Yuva başlığının yanında küçük rozet (ör. "Yüklenen" / "Varsayılan (sitede görünen)"). */
+  badge?: ReactNode
+  /** Görselin mağazada kullanıldığı sayfa — yeni sekmede açılan küçük bağlantı. */
+  storeLink?: { href: string; label: string }
   pending?: boolean
   error?: string | null
   onFile: (file: File) => void
@@ -23,7 +27,7 @@ interface ImageSlotProps {
  * Görsel yuvası: önizleme + sürükle-bırak / tıkla-yükle + Değiştir + Kaldır. Dosya türü ve boyutu
  * seçilir seçilmez istemcide denetlenir (sunucuya gitmeden uyarı).
  */
-export function ImageSlot({ label, src, ratio = '3 / 4', kind = 'image', meta, pending, error, onFile, onRemove }: ImageSlotProps) {
+export function ImageSlot({ label, src, ratio = '3 / 4', kind = 'image', meta, badge, storeLink, pending, error, onFile, onRemove }: ImageSlotProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
@@ -54,6 +58,17 @@ export function ImageSlot({ label, src, ratio = '3 / 4', kind = 'image', meta, p
         </span>
         {meta ? <span className={s.slotMeta}>{meta}</span> : null}
       </div>
+      {badge || storeLink ? (
+        <div className={s.slotSub}>
+          {badge}
+          {storeLink ? (
+            <a className={s.slotStoreLink} href={storeLink.href} target="_blank" rel="noopener noreferrer">
+              {storeLink.label}
+              <AdminIcon name="external" size={12} />
+            </a>
+          ) : null}
+        </div>
+      ) : null}
       <button
         type="button"
         className={[s.slotDrop, src ? s.slotFilled : '', dragging ? s.slotDragging : ''].join(' ')}

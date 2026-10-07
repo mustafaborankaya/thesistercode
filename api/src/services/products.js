@@ -445,6 +445,39 @@ export async function createProduct(data) {
   }
 }
 
+/**
+ * Ürünü kalıcı olarak siler. Transaction içinde önce DİĞER ürünlerin bu ürüne verdiği ilişkiler
+ * (product_relations.related_id — FK yok, cascade kapsamında değil) temizlenir, ardından products
+ * satırı silinir (product_colors/stock/media/relations cascade). Commit sonrası ürünün yüklenmiş
+ * görsel dosyaları başka yerde kullanılmıyorsa uploads'tan kaldırılır. Sipariş kalemleri
+ * (order_items.product_id FK'siz, product_name ile) olduğu gibi kalır; sayısı bilgi amaçlı döner.
+ * @returns {Promise<{ orderItems: number }>}
+ */
+export async function deleteProduct(id) {
+  await assertProductExists(id)
+  const conn = await pool.getConnection()
+  let mediaUrls = []
+  let orderItems = 0
+  try {
+    await conn.beginTransaction()
+    const [mediaRows] = await conn.query('SELECT url FROM product_media WHERE product_id = ? FOR UPDATE', [id])
+    mediaUrls = mediaRows.map((r) => r.url)
+    const [[{ n }]] = await conn.query('SELECT COUNT(*) AS n FROM order_items WHERE product_id = ?', [id])
+    orderItems = Number(n)
+    await conn.query('DELETE FROM product_relations WHERE related_id = ?', [id])
+    await conn.query('DELETE FROM products WHERE id = ?', [id])
+    await conn.commit()
+  } catch (err) {
+    await conn.rollback()
+    throw err
+  } finally {
+    conn.release()
+  }
+  // Satırlar silindi; dosya temizliği commit SONRASI (başka ürün/marka görseli aynı dosyayı kullanıyorsa dokunulmaz).
+  for (const url of mediaUrls) await deleteUploadIfUnused(url)
+  return { orderItems }
+}
+
 export async function assertProductsExist(ids) {
   if (ids.length === 0) return
   const placeholders = ids.map(() => '?').join(',')

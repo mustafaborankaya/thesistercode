@@ -4,7 +4,8 @@ import { allProducts, categories } from '../../data/catalog'
 import { mediaByName, productMediaName } from '../../data/media'
 import type { Product } from '../../data/types'
 import { apiErrorMessage } from '../../i18n/apiMessages'
-import { createAdminProduct, getAdminSettings, listAdminProducts, updateAdminProduct, useApiMode, type AdminProduct } from '../adminApi'
+import { createAdminProduct, deleteAdminProduct, getAdminSettings, listAdminProducts, updateAdminProduct, useApiMode, type AdminProduct } from '../adminApi'
+import { currentAdmin } from '../adminAuth'
 import { AS } from '../adminStrings'
 import { inventoryConfigFrom, localInventoryConfig, productStockInfo } from '../inventory'
 import { isConflict, withExpected } from '../productUtils'
@@ -47,6 +48,10 @@ export function ProductsPage() {
   const [bulkPending, setBulkPending] = useState(false)
   const [creating, setCreating] = useState(() => useApiMode && params.get('yeni') === '1')
   const [zeroPrice, setZeroPrice] = useState<{ row: Row } | null>(null)
+  // Silme yalnızca owner için (API `DELETE /admin/products/:id` editöre 403 döner); editör gizleyebilir.
+  const canDelete = useApiMode && currentAdmin?.role === 'owner'
+  const [deleteTargets, setDeleteTargets] = useState<Row[] | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const products = useLoader<Row[]>(() => (useApiMode ? listAdminProducts() : Promise.resolve(allProducts)) as Promise<Row[]>)
   // Eşik yönetici ayarından (public /settings'te yok); hata olursa varsayılan kalır.
@@ -111,6 +116,30 @@ export function ProductsPage() {
     setBulkPending(false)
   }
 
+  async function confirmDelete() {
+    const targets = deleteTargets
+    if (!targets || targets.length === 0) return
+    setDeleting(true)
+    const results = await Promise.allSettled(targets.map((p) => deleteAdminProduct(p.id)))
+    const removed = new Set<string>()
+    results.forEach((r, i) => {
+      if (r.status === 'fulfilled') removed.add(targets[i].id)
+    })
+    products.setData((list) => (list ?? []).filter((p) => !removed.has(p.id)))
+    setSelected((s) => {
+      const next = new Set(s)
+      removed.forEach((id) => next.delete(id))
+      return next
+    })
+    const fail = targets.length - removed.size
+    if (fail) {
+      const firstError = results.find((r) => r.status === 'rejected') as PromiseRejectedResult | undefined
+      toast.error(targets.length === 1 && firstError ? apiErrorMessage(firstError.reason) : AS.products.bulkDeletePartial(removed.size, fail))
+    } else toast.success(targets.length === 1 ? AS.products.deleted(targets[0].name) : AS.products.bulkDeleted(removed.size))
+    setDeleting(false)
+    setDeleteTargets(null)
+  }
+
   const columns: Column<Row>[] = [
     {
       key: 'product',
@@ -132,7 +161,6 @@ export function ProductsPage() {
               <Link to={`/admin/urunler/${p.id}`} className={ui.cellTitle} style={{ color: 'inherit', textDecoration: 'none' }}>
                 {p.name}
               </Link>
-              <div className={ui.cellSub}>{AS.products.number(p.number)}</div>
             </div>
           </div>
         )
@@ -253,9 +281,19 @@ export function ProductsPage() {
               <Btn size="sm" icon="eye" disabled={bulkPending} onClick={() => void bulkSetHidden(false)}>
                 {AS.products.bulkShow}
               </Btn>
+              {canDelete ? (
+                <Btn size="sm" variant="danger" icon="trash" disabled={bulkPending} onClick={() => setDeleteTargets((rows ?? []).filter((p) => selected.has(p.id)))}>
+                  {AS.products.bulkDelete}
+                </Btn>
+              ) : null}
             </>
           }
-          rowActions={(p) => <Btn size="sm" variant="ghost" icon="edit" iconOnly label={AS.products.editAria(p.name)} to={`/admin/urunler/${p.id}`} />}
+          rowActions={(p) => (
+            <>
+              <Btn size="sm" variant="ghost" icon="edit" iconOnly label={AS.products.editAria(p.name)} to={`/admin/urunler/${p.id}`} />
+              {canDelete ? <Btn size="sm" variant="ghost" icon="trash" iconOnly label={AS.products.deleteAria(p.name)} onClick={() => setDeleteTargets([p])} /> : null}
+            </>
+          )}
           empty={<EmptyState icon="products" title={filtersActive ? AS.products.empty : AS.products.emptyAll} />}
         />
       )}
@@ -286,6 +324,25 @@ export function ProductsPage() {
           if (row) void savePrice(row, 0)
         }}
       />
+
+      <ConfirmDialog
+        open={deleteTargets != null}
+        title={AS.products.deleteTitle(deleteTargets?.length ?? 0)}
+        message={AS.products.deleteText}
+        confirmLabel={AS.products.deleteConfirm}
+        tone="danger"
+        pending={deleting}
+        onCancel={() => setDeleteTargets(null)}
+        onConfirm={() => void confirmDelete()}
+      >
+        {deleteTargets && deleteTargets.length > 0 ? (
+          <ul className={styles.deleteList}>
+            {deleteTargets.map((p) => (
+              <li key={p.id}>{p.name}</li>
+            ))}
+          </ul>
+        ) : null}
+      </ConfirmDialog>
     </div>
   )
 }

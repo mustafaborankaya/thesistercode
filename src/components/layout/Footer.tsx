@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { siteSettings } from '../../config/settings'
-import { brandContent, footerGroups, type FooterLink } from '../../data/content'
+import { brandContent, footerGroups, usePreviewVersion, type FooterLink } from '../../data/content'
 import { useIsDesktop, useReducedMotion } from '../../hooks/useMediaQuery'
 import { S, locale, pathForLocale } from '../../i18n'
 import { usePanels } from '../../state/PanelContext'
@@ -25,9 +25,14 @@ function FooterLinkItem({ link }: { link: FooterLink }) {
   )
 }
 
+/** Altbilgideki yasal satırın içerik anahtarları (panel önizlemesi: şirket unvanı / adres / sicil). */
+const LEGAL_KEYS = [brandContent.companyName.key, brandContent.address.key, brandContent.registry.key].filter(Boolean).join(' ')
+
 export function Footer() {
   const isDesktop = useIsDesktop()
   const reduced = useReducedMotion()
+  // Panel önizlemesinde taslak metin değişince yeniden çizilsin.
+  usePreviewVersion()
   const year = new Date().getFullYear()
   const socials = Object.entries(siteSettings.social) as [string, string | null][]
 
@@ -107,7 +112,7 @@ export function Footer() {
       </div>
 
       {brandContent.companyName.value ? (
-        <p className={styles.legal}>
+        <p className={styles.legal} data-content-key={LEGAL_KEYS}>
           {[brandContent.companyName.value, brandContent.address.value, brandContent.registry.value].filter(Boolean).join(' · ')}
         </p>
       ) : null}

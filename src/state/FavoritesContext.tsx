@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { productById } from '../data/catalog'
+import { contentPreview } from '../lib/preview'
 import { readJSON, storageKeys, writeJSON } from '../lib/storage'
 import { trackFavoriteAdd } from '../services/analytics'
 
@@ -14,10 +15,11 @@ interface FavoritesContextValue {
 const FavoritesContext = createContext<FavoritesContextValue | null>(null)
 
 export function FavoritesProvider({ children }: { children: ReactNode }) {
-  const [ids, setIds] = useState<string[]>(() => readJSON<string[]>(storageKeys.favorites, []).filter((id) => productById[id]))
+  // İçerik önizlemesinde (panel iframe'i) favoriler tarayıcı depolamasından okunmaz ve oraya yazılmaz.
+  const [ids, setIds] = useState<string[]>(() => (contentPreview ? [] : readJSON<string[]>(storageKeys.favorites, []).filter((id) => productById[id])))
 
   useEffect(() => {
-    writeJSON(storageKeys.favorites, ids)
+    if (!contentPreview) writeJSON(storageKeys.favorites, ids)
   }, [ids])
 
   const has = useCallback((id: string) => ids.includes(id), [ids])

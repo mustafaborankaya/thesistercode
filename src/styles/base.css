@@ -285,3 +285,13 @@ table {
     display: none !important;
   }
 }
+
+/* ---------------- Yönetici paneli içerik önizlemesi ----------------
+   Yalnızca `?onizleme=icerik` iframe'inde, ContentPreviewBridge değişen alanlara `data-preview-changed` basar.
+   Normal ziyarette bu nitelik hiç oluşmaz; `data-content-key` tek başına görünümü etkilemez. */
+[data-preview-changed] {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 4px;
+  background: rgba(0, 0, 0, 0.04);
+  scroll-margin-top: 120px;
+}

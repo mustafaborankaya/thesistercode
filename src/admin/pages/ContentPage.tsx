@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { brandContent, brandContentKeys, contentDefaultsEn, cookieContent, infoPages, productionContent, sizeGuideContent, type BrandContentKey } from '../../data/content'
 import { contentTexts, infoSectionTexts } from '../../data/contentTexts'
 import { apiErrorMessage } from '../../i18n/apiMessages'
 import { getAdminContent, updateAdminContentFields, useApiMode, type AdminContent } from '../adminApi'
 import { readAdminData, updateAdminData } from '../adminStore'
 import { AS } from '../adminStrings'
+import { ContentPreviewPane, type PreviewFocus, type PreviewLang } from '../components/ContentPreviewPane'
 import { AdminIcon } from '../ui/AdminIcon'
 import { Btn } from '../ui/Button'
 import { FilterBar } from '../ui/FilterBar'
@@ -122,6 +123,10 @@ interface FieldDef {
   key: string
   label: string
   short?: boolean
+  /** Alanın mağazada görüldüğü sayfa (canlı önizleme hedefi); null: sayfa önizlemesi yok. */
+  page: string | null
+  /** Alanın nerede göründüğüne dair küçük not (etiketin yanında). */
+  note?: string
 }
 
 interface GroupDef {
@@ -129,12 +134,27 @@ interface GroupDef {
   section: 'site' | 'pages' | 'legal'
   title: string
   desc?: string
+  /** "Sayfayı görüntüle" + önizleme açılış sayfası. */
   href?: string
   hint?: string
   fields: FieldDef[]
 }
 
 const SHORT_BRAND: ReadonlySet<string> = new Set(['heroCta', 'companyName', 'phone', 'email', 'registry', 'collectionTitle'])
+/** Marka alanlarının görüldüğü sayfa: koleksiyon/açılış/popüler aramalar ana sayfada, iletişim bilgileri iletişim sayfasında (ve altbilgide). */
+const BRAND_PAGE: Record<BrandContentKey, string> = {
+  collectionTitle: '/',
+  collectionIntro: '/',
+  heroCta: '/',
+  popularSearches: '/',
+  companyName: '/bilgi/iletisim',
+  address: '/bilgi/iletisim',
+  phone: '/bilgi/iletisim',
+  email: '/bilgi/iletisim',
+  registry: '/bilgi/iletisim',
+  workingHours: '/bilgi/iletisim',
+}
+const PRODUCTION_PAGE = '/#uretim'
 
 function buildGroups(): GroupDef[] {
   const stepById = Object.fromEntries(productionContent.steps.map((s) => [s.id, s]))
@@ -144,8 +164,14 @@ function buildGroups(): GroupDef[] {
       section: 'site',
       title: AS.content.brandTitle,
       desc: AS.content.brandDesc,
-      href: '/bilgi/iletisim',
-      fields: brandContentKeys.map((k) => ({ key: `brand.${k}`, label: brandContent[k].label, short: SHORT_BRAND.has(k) })),
+      href: '/',
+      fields: brandContentKeys.map((k) => ({
+        key: `brand.${k}`,
+        label: brandContent[k].label,
+        short: SHORT_BRAND.has(k),
+        page: BRAND_PAGE[k],
+        note: k === 'popularSearches' ? AS.content.previewPopularNote : undefined,
+      })),
     },
     {
       id: 'cookie',
@@ -154,8 +180,8 @@ function buildGroups(): GroupDef[] {
       desc: AS.content.cookieDesc,
       href: '/bilgi/cerez-politikasi',
       fields: [
-        { key: 'cookie.bannerText', label: cookieContent.bannerText.label },
-        ...cookieContent.categories.map((c) => ({ key: `cookie.${c.id}`, label: c.description.label })),
+        { key: 'cookie.bannerText', label: cookieContent.bannerText.label, page: '/bilgi/cerez-politikasi' },
+        ...cookieContent.categories.map((c) => ({ key: `cookie.${c.id}`, label: c.description.label, page: '/bilgi/cerez-politikasi' })),
       ],
     },
     {
@@ -163,12 +189,12 @@ function buildGroups(): GroupDef[] {
       section: 'site',
       title: AS.content.productionTitle,
       desc: AS.content.productionDesc,
-      href: '/',
+      href: PRODUCTION_PAGE,
       fields: [
-        { key: 'production.intro', label: AS.content.productionIntroLabel },
+        { key: 'production.intro', label: AS.content.productionIntroLabel, page: PRODUCTION_PAGE },
         ...productionStepIds.flatMap((id) => [
-          { key: `production.${id}.title`, label: stepById[id]?.title.label ?? id, short: true },
-          { key: `production.${id}.text`, label: stepById[id]?.text.label ?? id },
+          { key: `production.${id}.title`, label: stepById[id]?.title.label ?? id, short: true, page: PRODUCTION_PAGE },
+          { key: `production.${id}.text`, label: stepById[id]?.text.label ?? id, page: PRODUCTION_PAGE },
         ]),
       ],
     },
@@ -177,9 +203,10 @@ function buildGroups(): GroupDef[] {
       section: 'site',
       title: AS.content.sizeGuideTitle,
       desc: AS.content.sizeGuideDesc,
+      hint: AS.content.previewNoPage,
       fields: [
-        { key: 'sizeGuide.table', label: sizeGuideContent.table.label },
-        { key: 'sizeGuide.note', label: sizeGuideContent.note.label },
+        { key: 'sizeGuide.table', label: sizeGuideContent.table.label, page: null },
+        { key: 'sizeGuide.note', label: sizeGuideContent.note.label, page: null },
       ],
     },
   ]
@@ -189,9 +216,27 @@ function buildGroups(): GroupDef[] {
     title: p.title,
     href: `/bilgi/${p.slug}`,
     hint: p.slug === 'sss' ? AS.content.sssHint : LEGAL_SLUGS.has(p.slug) ? AS.content.legalHint : undefined,
-    fields: p.sections.map((s, i) => ({ key: `info.${p.slug}.${i}`, label: s.label })),
+    fields: p.sections.map((s, i) => ({ key: `info.${p.slug}.${i}`, label: s.label, page: `/bilgi/${p.slug}` })),
   }))
   return [...site, ...pages]
+}
+
+/**
+ * Önizlemeye gönderilecek taslak: grubun TÜM alanları (dile göre) + taslak ≠ kayıtlı anahtarlar.
+ * EN sitede boş EN alanı Türkçeye düştüğünden EN taslağı da aynı kuralla (EN yoksa TR) kurulur;
+ * böylece Türkçe değişiklik EN önizlemesinde de doğru görünür ve "değişti" sayılır.
+ */
+function buildPreviewDraft(group: GroupDef, form: FlatForm, baseline: FlatForm, enForm: FlatForm, enBaseline: FlatForm) {
+  const tr = { fields: {} as Record<string, string | null>, changed: [] as string[] }
+  const en = { fields: {} as Record<string, string | null>, changed: [] as string[] }
+  for (const f of group.fields) {
+    const k = f.key
+    tr.fields[k] = clean(form[k])
+    if (clean(form[k]) !== clean(baseline[k])) tr.changed.push(k)
+    en.fields[k] = clean(enForm[k]) ?? clean(form[k])
+    if ((clean(enForm[k]) ?? clean(form[k])) !== (clean(enBaseline[k]) ?? clean(baseline[k]))) en.changed.push(k)
+  }
+  return { tr, en }
 }
 
 const SECTION_TITLES = { site: AS.content.groupSite, pages: AS.content.groupPages, legal: AS.content.groupLegal } as const
@@ -210,8 +255,22 @@ export function ContentPage() {
   const [pending, setPending] = useState(false)
   const [open, setOpen] = useState<Set<string>>(() => new Set(['brand']))
   const [query, setQuery] = useState('')
+  /** Canlı önizlemesi açık grup (aynı anda en fazla bir grup). */
+  const [previewId, setPreviewId] = useState<string | null>(null)
+  /** Son odaklanan/düzenlenen alan — önizleme bu alana kaydırır, gerekirse sayfa/dil değiştirir. */
+  const [focus, setFocus] = useState<PreviewFocus | null>(null)
   const toast = useToast()
   const groups = useMemo(() => buildGroups(), [])
+
+  const previewGroup = useMemo(() => groups.find((g) => g.id === previewId) ?? null, [groups, previewId])
+  const previewDraft = useMemo(() => (previewGroup ? buildPreviewDraft(previewGroup, form, baseline, enForm, enBaseline) : null), [previewGroup, form, baseline, enForm, enBaseline])
+  const pageOf = useCallback((key: string) => previewGroup?.fields.find((f) => f.key === key)?.page ?? null, [previewGroup])
+  const labelOf = useCallback((key: string) => previewGroup?.fields.find((f) => f.key === key)?.label ?? key, [previewGroup])
+
+  /** Alan odaklandı (her seferinde) ya da düzenlendi (yalnızca başka alana geçildiyse): önizleme hedefi güncellenir. */
+  function touchField(key: string, lang: PreviewLang, force: boolean) {
+    setFocus((f) => (!force && f && f.key === key && f.lang === lang ? f : { key, lang, nonce: (f?.nonce ?? 0) + 1 }))
+  }
 
   useEffect(() => {
     if (!useApiMode) return
@@ -334,6 +393,7 @@ export function ContentPage() {
                 const isOpen = open.has(g.id) || !!q
                 const changed = g.fields.filter((f) => f.key in patch || f.key in patchEn).length
                 const bodyId = `cg-${g.id}`
+                const previewOpen = previewId === g.id && !!g.href
                 return (
                   <div key={g.id} className={[styles.accordion, isOpen ? styles.accordionOpen : ''].join(' ')}>
                     <button type="button" className={styles.accordionHead} aria-expanded={isOpen} aria-controls={bodyId} onClick={() => toggle(g.id)}>
@@ -345,58 +405,110 @@ export function ContentPage() {
                       <AdminIcon name="chevron-down" size={18} className={styles.accordionChevron} />
                     </button>
                     {isOpen ? (
-                      <div id={bodyId} className={styles.accordionBody}>
-                        {g.href || g.hint ? (
-                          <div className={ui.row} style={{ justifyContent: 'space-between', paddingTop: 12 }}>
-                            {g.hint ? <p className={ui.hint} style={{ flex: 1, minWidth: 220 }}>{g.hint}</p> : <span />}
-                            {g.href ? (
-                              <a className={[ui.btn, ui.btnGhost, ui.btnSm].join(' ')} href={g.href} target="_blank" rel="noopener noreferrer">
-                                <AdminIcon name="external" size={16} />
-                                {AS.content.viewPage}
-                              </a>
-                            ) : null}
+                      <div id={bodyId} className={[styles.accordionBody, previewOpen ? styles.accordionSplit : ''].join(' ')}>
+                        <div style={{ minWidth: 0 }}>
+                          {g.href || g.hint ? (
+                            <div className={ui.row} style={{ justifyContent: 'space-between', paddingTop: 12 }}>
+                              {g.hint ? <p className={ui.hint} style={{ flex: 1, minWidth: 220 }}>{g.hint}</p> : <span />}
+                              {g.href ? (
+                                <span className={ui.row}>
+                                  <a className={[ui.btn, ui.btnGhost, ui.btnSm].join(' ')} href={g.href} target="_blank" rel="noopener noreferrer">
+                                    <AdminIcon name="external" size={16} />
+                                    {AS.content.viewPage}
+                                  </a>
+                                  <Btn
+                                    size="sm"
+                                    variant={previewOpen ? 'primary' : 'secondary'}
+                                    icon="eye"
+                                    aria-pressed={previewOpen}
+                                    title={AS.content.previewHint}
+                                    onClick={() => setPreviewId(previewOpen ? null : g.id)}
+                                  >
+                                    {AS.content.preview}
+                                  </Btn>
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : null}
+                          <div className={styles.pairHead} aria-hidden="true">
+                            <span>{AS.content.trHeading}</span>
+                            <span>{AS.content.enHeading}</span>
+                          </div>
+                          {g.fields.map((f) => {
+                            const trChanged = f.key in patch
+                            const enChanged = f.key in patchEn
+                            const trId = `c-${f.key}`
+                            const enId = `c-${f.key}-en`
+                            const rows = f.short ? 1 : g.id === 'info-sss' ? 6 : 3
+                            return (
+                              <div key={f.key} className={styles.pairRow}>
+                                <div className={styles.pairLabel}>
+                                  {f.label}
+                                  {trChanged || enChanged ? <StatusBadge tone="warning">{AS.content.changed}</StatusBadge> : null}
+                                  {f.note ? <span className={ui.hint}>{f.note}</span> : null}
+                                </div>
+                                <div className={styles.pairFields}>
+                                  <div className={ui.field}>
+                                    <label htmlFor={trId} className="sr-only">
+                                      {f.label} — {AS.content.trHeading}
+                                    </label>
+                                    {previewOpen ? (
+                                      <span className={styles.pairMini} aria-hidden="true">
+                                        {AS.content.trHeading}
+                                      </span>
+                                    ) : null}
+                                    <AutoTextarea
+                                      id={trId}
+                                      rows={rows}
+                                      lang="tr"
+                                      value={form[f.key] ?? ''}
+                                      onFocus={() => touchField(f.key, 'tr', true)}
+                                      onChange={(e) => {
+                                        setForm((s) => ({ ...s, [f.key]: e.target.value }))
+                                        touchField(f.key, 'tr', false)
+                                      }}
+                                    />
+                                  </div>
+                                  <div className={ui.field}>
+                                    <label htmlFor={enId} className="sr-only">
+                                      {AS.content.enLabel(f.label)}
+                                    </label>
+                                    {previewOpen ? (
+                                      <span className={styles.pairMini} aria-hidden="true">
+                                        {AS.content.enHeading}
+                                      </span>
+                                    ) : null}
+                                    <AutoTextarea
+                                      id={enId}
+                                      rows={rows}
+                                      lang="en"
+                                      placeholder={AS.content.enPlaceholder}
+                                      value={enForm[f.key] ?? ''}
+                                      onFocus={() => touchField(f.key, 'en', true)}
+                                      onChange={(e) => {
+                                        setEnForm((s) => ({ ...s, [f.key]: e.target.value }))
+                                        touchField(f.key, 'en', false)
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                        {previewOpen && g.href && previewDraft ? (
+                          <div className={styles.previewCol}>
+                            <ContentPreviewPane
+                              initialPage={g.href}
+                              pageOf={pageOf}
+                              labelOf={labelOf}
+                              draft={previewDraft}
+                              showCookieBanner={g.id === 'cookie'}
+                              focus={focus}
+                              onClose={() => setPreviewId(null)}
+                            />
                           </div>
                         ) : null}
-                        <div className={styles.pairHead} aria-hidden="true">
-                          <span>{AS.content.trHeading}</span>
-                          <span>{AS.content.enHeading}</span>
-                        </div>
-                        {g.fields.map((f) => {
-                          const trChanged = f.key in patch
-                          const enChanged = f.key in patchEn
-                          const trId = `c-${f.key}`
-                          const enId = `c-${f.key}-en`
-                          const rows = f.short ? 1 : g.id === 'info-sss' ? 6 : 3
-                          return (
-                            <div key={f.key} className={styles.pairRow}>
-                              <div className={styles.pairLabel}>
-                                {f.label}
-                                {trChanged || enChanged ? <StatusBadge tone="warning">{AS.content.changed}</StatusBadge> : null}
-                              </div>
-                              <div className={styles.pairFields}>
-                                <div className={ui.field}>
-                                  <label htmlFor={trId} className="sr-only">
-                                    {f.label} — {AS.content.trHeading}
-                                  </label>
-                                  <AutoTextarea id={trId} rows={rows} lang="tr" value={form[f.key] ?? ''} onChange={(e) => setForm((s) => ({ ...s, [f.key]: e.target.value }))} />
-                                </div>
-                                <div className={ui.field}>
-                                  <label htmlFor={enId} className="sr-only">
-                                    {AS.content.enLabel(f.label)}
-                                  </label>
-                                  <AutoTextarea
-                                    id={enId}
-                                    rows={rows}
-                                    lang="en"
-                                    placeholder={AS.content.enPlaceholder}
-                                    value={enForm[f.key] ?? ''}
-                                    onChange={(e) => setEnForm((s) => ({ ...s, [f.key]: e.target.value }))}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })}
                       </div>
                     ) : null}
                   </div>

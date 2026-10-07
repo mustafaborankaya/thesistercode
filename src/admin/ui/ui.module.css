@@ -1148,6 +1148,37 @@ a.kpi:focus-visible {
   color: var(--a-ink-faint);
 }
 
+/* Yuva başlığı altı: kaynak rozeti (yüklenen/varsayılan) + "Mağazada gör" bağlantısı. */
+.slotSub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: -4px;
+}
+
+.slotStoreLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--a-ink-soft);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+
+.slotStoreLink:hover {
+  color: var(--a-ink);
+}
+
+.slotStoreLink:focus-visible {
+  outline: 2px solid var(--a-ink);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 .slotDrop {
   position: relative;
   display: flex;

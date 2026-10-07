@@ -150,7 +150,6 @@ export const en: Strings = {
     prev: 'Previous image',
     next: 'Next image',
     notFound: 'Product not found.',
-    productNumber: (n: string) => `Product ${n}`,
     colorSelected: (label: string) => `Selected colour: ${label}`,
     sizeSelected: (label: string) => `Selected size: ${label}`,
   },
