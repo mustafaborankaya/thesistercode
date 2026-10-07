@@ -32,6 +32,7 @@ import adminStatsRoutes from './routes/admin-stats.js'
 import eventsRoutes from './routes/events.js'
 import adminAnalyticsRoutes from './routes/admin-analytics.js'
 import paymentsRoutes, { callbackRouter as paymentCallbackRouter } from './routes/payments.js'
+import seoRoutes from './routes/seo.js'
 
 const PKG_VERSION = '1.0.0'
 
@@ -107,6 +108,7 @@ export function createApp() {
   router.use('/admin', adminContentRoutes) // /admin/content, /admin/brand-media
   router.use('/admin', adminUploadRoutes) // /admin/upload
   router.use('/admin', adminDataRoutes) // /admin/export, /admin/import
+  router.use(seoRoutes) // /sitemap.xml, /feeds/google-merchant.xml, /seo/render (Apache rewrite + bot önizlemesi)
   router.use(publicRoutes) // /products, /products/:slug, /content, /settings
 
   app.use('/api', router)

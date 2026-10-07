@@ -48,6 +48,8 @@ desteklenmez.
 | `IYZICO_API_KEY`, `IYZICO_SECRET_KEY` | iyzico anahtarları (`iyzico` iken zorunlu) |
 | `IYZICO_BASE_URL` | `https://sandbox-api.iyzipay.com` (varsayılan) / `https://api.iyzipay.com` |
 | `PAYMENT_INSTALLMENTS` | Taksit seçenekleri, ör. `1,2,3,6,9` (varsayılan `1`) |
+| `SITE_URL` | Site kökü (e-posta bağlantıları, sitemap/canonical/feed); yoksa ilk `CORS_ORIGIN` |
+| `SPA_INDEX_PATH` | Bot önizlemesinin head enjekte ettiği mağaza `index.html` yolu (varsayılan `/home/teshvikiyeadmin/public_html/index.html`) — bkz. "SEO" |
 
 ## Güvenlik
 
@@ -72,6 +74,7 @@ Tüm hatalar `{ error: { code, message } }` biçiminde, mesajlar Türkçedir.
 - `GET /products/:slug`
 - `GET /content` → `{ fields, brandMedia }`
 - `GET /settings` → `{ settings }`
+- `GET /sitemap.xml`, `GET /feeds/google-merchant.xml`, `GET /seo/render?path=/…` — bkz. "SEO"
 - `POST /coupons/validate` `{ code, subtotal }` — indirim kodu doğrulama (30 / 15 dk / IP; bkz. "Kuponlar")
 - `POST /orders` — sipariş oluşturur; fiyat/stok DB'den doğrulanır, toplamlar sunucuda hesaplanır
   (üyelik indirimi yalnızca oturumu açık ve `discount_eligible` müşteri için), stok transaction
@@ -406,6 +409,50 @@ Migration `009_orders_shipping.sql`: `orders.carrier`, `tracking_number`, `shipp
   rengin stok satırları silinir. Fiyat / kargo ücreti: ≤ 99.999.999,99 ve en fazla 2 ondalık (Türkçe hata mesajları).
 - `POST /admin/import` ürünlerde `createdAt`'i (`YYYY-MM-DD HH:MM:SS` ya da ISO) korur; yoksa NOW().
 - Giriş hız sınırları (`/auth/login`, `/account/login`) yalnızca başarısız denemeleri sayar (`skipSuccessfulRequests`).
+
+## SEO
+
+Mağaza bir SPA'dır (SSR yok); Googlebot JS çalıştırır ama WhatsApp/Facebook/Twitter/Telegram link
+önizlemeleri çalıştırmaz. Bu yüzden sayfa metası iki yerde üretilir ve **aynı kuralları** uygular:
+istemcide `src/seo/seo.ts` (rota sarmalayıcı `RouteSeo`), sunucuda `src/services/seo.js`. İkisi de aynı
+şablon JSON'unu kullanır (`src/services/seo-templates.json` = depodaki `src/seo/templates.json`;
+`test/seo.test.js` eşitliği ve aynı girdi için aynı çıktıyı doğrular). Şablon değişince **iki dosya
+birlikte** güncellenir. Bağımlılık yok: XML elle üretilir (`escapeXml`).
+
+- `GET /sitemap.xml` — `urlset` + `xhtml:link hreflang` (tr, en, x-default). Yollar: `/`, `/koleksiyon`,
+  `/koleksiyon/<kategori>` (gerçek kategoriler + `yeni-gelenler`; `tum-urunler` = `/koleksiyon`),
+  `/urun/<slug>` (yalnızca `hidden=0`, `lastmod` = `products.updated_at`), `/bilgi/<slug>` (11 sayfa;
+  `alisveris-kosullari` yönlendirme olduğu için yok) ve hepsinin `/en/...` karşılığı. `changefreq`/`priority`
+  basılmaz. `Cache-Control: public, max-age=3600`. Apache `/sitemap.xml` isteğini buraya rewrite eder
+  (`public/.htaccess`); `robots.txt` `Sitemap:` satırı zaten bu adresi gösterir.
+- `GET /feeds/google-merchant.xml` — RSS 2.0 + `xmlns:g` Google Merchant akışı: her görünür ürün için
+  `g:id`, `title`, `description`, `link`, `g:image_link` (ön) / `g:additional_image_link` (arka, model),
+  `g:availability`, `g:price` (`1234.00 TRY`), `g:brand`, `g:condition`, `g:product_type`, `g:gender`,
+  `g:age_group`. Görsel yalnızca panelden yüklenmiş (`/uploads/...`) ya da tam URL ise basılır; pakete
+  gömülü (`src/assets/media`) görsellerin URL'si API'de bilinmez → görselsiz ürün Merchant Center'da
+  uyarı alır. Apache `/feeds/google-merchant.xml` → buraya. Cache 1 saat.
+- `GET /seo/render?path=/urun/x` — bot önizlemesi: `SPA_INDEX_PATH` dosyasını okur (mtime ile
+  önbellek), `<title>`'ı değiştirir, `data-seo` işaretli varsayılan etiketleri kaldırır, `<html lang>`'i
+  dile göre ayarlar ve `</head>` öncesine description/robots/canonical/hreflang/og/twitter + JSON-LD
+  basar. `path`: `^/[A-Za-z0-9\-/._~]*$`, ≤200, sorgu yok (aksi hâlde `400 invalid_path`). `/en` öneki
+  İngilizce. Bilinmeyen ürün/kategori/sayfa → **404** + `noindex,nofollow` + "Sayfa bulunamadı".
+  `Content-Type: text/html; charset=utf-8`, `Cache-Control: public, max-age=300`, `Vary: User-Agent`.
+  Apache, bot UA'larını (`facebookexternalhit|WhatsApp|Twitterbot|TelegramBot|Googlebot|bingbot|…`)
+  dosya/varlık ve `/api` dışındaki her yol için buraya rewrite eder (`public/.htaccess`). Ürün/içerik/ayar
+  bağlamı 30 sn bellekte tutulur (bot dalgaları DB'yi yormasın).
+- Meta kuralları: başlık `"<Sayfa> | Teshvikiye"` (ana sayfa `"Teshvikiye | Kadın Giyim — <koleksiyon
+  adı>"`); açıklama ≤155 karakter (ürün: gerçek açıklama kesiti, yer tutucu — "Ürün NN — …", "… alanı",
+  "içerik eklenecek" — ise şablon; koleksiyon/kategori: `brand.collectionIntro`; bilgi: ilk bölüm; `sss`:
+  sabit; `iletisim`: şirket bilgisi); içerik alanı DB'de boşsa mağazadaki `contentTexts.ts` metninin aynısı
+  (şablon JSON'daki `fallbacks`) kullanılır. JSON-LD: ana sayfa `Organization` (adres/telefon/e-posta
+  `brand.*` alanlarından; `sameAs` yalnızca `social` ayarı doluysa) + `WebSite` (SearchAction
+  `/arama?q=`); ürün `BreadcrumbList` + `Product` (`offers` TRY, InStock/OutOfStock, 14 gün
+  `MerchantReturnPolicy`); kategori `CollectionPage` + `ItemList` (ilk 24); `/bilgi/sss` `FAQPage`;
+  diğer bilgi sayfaları `WebPage`. Sepet/ödeme/giriş/kayıt/şifre/hesap/favoriler/arama `noindex,nofollow`.
+
+Yerel doğrulama (Docker DB + bu API `PORT=3995 SITE_URL=http://localhost:5186 SPA_INDEX_PATH=<dist>/index.html`):
+`curl -s localhost:3995/api/sitemap.xml | xmllint --noout -`, `curl -s 'localhost:3995/api/seo/render?path=/urun/urun-01' | grep -c data-seo`,
+`curl -s -o /dev/null -w '%{http_code}' 'localhost:3995/api/seo/render?path=/urun/yok'` → `404`.
 
 ## Bilinen sınırlar / bilinçli tasarım kararları
 

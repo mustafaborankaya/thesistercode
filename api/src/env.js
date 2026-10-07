@@ -32,6 +32,8 @@ const schema = z.object({
   CORS_ORIGIN: z.string().min(1, 'CORS_ORIGIN gerekli'),
   /** E-postalardaki bağlantıların kökü (ör. https://teshvikiye.com); yoksa ilk CORS origin'i. */
   SITE_URL: z.string().url().optional(),
+  /** Bot önizlemesi (`GET /seo/render`) için mağazanın derlenmiş index.html yolu; yoksa cPanel varsayılanı. */
+  SPA_INDEX_PATH: z.string().optional(),
 
   /* ---- Çevrim içi ödeme (bkz. README "Ödeme (iyzico)") ---- */
   // none → mevcut davranış (sipariş 'new', tahsilat yok); iyzico → iyzico Ödeme Formu;
@@ -78,5 +80,8 @@ export const corsOrigins = env.CORS_ORIGIN.split(',')
 /** Env'deki taksit seçenekleri (sıralı, tekil). */
 export const envInstallments = [...new Set(env.PAYMENT_INSTALLMENTS.split(',').map((s) => Number(s.trim())))].sort((a, b) => a - b)
 
-/** E-posta bağlantıları için site kökü (sondaki / atılır). */
+/** E-posta bağlantıları ve SEO (sitemap, canonical, feed) için site kökü (sondaki / atılır). */
 export const siteUrl = (env.SITE_URL || corsOrigins[0] || 'https://teshvikiye.com').replace(/\/+$/, '')
+
+/** Bot önizlemesinin head enjekte ettiği SPA index.html (cPanel: public_html/index.html). */
+export const spaIndexPath = env.SPA_INDEX_PATH || '/home/teshvikiyeadmin/public_html/index.html'

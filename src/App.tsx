@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Layout } from './components/layout/Layout'
+import { RouteSeo } from './seo/RouteSeo'
 
 /** Yönetici paneli mağaza düzeninin dışında, ayrı bir kabukla ve yalnızca gerektiğinde yüklenir. */
 const AdminApp = lazy(() => import('./admin/AdminApp').then((m) => ({ default: m.AdminApp })))
@@ -20,6 +21,10 @@ import { RegisterPage } from './pages/RegisterPage'
 import { SearchPage } from './pages/SearchPage'
 import { VerifyEmailPage } from './pages/VerifyEmailPage'
 
+/**
+ * Mağaza rotaları `RouteSeo` ile sarılır: sayfa başına başlık/açıklama/canonical/hreflang/og/JSON-LD
+ * (bkz. src/seo/). Sayfa bileşenleri SEO'dan habersizdir; veri katalog/içerik modüllerinden okunur.
+ */
 export function App() {
   return (
     <Routes>
@@ -34,22 +39,22 @@ export function App() {
         }
       />
       <Route element={<Layout />}>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/koleksiyon" element={<CollectionPage />} />
-        <Route path="/koleksiyon/:categoryId" element={<CollectionPage />} />
-        <Route path="/urun/:slug" element={<ProductPage />} />
-        <Route path="/sepet" element={<CartPage />} />
-        <Route path="/odeme" element={<CheckoutPage />} />
-        <Route path="/odeme/sonuc/:orderId" element={<CheckoutResultPage />} />
-        <Route path="/giris" element={<LoginPage />} />
-        <Route path="/kayit" element={<RegisterPage />} />
-        <Route path="/sifre-sifirla" element={<PasswordResetPage />} />
-        <Route path="/hesap/dogrula" element={<VerifyEmailPage />} />
-        <Route path="/hesap" element={<AccountPage />} />
-        <Route path="/favoriler" element={<FavoritesPage />} />
-        <Route path="/arama" element={<SearchPage />} />
-        <Route path="/bilgi/:slug" element={<InfoPage />} />
-        <Route path="*" element={<NotFoundPage />} />
+        <Route path="/" element={<RouteSeo page="home"><HomePage /></RouteSeo>} />
+        <Route path="/koleksiyon" element={<RouteSeo page="collection"><CollectionPage /></RouteSeo>} />
+        <Route path="/koleksiyon/:categoryId" element={<RouteSeo page="collection"><CollectionPage /></RouteSeo>} />
+        <Route path="/urun/:slug" element={<RouteSeo page="product"><ProductPage /></RouteSeo>} />
+        <Route path="/sepet" element={<RouteSeo page="cart"><CartPage /></RouteSeo>} />
+        <Route path="/odeme" element={<RouteSeo page="checkout"><CheckoutPage /></RouteSeo>} />
+        <Route path="/odeme/sonuc/:orderId" element={<RouteSeo page="checkoutResult"><CheckoutResultPage /></RouteSeo>} />
+        <Route path="/giris" element={<RouteSeo page="login"><LoginPage /></RouteSeo>} />
+        <Route path="/kayit" element={<RouteSeo page="register"><RegisterPage /></RouteSeo>} />
+        <Route path="/sifre-sifirla" element={<RouteSeo page="passwordReset"><PasswordResetPage /></RouteSeo>} />
+        <Route path="/hesap/dogrula" element={<RouteSeo page="verifyEmail"><VerifyEmailPage /></RouteSeo>} />
+        <Route path="/hesap" element={<RouteSeo page="account"><AccountPage /></RouteSeo>} />
+        <Route path="/favoriler" element={<RouteSeo page="favorites"><FavoritesPage /></RouteSeo>} />
+        <Route path="/arama" element={<RouteSeo page="search"><SearchPage /></RouteSeo>} />
+        <Route path="/bilgi/:slug" element={<RouteSeo page="info"><InfoPage /></RouteSeo>} />
+        <Route path="*" element={<RouteSeo page="notFound"><NotFoundPage /></RouteSeo>} />
       </Route>
     </Routes>
   )

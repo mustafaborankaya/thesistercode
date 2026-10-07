@@ -7,7 +7,7 @@ ServerSignature Off
 <FilesMatch "^(\.htaccess|\.htpasswd|\.env.*|\.user\.ini|php\.ini|\.git.*|.*\.(bak|sql|log|sh|md|lock|map|yml|yaml|json))$">
   Require all denied
 </FilesMatch>
-<FilesMatch "^(index\.html|favicon\.svg|robots\.txt|site\.webmanifest)$">
+<FilesMatch "^(index\.html|favicon\.svg|favicon-32\.png|icon-192\.png|apple-touch-icon\.png|robots\.txt|site\.webmanifest)$">
   Require all granted
 </FilesMatch>
 
@@ -28,6 +28,15 @@ ServerSignature Off
   # www → apex: tek kanonik köken (API Origin kontrolü ve çerezler tek alan adında kalsın)
   RewriteCond %{HTTP_HOST} ^www\.(.+)$ [NC]
   RewriteRule ^ https://%1%{REQUEST_URI} [L,R=301]
+  # Site haritası ve Google Merchant akışı diskte yok; Node API üretir (bkz. api/src/routes/seo.js)
+  RewriteRule ^sitemap\.xml$ /api/sitemap.xml [PT,L]
+  RewriteRule ^feeds/google-merchant\.xml$ /api/feeds/google-merchant.xml [PT,L]
+  # Sosyal/arama botları JS çalıştırmaz: sayfa metası sunucuda basılmış index.html'i alırlar
+  # (GET /api/seo/render?path=/…; sorgu dizesi atılır). Dosya/varlık istekleri ve /api hariç.
+  RewriteCond %{HTTP_USER_AGENT} (facebookexternalhit|Facebot|WhatsApp|Twitterbot|LinkedInBot|TelegramBot|Slackbot|Discordbot|Pinterest|Applebot|Googlebot|bingbot|YandexBot|DuckDuckBot|Baiduspider) [NC]
+  RewriteCond %{REQUEST_URI} !^/(api|assets|fonts|logos|uploads|\.well-known)/
+  RewriteCond %{REQUEST_URI} !\.(js|css|png|jpe?g|webp|avif|svg|ico|woff2?|xml|txt|mp4|webm)$
+  RewriteRule ^(.*)$ /api/seo/render?path=/$1 [PT,L]
   # Gerçek dosya ve dizinlere dokunma
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d

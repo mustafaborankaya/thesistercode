@@ -1,0 +1,291 @@
+{
+  "_comment": "SEO başlık/açıklama şablonları — src/seo/templates.json ile api/src/services/seo-templates.json BİREBİR aynı tutulur (api/test/seo.test.js doğrular). {token} yer tutucuları kodda doldurulur.",
+  "siteName": "Teshvikiye",
+  "productionOrigin": "https://teshvikiye.com",
+  "titleSeparator": " | ",
+  "descriptionMax": 155,
+  "itemListMax": 24,
+  "leadMax": 600,
+  "paths": {
+    "logo": "/logos/teshvikiye-logo.png",
+    "ogImage": "/logos/teshvikiye-og.png",
+    "search": "/arama",
+    "collection": "/koleksiyon",
+    "product": "/urun",
+    "info": "/bilgi"
+  },
+  "ogImage": {
+    "width": 1200,
+    "height": 630
+  },
+  "placeholderPatterns": [
+    "^(Ürün|Product) \\d+ — ",
+    "içerik eklenecek",
+    "content coming soon",
+    " alanı$",
+    " field$"
+  ],
+  "categories": [
+    "tum-urunler",
+    "yeni-gelenler",
+    "elbiseler",
+    "ust-giyim",
+    "alt-giyim",
+    "takimlar",
+    "dis-giyim"
+  ],
+  "virtualCategories": [
+    "tum-urunler",
+    "yeni-gelenler"
+  ],
+  "infoSlugs": [
+    "hakkimizda",
+    "iletisim",
+    "teslimat",
+    "iade-degisim",
+    "beden-rehberi",
+    "sss",
+    "gizlilik",
+    "cerez-politikasi",
+    "mesafeli-satis-sozlesmesi",
+    "teslimat-ve-iade",
+    "on-bilgilendirme-formu"
+  ],
+  "infoAliases": {
+    "alisveris-kosullari": "mesafeli-satis-sozlesmesi"
+  },
+  "noindexPages": [
+    "search",
+    "cart",
+    "checkout",
+    "checkoutResult",
+    "login",
+    "register",
+    "passwordReset",
+    "verifyEmail",
+    "account",
+    "favorites"
+  ],
+  "pagePaths": {
+    "search": "/arama",
+    "cart": "/sepet",
+    "checkout": "/odeme",
+    "checkoutResult": "/odeme/sonuc",
+    "login": "/giris",
+    "register": "/kayit",
+    "passwordReset": "/sifre-sifirla",
+    "verifyEmail": "/hesap/dogrula",
+    "account": "/hesap",
+    "favorites": "/favoriler"
+  },
+  "returnPolicy": {
+    "country": "TR",
+    "days": 14
+  },
+  "currency": "TRY",
+  "sizes": "XS–XL",
+  "locales": {
+    "tr": {
+      "lang": "tr",
+      "ogLocale": "tr_TR",
+      "inLanguage": "tr-TR",
+      "home": {
+        "title": "{siteName} | Kadın Giyim — {collectionTitle}",
+        "titleNoCollection": "{siteName} | Kadın Giyim",
+        "description": "Teshvikiye: sade, zamansız ve monokrom kadın giyim koleksiyonu. Elbise, üst giyim, alt giyim, takım ve dış giyim — XS–XL."
+      },
+      "breadcrumb": {
+        "home": "Ana Sayfa",
+        "collection": "Koleksiyon"
+      },
+      "collection": {
+        "title": "Koleksiyon",
+        "description": "{category}: {intro}",
+        "descriptionNoIntro": "{category} — Teshvikiye'nin monokrom kadın giyim koleksiyonu. XS–XL."
+      },
+      "product": {
+        "description": "{name}: {category} · Teshvikiye'nin monokrom kadın giyim koleksiyonundan. {colors}, {sizes}.",
+        "colorsOne": "1 renk",
+        "colorsMany": "{n} renk",
+        "imageAlt": "{name} — Teshvikiye"
+      },
+      "info": {
+        "titles": {
+          "hakkimizda": "Hakkımızda",
+          "iletisim": "İletişim",
+          "teslimat": "Teslimat",
+          "iade-degisim": "İade ve Değişim",
+          "beden-rehberi": "Beden Rehberi",
+          "sss": "Sıkça Sorulan Sorular",
+          "gizlilik": "Gizlilik Politikası",
+          "cerez-politikasi": "Çerez Politikası",
+          "mesafeli-satis-sozlesmesi": "Mesafeli Satış Sözleşmesi",
+          "teslimat-ve-iade": "Teslimat ve İade Politikası",
+          "on-bilgilendirme-formu": "Ön Bilgilendirme Formu"
+        },
+        "faqDescription": "Sipariş, teslimat, iade ve üyelikle ilgili en sık sorulan soruların yanıtları.",
+        "contactDescription": "{siteName} iletişim bilgileri: {details}",
+        "contactDescriptionEmpty": "{siteName} ile iletişime geçin.",
+        "descriptionEmpty": "{title} — {siteName}."
+      },
+      "pages": {
+        "search": "Arama",
+        "cart": "Sepet",
+        "checkout": "Ödeme",
+        "checkoutResult": "Sipariş sonucu",
+        "login": "Giriş Yap",
+        "register": "Hesap Oluştur",
+        "passwordReset": "Şifre sıfırlama",
+        "verifyEmail": "E-posta doğrulama",
+        "account": "Hesabım",
+        "favorites": "Favoriler"
+      },
+      "notFound": {
+        "title": "Sayfa bulunamadı",
+        "description": "Aradığınız sayfa mevcut değil."
+      },
+      "categories": {
+        "tum-urunler": "Tüm Ürünler",
+        "yeni-gelenler": "Yeni Gelenler",
+        "elbiseler": "Elbiseler",
+        "ust-giyim": "Üst Giyim",
+        "alt-giyim": "Alt Giyim",
+        "takimlar": "Takımlar",
+        "dis-giyim": "Dış Giyim"
+      },
+      "organization": {
+        "contactType": "customer service",
+        "availableLanguage": [
+          "Turkish",
+          "English"
+        ]
+      },
+      "placeholders": {
+        "productName": "Ürün {n} — Ürün adı",
+        "productDescription": "Ürün {n} — Ürün açıklaması alanı"
+      },
+      "fallbacks": {
+        "brand.collectionTitle": "Sonbahar / Kış 2026 Koleksiyonu",
+        "brand.collectionIntro": "Bu sonbahar-kış sezonunda Teshvikiye, günün her anına eşlik eden sade ve zamansız parçaları bir araya getiriyor. Yumuşak dokular, dengeli kesimler ve nötr bir renk paleti, kışın soğuğuna hazırlanırken şıklıktan ödün vermek istemeyenler için tasarlandı. Koleksiyondaki her parça, gardırobunuzda uzun süre yer bulacak şekilde düşünüldü.",
+        "brand.companyName": "Biçeroğlu Tekstil Konfeksiyon Sanayi Dış Ticaret Limited Şirketi",
+        "brand.address": "Çağlayan Mahallesi Cihanşah Sokak No:15 K:4 Kağıthane / İstanbul",
+        "brand.phone": "0507 600 6124",
+        "brand.email": "info@teshvikiye.com",
+        "info.hakkimizda.0": "Teshvikiye ismini, İstanbul'un uzun yıllardır moda ve zarafetle anılan semti Teşvikiye'den alır. Bu isim, markanın sade ve şık duruşuna ilham veren bir referans noktasıdır. Teşvikiye, günlük hayatın temposuna uyum sağlayan, aynı zamanda özenli bir işçilikle üretilen kadın giyim parçaları sunar. Koleksiyonlar hazırlanırken kısa ömürlü trendler yerine uzun süre giyilebilecek tasarımlar ön planda tutulur. Amacımız, her kadının kendi tarzını rahatça yansıtabileceği bir gardırop sunmaktır.",
+        "info.teslimat.0": "Siparişleriniz onaylandıktan sonra 1–3 iş günü içinde kargoya teslim edilir. Kargoya verilen siparişler, kargo firmasına ve teslimat bölgesine göre değişmekle birlikte ortalama 1–4 iş günü içinde adresinize ulaşır. Yoğun kampanya dönemlerinde bu süreler kısa süreli olarak uzayabilir.",
+        "info.iade-degisim.0": "Mesafeli Sözleşmeler Yönetmeliği kapsamında, ürünü teslim aldığınız tarihten itibaren 14 gün içinde herhangi bir gerekçe göstermeksizin cayma hakkınızı kullanabilirsiniz. İade edilecek ürünün kullanılmamış, yıkanmamış ve orijinal etiketleri üzerinde olacak şekilde gönderilmesi gerekir. Bu koşulları taşımayan ürünler için iade kabul edilmeyebilir.",
+        "info.beden-rehberi.0": "Ölçüler santimetre cinsindendir; modele göre küçük farklar olabilir.\nXS: Göğüs 80–84 cm · Bel 62–66 cm · Kalça 86–90 cm\nS: Göğüs 84–88 cm · Bel 66–70 cm · Kalça 90–94 cm\nM: Göğüs 88–92 cm · Bel 70–74 cm · Kalça 94–98 cm\nL: Göğüs 92–98 cm · Bel 74–80 cm · Kalça 98–104 cm\nXL: Göğüs 98–104 cm · Bel 80–86 cm · Kalça 104–110 cm",
+        "info.gizlilik.0": "Biçeroğlu Tekstil Konfeksiyon Sanayi Dış Ticaret Limited Şirketi olarak kişisel verilerinizin güvenliğine önem veriyoruz. Bu gizlilik politikası, sitemizi kullanırken elde edilen kişisel verilerin hangi amaçlarla işlendiğini, nasıl saklandığını ve haklarınızın neler olduğunu açıklamak amacıyla hazırlanmıştır. Sipariş, üyelik ve iletişim süreçlerinde ad-soyad, adres, telefon, e-posta ve sipariş bilgileriniz gibi veriler; siparişlerinizin işlenmesi, müşteri hizmetlerinin sağlanması ve yasal yükümlülüklerin yerine getirilmesi amacıyla işlenir. Verileriniz, işlenme amacının gerektirdiği süre boyun",
+        "info.cerez-politikasi.0": "Çerezler, ziyaret ettiğiniz internet siteleri tarafından tarayıcınıza kaydedilen küçük metin dosyalarıdır. Bu dosyalar, sitenin düzgün çalışmasını sağlamak, tercihlerinizi hatırlamak ve deneyiminizi iyileştirmek amacıyla kullanılır.\n\nSitemizde üç kategori çerez kullanılır. Gerekli çerezler; oturumunuzun, sepetinizin ve çerez tercihinizin saklanması için zorunludur ve kapatılamaz. Analitik çerezler; sayfa, ürün, arama ve sepet hareketlerini yalnızca kendi sunucumuzda, üçüncü taraflara aktarmadan ölçmemize yardımcı olur; rastgele ziyaretçi kimliği yalnızca onayınızla saklanır, IP adresi saklanma",
+        "info.mesafeli-satis-sozlesmesi.0": "## MADDE 1 – TARAFLAR\n\nİşbu Mesafeli Satış Sözleşmesi (\"Sözleşme\"), aşağıda bilgileri bulunan SATICI ile www.teshvikiye.com internet sitesi üzerinden ürün satın alan ALICI/TÜKETİCİ arasında, 6502 sayılı Tüketicinin Korunması Hakkında Kanun ve Mesafeli Sözleşmeler Yönetmeliği hükümleri uyarınca elektronik ortamda kurulmuştur.\n\n### 1.1. SATICI BİLGİLERİ\n\n**Marka:** TESHVIKIYE\n**Ticaret Unvanı:** Biçeroğlu Tekstil Konfeksiyon Sanayi Dış Ticaret Limited Şirketi\n**Adres:** Çağlayan Mahallesi Cihanşah Sokak No:15 K:4 Kağıthane / İstanbul\n**Vergi No:** 1691101908\n**MERSİS No:** 0169110190800001\n**Tel",
+        "info.teslimat-ve-iade.0": "*Son güncelleme: 28 Eylül 2026*\n\nİşbu Teslimat ve İade Politikası, www.teshvikiye.com internet sitesi üzerinden gerçekleştirilen alışverişlerde uygulanacak teslimat, cayma, iade ve değişim koşullarını düzenlemektedir.\n\n**Marka:** TESHVIKIYE\n**Satıcı:** Biçeroğlu Tekstil Konfeksiyon Sanayi Dış Ticaret Limited Şirketi\n**Adres:** Çağlayan Mahallesi Cihanşah Sokak No:15 K:4 Kağıthane / İstanbul\n**Vergi No:** 1691101908\n**İnternet Sitesi:** www.teshvikiye.com\n**E-posta:** info@teshvikiye.com\n**Telefon:** 0507 600 6124\n\n---\n\n## 1. SİPARİŞLERİN HAZIRLANMASI\n\nwww.teshvikiye.com üzerinden verilen sipar",
+        "info.on-bilgilendirme-formu.0": "Satıcı: Biçeroğlu Tekstil Konfeksiyon Sanayi Dış Ticaret Limited Şirketi (marka: TESHVIKIYE). Adres: Çağlayan Mahallesi Cihanşah Sokak No:15 K:4 Kağıthane / İstanbul. Telefon: 0507 600 6124. E-posta: info@teshvikiye.com. Vergi No: 1691101908. MERSİS No: 0169110190800001. İnternet sitesi: www.teshvikiye.com. Bu form, Mesafeli Sözleşmeler Yönetmeliği'nin 5. maddesi uyarınca, sipariş verilmeden önce tüketiciyi bilgilendirmek amacıyla düzenlenmiştir; sipariş özeti ve Mesafeli Satış Sözleşmesi ile birlikte okunur.",
+        "info.sss.0": "S: Siparişimi nasıl takip edebilirim?\nC: Sipariş durumunuzu Hesabım bölümündeki Siparişlerim sayfasından takip edebilirsiniz.\nS: Sipariş verdikten sonra ürün veya beden değişikliği yapabilir miyim?\nC: Sipariş kargoya verilmeden önce değişiklik talebiniz için destek ekibimizle iletişime geçebilirsiniz.\nS: Siparişimi iptal edebilir miyim?\nC: Kargoya verilmemiş siparişler için Hesabım bölümündeki Siparişlerim üzerinden iptal talebi oluşturabilirsiniz.",
+        "info.sss.1": "S: Siparişim ne zaman elime ulaşır?\nC: Siparişler onaylandıktan sonra 1–3 iş günü içinde kargoya verilir; teslimat süresi kargo firmasına ve bölgeye göre değişmekle birlikte ortalama 1–4 iş günü sürer.\nS: Kargo ücreti ne kadar?\nC: Kargo ücreti ödeme adımında gösterilir; ücretsiz kargo koşulları kampanya dönemlerinde duyurulur.\nS: Yurt dışına teslimat yapıyor musunuz?\nC: Yurt dışı teslimat talepleriniz için iletişim kanallarımız üzerinden bize ulaşabilirsiniz.",
+        "info.sss.2": "S: Ürünü kaç gün içinde iade edebilirim?\nC: Teslim aldığınız tarihten itibaren 14 gün içinde cayma hakkınızı kullanarak iade edebilirsiniz.\nS: İade ettiğim ürünün bedelini ne zaman geri alırım?\nC: Ürün elimize ulaşıp kontrolden geçtikten sonra iade tutarı ödeme yönteminize aktarılır.\nS: Etiketi çıkarılmış ürünü iade edebilir miyim?\nC: İade için ürünün kullanılmamış olması ve orijinal etiketlerinin üzerinde bulunması gerekir.",
+        "info.sss.3": "S: Üyelik indirimi nasıl uygulanır?\nC: Hesap oluşturduğunuzda ilk siparişinizde %10 indirim sepetinizde otomatik uygulanır; sonraki siparişlerde geçerli değildir.\nS: Üyelik indiriminin bir kullanım şartı var mı?\nC: Kampanya koşulları zaman zaman güncellenebilir; güncel koşullar sitede belirtilir.\nS: Üye olmadan alışveriş yapabilir miyim?\nC: Evet, misafir olarak da sipariş verebilirsiniz; üyelik indiriminden yararlanmak için ise hesap oluşturmanız gerekir."
+      }
+    },
+    "en": {
+      "lang": "en",
+      "ogLocale": "en_US",
+      "inLanguage": "en",
+      "home": {
+        "title": "{siteName} | Women's Clothing — {collectionTitle}",
+        "titleNoCollection": "{siteName} | Women's Clothing",
+        "description": "Teshvikiye: understated, timeless monochrome womenswear. Dresses, tops, bottoms, sets and outerwear — XS–XL."
+      },
+      "breadcrumb": {
+        "home": "Home",
+        "collection": "Collection"
+      },
+      "collection": {
+        "title": "Collection",
+        "description": "{category}: {intro}",
+        "descriptionNoIntro": "{category} — Teshvikiye's monochrome womenswear collection. XS–XL."
+      },
+      "product": {
+        "description": "{name}: {category} · from Teshvikiye's monochrome womenswear collection. {colors}, {sizes}.",
+        "colorsOne": "1 colour",
+        "colorsMany": "{n} colours",
+        "imageAlt": "{name} — Teshvikiye"
+      },
+      "info": {
+        "titles": {
+          "hakkimizda": "About Us",
+          "iletisim": "Contact",
+          "teslimat": "Delivery",
+          "iade-degisim": "Returns & Exchanges",
+          "beden-rehberi": "Size Guide",
+          "sss": "Frequently Asked Questions",
+          "gizlilik": "Privacy Policy",
+          "cerez-politikasi": "Cookie Policy",
+          "mesafeli-satis-sozlesmesi": "Distance Sales Contract",
+          "teslimat-ve-iade": "Delivery and Returns Policy",
+          "on-bilgilendirme-formu": "Pre-Information Form"
+        },
+        "faqDescription": "Answers to the questions we hear most about orders, delivery, returns and membership.",
+        "contactDescription": "{siteName} contact details: {details}",
+        "contactDescriptionEmpty": "Get in touch with {siteName}.",
+        "descriptionEmpty": "{title} — {siteName}."
+      },
+      "pages": {
+        "search": "Search",
+        "cart": "Cart",
+        "checkout": "Checkout",
+        "checkoutResult": "Order result",
+        "login": "Log In",
+        "register": "Create Account",
+        "passwordReset": "Reset password",
+        "verifyEmail": "Verify e-mail",
+        "account": "Account",
+        "favorites": "Wishlist"
+      },
+      "notFound": {
+        "title": "Page not found",
+        "description": "The page you are looking for does not exist."
+      },
+      "categories": {
+        "tum-urunler": "All products",
+        "yeni-gelenler": "New arrivals",
+        "elbiseler": "Dresses",
+        "ust-giyim": "Tops",
+        "alt-giyim": "Bottoms",
+        "takimlar": "Sets",
+        "dis-giyim": "Outerwear"
+      },
+      "organization": {
+        "contactType": "customer service",
+        "availableLanguage": [
+          "Turkish",
+          "English"
+        ]
+      },
+      "placeholders": {
+        "productName": "Product {n} — Product name",
+        "productDescription": "Product {n} — Product description field"
+      },
+      "fallbacks": {
+        "brand.collectionTitle": "Autumn / Winter 2026 Collection",
+        "brand.collectionIntro": "This autumn-winter season, Teshvikiye brings together understated, timeless pieces made to accompany every moment of the day. Soft textures, balanced cuts and a neutral palette are designed for those who prepare for the cold without compromising on elegance. Every piece in the collection is conceived to hold its place in your wardrobe for a long time.",
+        "brand.companyName": "Biçeroğlu Tekstil Konfeksiyon Sanayi Dış Ticaret Limited Şirketi",
+        "brand.address": "Çağlayan Mahallesi Cihanşah Sokak No:15 K:4 Kağıthane / İstanbul, Türkiye",
+        "brand.phone": "+90 507 600 6124",
+        "brand.email": "info@teshvikiye.com",
+        "info.hakkimizda.0": "Teshvikiye takes its name from Teşvikiye, the Istanbul neighbourhood long associated with fashion and elegance. The name is a point of reference that inspires the brand’s simple, refined stance. Teshvikiye offers womenswear that keeps pace with everyday life while being made with careful craftsmanship. Our collections favour designs that can be worn for years over short-lived trends. Our aim is to offer a wardrobe in which every woman can comfortably express her own style.",
+        "info.teslimat.0": "Orders are handed over to the carrier within 1–3 business days of confirmation. Once shipped, orders usually reach you within 1–4 business days, depending on the carrier and the delivery region. These times may be briefly extended during busy campaign periods.",
+        "info.iade-degisim.0": "Under the Turkish Distance Contracts Regulation, you may exercise your right of withdrawal without giving any reason within 14 days of receiving your order. Items to be returned must be unused, unwashed and sent with their original tags attached. Returns that do not meet these conditions may not be accepted.",
+        "info.beden-rehberi.0": "Measurements are in centimetres; small variations may occur between styles.\nXS: Bust 80–84 cm · Waist 62–66 cm · Hips 86–90 cm\nS: Bust 84–88 cm · Waist 66–70 cm · Hips 90–94 cm\nM: Bust 88–92 cm · Waist 70–74 cm · Hips 94–98 cm\nL: Bust 92–98 cm · Waist 74–80 cm · Hips 98–104 cm\nXL: Bust 98–104 cm · Waist 80–86 cm · Hips 104–110 cm",
+        "info.gizlilik.0": "At Biçeroğlu Tekstil Konfeksiyon Sanayi Dış Ticaret Limited Şirketi, we care about the security of your personal data. This privacy policy explains for which purposes the personal data obtained while you use our site is processed, how it is stored and what your rights are. During ordering, membership and communication, data such as your name, address, telephone number, e-mail address and order details is processed in order to fulfil your orders, provide customer service and meet our legal obligations. Your data is kept for as long as the purpose of processing requires and within the retention ",
+        "info.cerez-politikasi.0": "Cookies are small text files saved to your browser by the websites you visit. They are used to make the site work properly, remember your preferences and improve your experience.\n\nWe use three categories of cookies on our site. Necessary cookies are required to keep your session, your cart and your cookie choice, and cannot be turned off. Analytics cookies help us measure page, product, search and cart activity on our own server only, without sharing it with third parties; a random visitor ID is stored only with your consent, and IP addresses are not stored. Marketing cookies are used to offer",
+        "info.mesafeli-satis-sozlesmesi.0": "*This English text is provided for convenience. The Turkish version of the Distance Sales Contract is the binding text.*\n\n## ARTICLE 1 – PARTIES\n\nThis Distance Sales Contract (\"Contract\") is concluded electronically between the SELLER identified below and the BUYER/CONSUMER purchasing products through the website www.teshvikiye.com, in accordance with the Turkish Consumer Protection Law No. 6502 and the Regulation on Distance Contracts.\n\n### 1.1. SELLER\n\n**Brand:** TESHVIKIYE\n**Company name:** Biçeroğlu Tekstil Konfeksiyon Sanayi Dış Ticaret Limited Şirketi\n**Address:** Çağlayan Mahallesi Ciha",
+        "info.teslimat-ve-iade.0": "*Last updated: 28 September 2026. This English text is provided for convenience; the Turkish version is the binding text.*\n\nThis Delivery and Returns Policy sets out the delivery, withdrawal, return and exchange conditions that apply to purchases made on www.teshvikiye.com.\n\n**Brand:** TESHVIKIYE\n**Seller:** Biçeroğlu Tekstil Konfeksiyon Sanayi Dış Ticaret Limited Şirketi\n**Address:** Çağlayan Mahallesi Cihanşah Sokak No:15 K:4 Kağıthane / İstanbul, Türkiye\n**Tax No:** 1691101908\n**Website:** www.teshvikiye.com\n**E-mail:** info@teshvikiye.com\n**Phone:** +90 507 600 6124\n\n---\n\n## 1. ORDER PREPA",
+        "info.on-bilgilendirme-formu.0": "Seller: Biçeroğlu Tekstil Konfeksiyon Sanayi Dış Ticaret Limited Şirketi (brand: TESHVIKIYE). Address: Çağlayan Mahallesi Cihanşah Sokak No:15 K:4 Kağıthane / İstanbul, Türkiye. Phone: +90 507 600 6124. E-mail: info@teshvikiye.com. Tax No: 1691101908. MERSIS No: 0169110190800001. Website: www.teshvikiye.com. This form is provided under Article 5 of the Regulation on Distance Contracts to inform the consumer before the order is placed; it is read together with the order summary and the Distance Sales Contract.",
+        "info.sss.0": "Q: How can I track my order?\nA: You can follow the status of your order from My orders in your Account.\nQ: Can I change an item or size after placing my order?\nA: Before your order is shipped, you can contact our support team with your change request.\nQ: Can I cancel my order?\nA: For orders that have not yet been shipped, you can submit a cancellation request from My orders in your Account.",
+        "info.sss.1": "Q: When will my order arrive?\nA: Orders are shipped within 1–3 business days of confirmation; delivery usually takes 1–4 business days, depending on the carrier and region.\nQ: How much is shipping?\nA: The shipping fee is shown at checkout; free shipping terms are announced during campaign periods.\nQ: Do you deliver internationally?\nA: For international delivery requests, please reach us through our contact channels.",
+        "info.sss.2": "Q: How many days do I have to return an item?\nA: You can return an item by exercising your right of withdrawal within 14 days of receiving it.\nQ: When will I receive my refund?\nA: Once the item reaches us and passes inspection, the refund is issued to your original payment method.\nQ: Can I return an item whose tag has been removed?\nA: To be eligible for a return, the item must be unused and have its original tags attached.",
+        "info.sss.3": "Q: How is the member discount applied?\nA: When you create an account, 10% off is applied automatically to your first order in your cart; it does not apply to later orders.\nQ: Are there any conditions for the member discount?\nA: Campaign terms may be updated from time to time; the current terms are stated on the site.\nQ: Can I shop without an account?\nA: Yes, you can also order as a guest; to benefit from the member discount, you need to create an account."
+      }
+    }
+  }
+}
