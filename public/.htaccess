@@ -7,7 +7,7 @@ ServerSignature Off
 <FilesMatch "^(\.htaccess|\.htpasswd|\.env.*|\.user\.ini|php\.ini|\.git.*|.*\.(bak|sql|log|sh|md|lock|map|yml|yaml|json))$">
   Require all denied
 </FilesMatch>
-<FilesMatch "^(index\.html|favicon\.svg|favicon-32\.png|icon-192\.png|apple-touch-icon\.png|robots\.txt|site\.webmanifest)$">
+<FilesMatch "^(index\.html|favicon\.svg|favicon\.ico|favicon-32\.png|icon-192\.png|apple-touch-icon\.png|robots\.txt|site\.webmanifest)$">
   Require all granted
 </FilesMatch>
 
