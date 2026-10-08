@@ -1,6 +1,8 @@
 # Teshvikiye — Kalanlar
 
-Güncelleme: 07.10.2026. Tamamlanan her madde işaretlenip tarih yazılır.
+Güncelleme: 08.10.2026. Tamamlanan her madde işaretlenip tarih yazılır.
+
+> **Askıda:** 08.10.2026 itibarıyla 10.11.2026'ya kadar sitede çalışma yok. Son durum: main `a0efc08` canlıda, çalışma ağacı temiz. Devam edince önce bu dosya, sonra bekleyen girdiler.
 
 ## Sizden beklenenler
 
