@@ -16,6 +16,8 @@ ServerSignature Off
   RewriteBase /
   # artapolis.com (bu hesapta park edilmiş domain) → Artapolis sitesi. Klasördeki kendi .htaccess'i
   # devralır; Teshvikiye'nin SPA/bot/API kuralları o klasörde uygulanmaz.
+  # SSL doğrulaması (AutoSSL / ACME) kök klasördeki /.well-known/'u okur; yönlendirilmez.
+  RewriteRule ^\.well-known/ - [L]
   RewriteCond %{HTTP_HOST} ^(www\.)?artapolis\.com$ [NC]
   RewriteRule ^(.*)$ artapolis.teshvikiye.com/$1 [L]
   # TRACE/TRACK kapalı
