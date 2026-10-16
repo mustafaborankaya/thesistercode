@@ -108,7 +108,7 @@ export function createApp() {
   router.use('/admin', adminContentRoutes) // /admin/content, /admin/brand-media
   router.use('/admin', adminUploadRoutes) // /admin/upload
   router.use('/admin', adminDataRoutes) // /admin/export, /admin/import
-  router.use(seoRoutes) // /sitemap.xml, /feeds/google-merchant.xml, /seo/render (Apache rewrite + bot önizlemesi)
+  router.use(seoRoutes) // /sitemap.xml, /feeds/google-merchant.xml, /llms.txt, /seo/render (Apache rewrite + bot önizlemesi/gövdesi)
   router.use(publicRoutes) // /products, /products/:slug, /content, /settings
 
   app.use('/api', router)

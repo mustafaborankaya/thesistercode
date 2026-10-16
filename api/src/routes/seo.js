@@ -5,6 +5,9 @@
  *   GET /seo/render?path=/urun/x     — bot önizlemesi: index.html'e sayfa metası işlenmiş HTML
  *                                      (WhatsApp/Facebook/Twitter/Telegram JS çalıştırmaz; Apache bot
  *                                      UA'larını buraya yönlendirir). Bilinmeyen sayfa → 404 + noindex.
+ *                                      `<div id="root">` içine sayfadaki içeriğin anlamsal HTML'i basılır
+ *                                      (JS çalıştırmayan LLM tarayıcıları da metni görsün).
+ *   GET /llms.txt                    — LLM tarayıcıları için site özeti (TR; Apache `/llms.txt` → buraya)
  * Meta kuralları mağazadaki src/seo/seo.ts ile aynıdır (bkz. services/seo.js).
  */
 import fsp from 'node:fs/promises'
@@ -17,12 +20,18 @@ import * as settingsService from '../services/settings.js'
 import {
   brandFromFields,
   buildMerchantFeedXml,
+  buildLlmsTxt,
   buildSitemapXml,
   infoSections,
+  injectBody,
   injectHead,
   pageMeta,
   parseFaq,
+  productionContent,
   productsForCategory,
+  realText,
+  renderBody,
+  resolveContentField,
   resolveRoute,
   sitemapEntries,
   templates,
@@ -78,14 +87,51 @@ async function readIndexHtml() {
   }
 }
 
-/** Rota için gereken veriyi bağlamdan derler (services/seo.js → pageMeta girdisi). */
+/**
+ * "Benzer Ürünler" — mağazadaki getSimilar ile aynı seçim (src/lib/recommendations.ts): panelde tanımlı
+ * benzer ürünler varsa yalnızca onlar, yoksa aynı kategoriden diğerleri; tükenenler ve "Kombini Tamamla"
+ * listesindekiler atlanır, en çok 4.
+ */
+function relatedRows(row, rows, toSeo) {
+  const exclude = new Set([row.id, ...(row.completeLookProductIds ?? [])])
+  const byId = new Map(rows.map((r) => [r.id, r]))
+  const explicit = row.similarProductIds ?? []
+  const candidates = explicit.length ? explicit.map((id) => byId.get(id)).filter(Boolean) : rows.filter((r) => r.category === row.category)
+  const out = []
+  for (const r of candidates) {
+    if (out.length >= 4) break
+    if (exclude.has(r.id)) continue
+    const p = toSeo(r)
+    if (!p.inStock) continue
+    exclude.add(r.id)
+    out.push(p)
+  }
+  return out
+}
+
+/** Rota için gereken veriyi bağlamdan derler (services/seo.js → pageMeta / renderBody girdisi). */
 function dataForRoute(route, locale, ctx) {
   const { fields, fieldsEn, settings } = ctx
   const data = { brand: brandFromFields(fields, fieldsEn, locale), social: settings?.social ?? null }
-  const seoProducts = () => ctx.products.map((p) => toSeoProduct(p, locale, siteUrl))
-  if (route.kind === 'product') {
+  const toSeo = (p) => toSeoProduct(p, locale, siteUrl)
+  const seoProducts = () => ctx.products.map(toSeo)
+  if (route.kind === 'home') {
+    data.products = seoProducts()
+    data.production = productionContent(fields, fieldsEn, locale)
+  } else if (route.kind === 'product') {
     const row = ctx.products.find((p) => p.slug === route.slug)
-    data.product = row ? toSeoProduct(row, locale, siteUrl) : null
+    data.product = row ? toSeo(row) : null
+    if (row) {
+      data.related = relatedRows(row, ctx.products, toSeo)
+      // Ürüne özel teslimat/iade metni (yalnızca TR alanı var) doluysa sayfada o görünür; yoksa genel metinler.
+      const own = locale === 'tr' ? realText(row.content?.deliveryReturns ?? '', templates.placeholderPatterns) : null
+      data.delivery = own
+        ? { shipping: own, returns: null }
+        : {
+            shipping: resolveContentField('info.teslimat.0', fields, fieldsEn, locale),
+            returns: resolveContentField('info.iade-degisim.0', fields, fieldsEn, locale),
+          }
+    }
   } else if (route.kind === 'collection') {
     data.products = templates.categories.includes(route.categoryId) ? productsForCategory(seoProducts(), route.categoryId) : []
   } else if (route.kind === 'info') {
@@ -126,18 +172,35 @@ router.get('/feeds/google-merchant.xml', async (req, res, next) => {
   }
 })
 
+router.get('/llms.txt', async (req, res, next) => {
+  try {
+    const ctx = await getContext()
+    const { fields, fieldsEn } = ctx
+    const info = Object.fromEntries(templates.infoSlugs.map((slug) => [slug, infoSections(slug, fields, fieldsEn, 'tr')]))
+    const data = { brand: brandFromFields(fields, fieldsEn, 'tr'), products: ctx.products.map((p) => toSeoProduct(p, 'tr', siteUrl)), info }
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+    res.setHeader('Cache-Control', 'public, max-age=3600')
+    res.send(buildLlmsTxt(data, { origin: siteUrl, locale: 'tr', templates }))
+  } catch (err) {
+    next(err)
+  }
+})
+
 router.get('/seo/render', async (req, res, next) => {
   try {
     const path = validatePath(req.query.path)
     if (!path) return next(badRequest('path geçersiz', 'invalid_path'))
     const { locale, route } = resolveRoute(path)
     const [ctx, indexHtml] = await Promise.all([getContext(), readIndexHtml()])
-    const meta = pageMeta(route, dataForRoute(route, locale, ctx), { origin: siteUrl, locale, templates })
+    const env = { origin: siteUrl, locale, templates }
+    const data = dataForRoute(route, locale, ctx)
+    const meta = pageMeta(route, data, env)
     res.status(meta.status)
     res.setHeader('Content-Type', 'text/html; charset=utf-8')
     res.setHeader('Cache-Control', 'public, max-age=300')
     res.setHeader('Vary', 'User-Agent')
-    res.send(injectHead(indexHtml, meta))
+    // 404'te de gövde basılır ("Sayfa bulunamadı").
+    res.send(injectBody(injectHead(indexHtml, meta), renderBody(route, data, env)))
   } catch (err) {
     next(err)
   }

@@ -74,7 +74,7 @@ Tüm hatalar `{ error: { code, message } }` biçiminde, mesajlar Türkçedir.
 - `GET /products/:slug`
 - `GET /content` → `{ fields, brandMedia }`
 - `GET /settings` → `{ settings }`
-- `GET /sitemap.xml`, `GET /feeds/google-merchant.xml`, `GET /seo/render?path=/…` — bkz. "SEO"
+- `GET /sitemap.xml`, `GET /feeds/google-merchant.xml`, `GET /seo/render?path=/…`, `GET /llms.txt` — bkz. "SEO"
 - `POST /coupons/validate` `{ code, subtotal }` — indirim kodu doğrulama (30 / 15 dk / IP; bkz. "Kuponlar")
 - `POST /orders` — sipariş oluşturur; fiyat/stok DB'den doğrulanır, toplamlar sunucuda hesaplanır
   (üyelik indirimi yalnızca oturumu açık ve `discount_eligible` müşteri için), stok transaction
@@ -440,6 +440,13 @@ birlikte** güncellenir. Bağımlılık yok: XML elle üretilir (`escapeXml`).
   Apache, bot UA'larını (`facebookexternalhit|WhatsApp|Twitterbot|TelegramBot|Googlebot|bingbot|…`)
   dosya/varlık ve `/api` dışındaki her yol için buraya rewrite eder (`public/.htaccess`). Ürün/içerik/ayar
   bağlamı 30 sn bellekte tutulur (bot dalgaları DB'yi yormasın).
+  Aynı yanıtta `<div id="root">` boş gitmez: `renderBody` sayfada görünen içeriğin anlamsal HTML'ini basar
+  (header/nav, breadcrumb, h1, ürün fiyat/renk/beden/stok, açıklama ve teslimat metni güvenli markdown'la,
+  benzer ürünler, SSS soruları, beden tablosu, footer bilgi bağlantıları + adres; 404'te "Sayfa bulunamadı").
+  Her metin kaçışlanır; bağlantılar dil önekli göreli yol. Yalnızca sunucuda üretilir (TS karşılığı yok).
+- `GET /llms.txt` — LLM tarayıcıları için markdown site özeti (TR): kategoriler, görünür ürünler (kategori ·
+  fiyat · gerçek açıklama kesiti), 11 bilgi sayfası, iletişim, diller + sitemap; mutlak URL.
+  `Content-Type: text/plain; charset=utf-8`, cache 1 saat. Apache `/llms.txt` → buraya (`public/.htaccess`).
 - Meta kuralları: başlık `"<Sayfa> | Teshvikiye"` (ana sayfa `"Teshvikiye | Kadın Giyim — <koleksiyon
   adı>"`); açıklama ≤155 karakter (ürün: gerçek açıklama kesiti, yer tutucu — "Ürün NN — …", "… alanı",
   "içerik eklenecek" — ise şablon; koleksiyon/kategori: `brand.collectionIntro`; bilgi: ilk bölüm; `sss`:

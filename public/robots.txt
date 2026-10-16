@@ -1,4 +1,29 @@
+# Teshvikiye — tek kural grubu: arama motorları ve yapay zekâ arama/eğitim tarayıcıları açıkça izinli;
+# yalnızca hesap/sepet/ödeme/panel/API yolları kapalı. Site özeti: https://teshvikiye.com/llms.txt
 User-agent: *
+User-agent: Googlebot
+User-agent: Googlebot-Image
+User-agent: Google-Extended
+User-agent: bingbot
+User-agent: Applebot
+User-agent: Applebot-Extended
+User-agent: GPTBot
+User-agent: ChatGPT-User
+User-agent: OAI-SearchBot
+User-agent: ClaudeBot
+User-agent: Claude-Web
+User-agent: Claude-User
+User-agent: Claude-SearchBot
+User-agent: anthropic-ai
+User-agent: PerplexityBot
+User-agent: Perplexity-User
+User-agent: Amazonbot
+User-agent: CCBot
+User-agent: meta-externalagent
+User-agent: DuckAssistBot
+User-agent: MistralAI-User
+User-agent: cohere-ai
+User-agent: YouBot
 Disallow: /admin
 Disallow: /api
 Disallow: /odeme

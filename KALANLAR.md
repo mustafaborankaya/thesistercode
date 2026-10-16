@@ -1,8 +1,8 @@
 # Teshvikiye — Kalanlar
 
-Güncelleme: 08.10.2026. Tamamlanan her madde işaretlenip tarih yazılır.
+Güncelleme: 16.10.2026. Tamamlanan her madde işaretlenip tarih yazılır.
 
-> **Askıda:** 08.10.2026 itibarıyla 10.11.2026'ya kadar sitede çalışma yok. Son durum: main `a0efc08` canlıda, çalışma ağacı temiz. Devam edince önce bu dosya, sonra bekleyen girdiler.
+> **Askıda:** 10.11.2026'ya kadar sitede düzenli çalışma yok (08.10 kararı). 16.10'da istek üzerine SEO/GEO turu yapıldı. Son durum için "Tamamlananlar" ve git log.
 
 ## Sizden beklenenler
 
@@ -23,6 +23,10 @@ Güncelleme: 08.10.2026. Tamamlanan her madde işaretlenip tarih yazılır.
 - [ ] Google Merchant Center: akış adresi `https://teshvikiye.com/feeds/google-merchant.xml` (görseller yüklenmeden reddeder).
 - [ ] Facebook/WhatsApp link önizleme ve Google Rich Results testi ile bir ürün sayfası kontrolü.
 - [ ] Bing Webmaster Tools: Search Console'dan içe aktarma.
+- [ ] Ürün girerken **EN ad/açıklama** alanlarını da doldurun; boşsa `/en` ürün sayfaları Türkçe metinle çıkar ("yalnızca kalıp çevrilmiş" sayılır).
+- [ ] Ürün adresleri (`/urun/urun-03`) ürün adından türemeli; panelde slug düzenlenebiliyorsa gerçek adla verin.
+- [ ] Hakkımızda metnini genişletin (şu an tek paragraf); sosyal bağlantılar girilince Organization şemasına sameAs otomatik eklenir.
+- [ ] `https://teshvikiye.com/llms.txt` ve bot gövdesi gerçek ürünlerle kendiliğinden güncellenir; ChatGPT/Perplexity'de "teshvikiye" sorusuyla alıntı kontrolü.
 
 ## Benim yapacaklarım (girdiler geldikçe)
 
@@ -32,9 +36,13 @@ Güncelleme: 08.10.2026. Tamamlanan her madde işaretlenip tarih yazılır.
 - [ ] **Kargo entegrasyonu** — firma API'si ile gönderi oluşturma, etiket PDF, durum güncellemeleri; iade kodu akışı.
 - [ ] **Yetki daraltma** — iade, üyelik indirimi, kargo ücreti ve taksit ayarlarını yalnızca "sahip" rolüne kısıtlama.
 - [ ] **Güvenlik takipleri** — sipariş başına adet sınırı ve adres sayısı sınırı, gerçek istemci IP'siyle hız sınırı testi, indirimin doğrulanmış e-postaya bağlanması (SMTP sonrası).
+- [ ] **Görsel boru hattı** — panelden yüklenen fotoğraflar sunucuda küçültülmüyor (sharp yok): yüklemede yeniden boyutlandırma + WebP + srcset üretimi. Gerçek fotoğraflar gelmeden önce yapılmalı (denetim 16.10: 900×1200 fotoğraf 276×369 kutuda, ana sayfa 1,8 MB görsel).
+- [ ] **SEO küçük işler** — koleksiyon "tüm ürünler" sayfasına ana sayfadan farklı H1; kategori başlık kalıbı ("Elbiseler — Kadın Giyim | Teshvikiye"); ürün sayfasında görünür breadcrumb; bilgi sayfalarının tam metni bot gövdesine (DB alanı boşken 600 karakterlik şablon geri dönüşü basılıyor — panelden İçerik > Bilgi sayfaları kaydedilirse tam metin gider).
+- [ ] **IndexNow** (isteğe bağlı) — Bing/Yandex anında dizinleme: anahtar dosyası + ürün/içerik değişiminde ping. Gerçek ürünlerden sonra.
 - [ ] **Küçük işler** — onay penceresine erişilebilirlik rolü, kullanılmayan iki panel fonksiyonunun temizliği.
 
 ## Tamamlananlar (özet)
 
+- 16.10: SEO/GEO turu — bot önizlemesine sayfa gövdesi (ana sayfa, koleksiyon, ürün, bilgi/SSS; JS çalıştırmayan GPTBot/ClaudeBot/PerplexityBot vb. artık metni görüyor), `/llms.txt`, robots.txt'de yapay zekâ tarayıcı grupları, .htaccess bot listesi genişletildi, JS paketi sıkıştırması düzeltildi (text/javascript DEFLATE listesinde yoktu), `max-image-preview:large` robots metası, akordeon başlıkları h2 (H1→H3 atlaması). Denetim ölçümleri: LCP 1,4–2,0 s, CLS ≈ 0, TTFB 100–220 ms.
 - 07.10: "Beni hatırla"; birinci taraf analitik ve panelde Analitik sayfası; ürün silme; "Ürün NN" temizliği; ilişkili ürünlerde yalnızca seçilenler; görsellerde varsayılan rozeti; sınırsız renk; içerik canlı önizleme (çerçeve izni aynı kökene açıldı); SEO (meta, yapısal veri, sitemap, bot önizlemesi, Merchant akışı).
 - Öncesi: tasarım yenileme ve logo, Cabin fontu, iyzico sandbox entegrasyonu, kuponlar, stok takibi, kargo takibi, hesap/adres/sipariş geçmişi, e-posta altyapısı (SMTP bekliyor), yasal metinler ve "okudum onaylıyorum", şirket kimliği, yönetici paneli v2, güvenlik sertleştirmesi.

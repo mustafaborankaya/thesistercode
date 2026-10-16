@@ -92,7 +92,7 @@ export interface PageMeta {
   description: string
   canonical: string | null
   alternates: { tr: string; en: string } | null
-  robots: 'index,follow' | 'noindex,nofollow'
+  robots: 'index,follow,max-image-preview:large,max-snippet:-1' | 'noindex,nofollow'
   lang: string
   ogLocale: string
   og: {
@@ -377,7 +377,8 @@ function baseMeta(env: SeoEnv, lt: LocaleTemplates): PageMeta {
     description: lt.home.description,
     canonical: null,
     alternates: null,
-    robots: 'index,follow',
+    // max-image-preview:large → Google/Discover büyük görsel önizlemesi; max-snippet:-1 → snippet uzunluğu sınırsız (AI Overviews alıntıları).
+    robots: 'index,follow,max-image-preview:large,max-snippet:-1',
     lang: lt.lang,
     ogLocale: lt.ogLocale,
     og: {

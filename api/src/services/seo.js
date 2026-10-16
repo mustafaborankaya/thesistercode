@@ -10,6 +10,8 @@
  * enjeksiyonu, sitemap ve Google Merchant feed XML'i, SSS ayrıştırıcısı (src/components/info/parseFaq.ts
  * ile aynı kurallar) ve DB ürün/içerik satırlarını `pageMeta` girdisine çeviren dönüştürücüler.
  * Bağımlılık eklenmez: XML elle üretilir (`escapeXml`).
+ * Bot gövdesi (`renderBody`, `renderMarkdown`, `injectBody`) ve `/llms.txt` (`buildLlmsTxt`) yalnızca sunucuda
+ * üretilir; bölüm 2'dedir ve TS tarafına yansıtılmaz.
  */
 import { createRequire } from 'node:module'
 
@@ -279,7 +281,8 @@ function baseMeta(env, lt) {
     description: lt.home.description,
     canonical: null,
     alternates: null,
-    robots: 'index,follow',
+    // max-image-preview:large → Google/Discover büyük görsel önizlemesi; max-snippet:-1 → snippet uzunluğu sınırsız (AI Overviews alıntıları).
+    robots: 'index,follow,max-image-preview:large,max-snippet:-1',
     lang: lt.lang,
     ogLocale: lt.ogLocale,
     og: {
@@ -764,5 +767,383 @@ export function buildMerchantFeedXml(products, origin) {
     lines.push('    </item>')
   }
   lines.push('  </channel>', '</rss>')
+  return `${lines.join('\n')}\n`
+}
+
+/* ---------------- Bot gövdesi (dynamic rendering) ----------------
+ * JS çalıştırmayan tarayıcılar (LLM tarayıcıları, link önizlemeleri) için `<div id="root">` içine sayfada
+ * gerçekten görünen içeriğin anlamsal HTML karşılığı basılır. Yalnızca sunucuda üretilir (TS karşılığı yok).
+ * `data`'dan gelen her metin `escapeHtml`'den geçer; bağlantılar dil önekli ve göreli yoldur.
+ */
+
+/** Okunur fiyat: TR `2.650,00`, EN `2,650.00` (Intl yok — Node sürümleri arasında ICU farkı olmasın). */
+export function formatPriceHuman(amount, locale) {
+  const [intPart, dec] = formatPrice(amount).split('.')
+  const negative = intPart.startsWith('-')
+  const digits = negative ? intPart.slice(1) : intPart
+  const [thousands, decimal] = locale === 'en' ? [',', '.'] : ['.', ',']
+  return `${negative ? '-' : ''}${digits.replace(/\B(?=(\d{3})+(?!\d))/g, thousands)}${decimal}${dec}`
+}
+
+/** Bağlantı hedefi güvenli mi? Yalnızca http(s):// ya da site içi `/yol` (protokolsüz `//alan` değil). */
+function safeHref(url) {
+  return /^https?:\/\//i.test(url) || /^\/(?!\/)/.test(url)
+}
+
+/** Satır içi işaretler — girdi önceden kaçışlanmış metindir. */
+function inlineMarkdown(escaped) {
+  const links = []
+  let out = escaped.replace(/\[([^\]\n]+)\]\(([^)\s]+)\)/g, (_, label, url) => {
+    // Yer tutucu: Unicode özel kullanım alanı karakteri (girdiden önceden silinir). Güvensiz hedef (javascript:, data: …) bağlantı olmaz; yalnızca etiket düz metin kalır.
+    links.push(safeHref(url) ? `<a href="${url}">${label}</a>` : label)
+    return `\uE000${links.length - 1}\uE000`
+  })
+  out = out.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>')
+  out = out.replace(/(^|[^*\w])\*([^*\s][^*\n]*?)\*(?![*\w])/g, '$1<em>$2</em>')
+  return out.replace(/\uE000(\d+)\uE000/g, (_, i) => links[Number(i)])
+}
+
+/**
+ * Küçük ve güvenli markdown → HTML (src/components/ui/LegalText.tsx'e yakın kurallar). Önce kaçışlanır, ham
+ * HTML asla geçmez. `#`/`##` → h2, `###` → h3, `####`+ → h4; `---`/`***`/`___` → hr; `- `/`* `/`• ` → ul;
+ * `1. ` → ol; diğer satırlar paragraf (boş satır paragraf böler, tek satır sonu → br).
+ */
+export function renderMarkdown(text) {
+  if (text === null || text === undefined || !String(text).trim()) return ''
+  const lines = escapeHtml(String(text).replace(/\uE000/g, '').replace(/\r\n?/g, '\n')).split('\n')
+  const out = []
+  let para = []
+  let list = null
+  const flushPara = () => {
+    if (para.length) out.push(`<p>${para.map(inlineMarkdown).join('<br>')}</p>`)
+    para = []
+  }
+  const flushList = () => {
+    if (list) out.push(`<${list.tag}>${list.items.map((it) => `<li>${inlineMarkdown(it)}</li>`).join('')}</${list.tag}>`)
+    list = null
+  }
+  const addItem = (tag, item) => {
+    flushPara()
+    if (list && list.tag !== tag) flushList()
+    if (!list) list = { tag, items: [] }
+    list.items.push(item)
+  }
+  for (const raw of lines) {
+    const line = raw.trim()
+    if (!line) {
+      flushPara()
+      flushList()
+      continue
+    }
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(line)) {
+      flushPara()
+      flushList()
+      out.push('<hr>')
+      continue
+    }
+    const heading = /^(#{1,6})\s+(.*)$/.exec(line)
+    if (heading) {
+      flushPara()
+      flushList()
+      const level = heading[1].length <= 2 ? 2 : heading[1].length === 3 ? 3 : 4
+      out.push(`<h${level}>${inlineMarkdown(heading[2].trim())}</h${level}>`)
+      continue
+    }
+    const bullet = /^[-*•]\s+(.*)$/.exec(line)
+    if (bullet) {
+      addItem('ul', bullet[1])
+      continue
+    }
+    const ordered = /^\d+[.)]\s+(.*)$/.exec(line)
+    if (ordered) {
+      addItem('ol', ordered[1])
+      continue
+    }
+    flushList()
+    para.push(line)
+  }
+  flushPara()
+  flushList()
+  return out.join('\n')
+}
+
+/** `<div id="root"></div>` içine gövdeyi koyar; kök yoksa `</body>` önüne, o da yoksa sona ekler. `injectHead` sonrası çağrılır. */
+export function injectBody(html, bodyHtml) {
+  const root = `<div id="root">${bodyHtml}</div>`
+  if (/<div id="root">\s*<\/div>/.test(html)) return html.replace(/<div id="root">\s*<\/div>/, () => root)
+  if (html.includes('</body>')) return html.replace('</body>', () => `${root}\n</body>`)
+  return `${html}\n${root}`
+}
+
+/** Ana sayfa "Üretim" bölümü metinleri (`production.*` içerik alanları; boşsa contentTexts.ts geri dönüşü). */
+export function productionContent(fields, fieldsEn, locale) {
+  const get = (k) => resolveContentField(`production.${k}`, fields, fieldsEn, locale)
+  return {
+    intro: get('intro'),
+    steps: ['kesim', 'dikim', 'kalite'].map((s) => ({ title: get(`${s}.title`), text: get(`${s}.text`) })),
+  }
+}
+
+/**
+ * Şablondaki bilgi sayfası geri dönüşleri contentTexts.ts metninin ilk `leadMax` karakteridir (meta için).
+ * İçerik alanı DB'de boşsa gövdeye bu kesik metin gelir; kelime ortasında bitmesin diye son tam satıra kadar alınır.
+ */
+function wholeLines(text, fallback, max) {
+  if (!text || text !== fallback || text.length < max) return text
+  const cut = text.lastIndexOf('\n')
+  return cut > 0 ? text.slice(0, cut).trim() : text
+}
+
+const SIZE_ROW_RE = /^(XS|S|M|L|XL):\s*(.*)$/
+
+/** Beden tablosu metni ("XS: Göğüs 80–84 cm · Bel …") → `<table>`; tablo satırı yoksa markdown. */
+function renderSizeGuide(text, sizeLabel) {
+  const lines = String(text).replace(/\r\n?/g, '\n').split('\n').map((l) => l.trim())
+  const rows = lines.map((l) => SIZE_ROW_RE.exec(l)).filter(Boolean)
+  if (!rows.length) return renderMarkdown(text)
+  const cells = rows.map((m) => m[2].split(/\s*·\s*/).filter(Boolean))
+  // Sütun etiketleri ("Göğüs 80–84 cm" → "Göğüs") her satırda aynı sırada çıkarılabiliyorsa başlık satırı basılır.
+  const split = (c) => /^(\D+?)\s+(\d.*)$/.exec(c)
+  const labels = cells[0].map((c) => split(c)?.[1] ?? null)
+  const uniform = labels.every(Boolean) && cells.every((r) => r.length === labels.length && r.every((c, i) => split(c)?.[1] === labels[i]))
+  const head = uniform ? `<thead><tr><th scope="col">${escapeHtml(sizeLabel)}</th>${labels.map((l) => `<th scope="col">${escapeHtml(l)}</th>`).join('')}</tr></thead>` : ''
+  const body = rows
+    .map((m, r) => `<tr><th scope="row">${escapeHtml(m[1])}</th>${cells[r].map((c) => `<td>${escapeHtml(uniform ? split(c)[2] : c)}</td>`).join('')}</tr>`)
+    .join('')
+  const table = `<table>${head}<tbody>${body}</tbody></table>`
+  const firstRow = lines.findIndex((l) => SIZE_ROW_RE.test(l))
+  let lastRow = -1
+  lines.forEach((l, i) => {
+    if (SIZE_ROW_RE.test(l)) lastRow = i
+  })
+  const para = (ls) => ls.filter(Boolean).map((l) => `<p>${inlineMarkdown(escapeHtml(l))}</p>`)
+  const middle = lines.slice(firstRow, lastRow + 1).filter((l) => l && !SIZE_ROW_RE.test(l))
+  return [...para(lines.slice(0, firstRow)), table, ...para(middle), ...para(lines.slice(lastRow + 1))].join('\n')
+}
+
+/**
+ * Rota + veri → `<div id="root">` içine konacak anlamsal HTML (header / main / footer). Veri `pageMeta` ile
+ * aynıdır; ek alanlar: home → `products` (SeoProduct[]), `production` ({intro, steps[]}); product →
+ * `related` (SeoProduct[]), `delivery` ({shipping, returns}). Bilinmeyen sayfa → "Sayfa bulunamadı" gövdesi.
+ */
+export function renderBody(route, data, env) {
+  const t = env.templates
+  const locale = env.locale
+  const lt = t.locales[locale]
+  const b = lt.bot
+  const patterns = t.placeholderPatterns
+  const fb = lt.fallbacks
+  const e = escapeHtml
+  const href = (path) => e(localizedPath(path, locale))
+  const link = (path, text) => `<a href="${href(path)}">${e(text)}</a>`
+  const real = (v, fbKey) => realText(v, patterns) ?? (fbKey ? realText(fb[fbKey], patterns) : null)
+  const brand = (k) => real(data.brand?.[k], `brand.${k}`)
+  const price = (amount) => fill(b.priceFormat, { amount: formatPriceHuman(amount, locale) })
+  const categoryName = (id) => lt.categories[id] ?? id
+  const colorsText = (n) => (n === 1 ? lt.product.colorsOne : fill(lt.product.colorsMany, { n }))
+  const productPath = (p) => `${t.paths.product}/${p.slug}`
+  const crumbs = (items) =>
+    `<nav aria-label="${e(b.breadcrumb)}"><ol>${items
+      .map((it, i) => (i === items.length - 1 ? `<li aria-current="page">${e(it.name)}</li>` : `<li>${link(it.path, it.name)}</li>`))
+      .join('')}</ol></nav>`
+  const homeCrumb = { name: lt.breadcrumb.home, path: '/' }
+  const collectionCrumb = { name: lt.breadcrumb.collection, path: t.paths.collection }
+  const contactLines = (values) => {
+    const [company, address, phone, email] = values
+    const out = []
+    if (company) out.push(e(company))
+    if (address) out.push(e(address))
+    if (phone) out.push(`<a href="tel:${e((normalizePhone(phone) ?? phone).replace(/[^\d+]/g, ''))}">${e(phone)}</a>`)
+    if (email) out.push(`<a href="mailto:${e(email)}">${e(email)}</a>`)
+    return out.length ? `<address>${out.join('<br>')}</address>` : ''
+  }
+  const notFound = () => `<h1>${e(lt.notFound.title)}</h1>\n<p>${e(lt.notFound.description)}</p>`
+
+  const main = (() => {
+    switch (route.kind) {
+      case 'home': {
+        const collectionTitle = brand('collectionTitle')
+        const intro = brand('collectionIntro')
+        const out = [`<h1>${e(collectionTitle ?? `${t.siteName} — ${b.siteTagline}`)}</h1>`]
+        if (intro) out.push(`<p>${e(intro)}</p>`)
+        const products = [...(data.products ?? [])].sort((x, y) => Number(!!y.isNew) - Number(!!x.isNew)).slice(0, t.itemListMax)
+        if (products.length) {
+          const items = products.map((p) => `<li>${link(productPath(p), p.name)} — ${e(price(p.price))} · ${e(categoryName(p.category))}</li>`)
+          out.push(`<section><h2>${e(b.featured)}</h2><ul>${items.join('')}</ul></section>`)
+        }
+        out.push(`<p>${link(t.paths.collection, b.allProducts)}</p>`)
+        const production = data.production ?? productionContent(null, null, locale)
+        const steps = (production.steps ?? [])
+          .map((s) => ({ title: realText(s.title, patterns), text: realText(s.text, patterns) }))
+          .filter((s) => s.title || s.text)
+          .map((s) => `${s.title ? `<h3>${e(s.title)}</h3>` : ''}${s.text ? `<p>${e(s.text)}</p>` : ''}`)
+        const productionIntro = realText(production.intro, patterns)
+        if (productionIntro || steps.length) {
+          out.push(`<section id="uretim"><h2>${e(b.production)}</h2>${productionIntro ? `<p>${e(productionIntro)}</p>` : ''}${steps.join('')}</section>`)
+        }
+        return out.join('\n')
+      }
+
+      case 'collection': {
+        const categoryId = route.categoryId
+        if (!lt.categories[categoryId] || !t.categories.includes(categoryId)) return notFound()
+        const isAll = categoryId === 'tum-urunler'
+        const name = isAll ? lt.collection.title : lt.categories[categoryId]
+        const path = isAll ? t.paths.collection : `${t.paths.collection}/${categoryId}`
+        const out = [crumbs(isAll ? [homeCrumb, collectionCrumb] : [homeCrumb, collectionCrumb, { name, path }]), `<h1>${e(name)}</h1>`]
+        const intro = brand('collectionIntro')
+        if (intro) out.push(`<p>${e(intro)}</p>`)
+        const items = (data.products ?? []).map(
+          (p) => `<li>${link(productPath(p), p.name)} — ${e(price(p.price))} · ${e(colorsText(p.colorCount))} · ${e(p.inStock ? b.inStock : b.outOfStock)}</li>`,
+        )
+        if (items.length) out.push(`<ul>${items.join('')}</ul>`)
+        return out.join('\n')
+      }
+
+      case 'product': {
+        const p = data.product
+        if (!p) return notFound()
+        const category = categoryName(p.category)
+        const categoryPath = `${t.paths.collection}/${p.category}`
+        const out = [
+          crumbs([homeCrumb, collectionCrumb, { name: category, path: categoryPath }, { name: p.name, path: productPath(p) }]),
+          `<h1>${e(p.name)}</h1>`,
+          `<p>${e(b.price)}: ${e(price(p.price))}</p>`,
+          `<p>${e(p.inStock ? b.inStock : b.outOfStock)}</p>`,
+          `<dl><dt>${e(b.category)}</dt><dd>${link(categoryPath, category)}</dd><dt>${e(b.colors)}</dt><dd>${e(colorsText(p.colorCount))}</dd><dt>${e(b.sizes)}</dt><dd>${e(t.sizes)}</dd></dl>`,
+        ]
+        const alt = fill(lt.product.imageAlt, { name: p.name })
+        for (const src of (p.images ?? []).slice(0, 3)) out.push(`<img src="${e(src)}" alt="${e(alt)}">`)
+        const description = realText(p.description, patterns)
+        if (description) out.push(`<section><h2>${e(b.description)}</h2>${renderMarkdown(description)}</section>`)
+        const shipping = renderMarkdown(realText(data.delivery?.shipping, patterns))
+        const returns = renderMarkdown(realText(data.delivery?.returns, patterns))
+        out.push(`<section><h2>${e(b.deliveryReturns)}</h2>${shipping}${returns}<p>${link(`${t.paths.info}/teslimat-ve-iade`, b.deliveryPolicyLink)}</p></section>`)
+        const related = (data.related ?? []).slice(0, 4)
+        if (related.length) {
+          const items = related.map((r) => `<li>${link(productPath(r), r.name)} — ${e(price(r.price))}</li>`)
+          out.push(`<section><h2>${e(b.related)}</h2><ul>${items.join('')}</ul></section>`)
+        }
+        return out.join('\n')
+      }
+
+      case 'info': {
+        const slug = t.infoAliases[route.slug] ?? route.slug
+        const title = lt.info.titles[slug]
+        if (!title || !data.info || !t.infoSlugs.includes(slug)) return notFound()
+        const out = [crumbs([homeCrumb, { name: title, path: `${t.paths.info}/${slug}` }]), `<h1>${e(title)}</h1>`]
+        const sections = data.info.sections ?? []
+        if (slug === 'iletisim') {
+          const keys = ['companyName', 'address', 'phone', 'email']
+          out.push(contactLines(keys.map((k, i) => real(sections[i], `brand.${k}`))))
+          return out.join('\n')
+        }
+        const texts = sections.map((s, i) => wholeLines(real(s, `info.${slug}.${i}`), fb[`info.${slug}.${i}`], t.leadMax)).filter(Boolean)
+        if (slug === 'sss') {
+          const parsed = texts.map((s) => parseFaq(s))
+          if (parsed.some((f) => f.items.length)) {
+            out.push(`<p>${e(lt.info.faqDescription)}</p>`)
+            for (const f of parsed) {
+              for (const para of f.intro) out.push(`<p>${e(para)}</p>`)
+              for (const item of f.items) out.push(`<section><h2>${e(item.question)}</h2>${item.answer.map((a) => `<p>${e(a)}</p>`).join('')}</section>`)
+            }
+            return out.join('\n')
+          }
+        }
+        const render = (s) => (slug === 'beden-rehberi' ? renderSizeGuide(s, b.sizes) : renderMarkdown(s))
+        if (texts.length > 1) for (const s of texts) out.push(`<section>${render(s)}</section>`)
+        else if (texts.length === 1) out.push(render(texts[0]))
+        return out.join('\n')
+      }
+
+      case 'page': {
+        const name = lt.pages[route.id]
+        if (!name || !t.pagePaths[route.id]) return notFound()
+        return `<h1>${e(name)}</h1>`
+      }
+
+      case 'notFound':
+      default:
+        return notFound()
+    }
+  })()
+
+  const mainNav = [`<li>${link(t.paths.collection, lt.collection.title)}</li>`]
+  for (const id of t.categories) if (id !== 'tum-urunler') mainNav.push(`<li>${link(`${t.paths.collection}/${id}`, categoryName(id))}</li>`)
+  const infoNav = t.infoSlugs.map((slug) => `<li>${link(`${t.paths.info}/${slug}`, lt.info.titles[slug])}</li>`)
+  return [
+    `<header><p>${link('/', t.siteName)} — ${e(b.siteTagline)}</p><nav aria-label="${e(b.mainNav)}"><ul>${mainNav.join('')}</ul></nav></header>`,
+    `<main>\n${main}\n</main>`,
+    `<footer><nav aria-label="${e(b.infoNav)}"><ul>${infoNav.join('')}</ul></nav>${contactLines(['companyName', 'address', 'phone', 'email'].map(brand))}</footer>`,
+  ].join('\n')
+}
+
+/* ---------------- /llms.txt ---------------- */
+
+/** Markdown bağlantı metni için tek satır, köşeli parantezler kaçışlı. */
+function mdText(s) {
+  return String(s).replace(/\s+/g, ' ').trim().replace(/([[\]\\])/g, '\\$1')
+}
+
+/**
+ * llms.txt (https://llmstxt.org) — sitenin düz metin özeti. `data = { brand, products (SeoProduct[]),
+ * info: { [slug]: bölüm metinleri[] } }`; boş alanlar şablon geri dönüşlerine düşer. URL'ler mutlaktır.
+ */
+export function buildLlmsTxt(data, env) {
+  const t = env.templates
+  const locale = env.locale
+  const lt = t.locales[locale]
+  const b = lt.bot
+  const patterns = t.placeholderPatterns
+  const fb = lt.fallbacks
+  const real = (v, fbKey) => realText(v, patterns) ?? realText(fb[fbKey], patterns)
+  const products = data.products ?? []
+  const lines = [`# ${t.siteName}`, '', `> ${b.llmsIntro}`, '']
+
+  lines.push(`## ${lt.collection.title}`, '')
+  for (const id of t.categories) {
+    if (id === 'tum-urunler') continue
+    const name = lt.categories[id]
+    const count = productsForCategory(products, id).length
+    lines.push(`- [${mdText(name)}](${absoluteUrl(`${t.paths.collection}/${id}`, env)}): ${fill(lt.collection.descriptionNoIntro, { category: name })} (${fill(b.productCount, { n: count })})`)
+  }
+  lines.push('')
+
+  if (products.length) {
+    lines.push(`## ${b.products}`, '')
+    for (const p of products) {
+      const parts = [lt.categories[p.category] ?? p.category, fill(b.priceFormat, { amount: formatPriceHuman(p.price, locale) })]
+      const description = realText(p.description, patterns)
+      if (description) parts.push(excerpt(description, 160))
+      lines.push(`- [${mdText(p.name)}](${absoluteUrl(`${t.paths.product}/${p.slug}`, env)}): ${parts.join(' · ')}`)
+    }
+    lines.push('')
+  }
+
+  const brand = (k) => real(data.brand?.[k], `brand.${k}`)
+  const contact = [brand('companyName'), brand('address'), brand('phone'), brand('email')]
+  lines.push(`## ${b.infoNav}`, '')
+  for (const slug of t.infoSlugs) {
+    const title = lt.info.titles[slug]
+    let summary
+    if (slug === 'sss') summary = lt.info.faqDescription
+    else if (slug === 'iletisim') summary = contact.filter(Boolean).join(' · ')
+    else summary = real(data.info?.[slug]?.[0], `info.${slug}.0`)
+    const url = absoluteUrl(`${t.paths.info}/${slug}`, env)
+    lines.push(summary ? `- [${mdText(title)}](${url}): ${excerpt(summary, 160)}` : `- [${mdText(title)}](${url})`)
+  }
+  lines.push('')
+
+  if (contact.some(Boolean)) {
+    lines.push(`## ${b.contact}`, '')
+    const [company, address, phone, email] = contact
+    if (company) lines.push(`- ${cleanText(company)}`)
+    if (address) lines.push(`- ${cleanText(address)}`)
+    if (phone) lines.push(`- ${normalizePhone(phone) ?? cleanText(phone)}`)
+    if (email) lines.push(`- ${cleanText(email)}`)
+    lines.push('')
+  }
+
+  lines.push(`## ${b.languages}`, '', `- TR: ${absoluteUrl('/', env, 'tr')}`, `- EN: ${absoluteUrl('/', env, 'en')}`, `- Sitemap: ${env.origin}/sitemap.xml`)
   return `${lines.join('\n')}\n`
 }

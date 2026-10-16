@@ -37,9 +37,11 @@ ServerSignature Off
   # Site haritası ve Google Merchant akışı diskte yok; Node API üretir (bkz. api/src/routes/seo.js)
   RewriteRule ^sitemap\.xml$ /api/sitemap.xml [PT,L]
   RewriteRule ^feeds/google-merchant\.xml$ /api/feeds/google-merchant.xml [PT,L]
+  RewriteRule ^llms\.txt$ /api/llms.txt [PT,L]
   # Sosyal/arama botları JS çalıştırmaz: sayfa metası sunucuda basılmış index.html'i alırlar
   # (GET /api/seo/render?path=/…; sorgu dizesi atılır). Dosya/varlık istekleri ve /api hariç.
-  RewriteCond %{HTTP_USER_AGENT} (facebookexternalhit|Facebot|WhatsApp|Twitterbot|LinkedInBot|TelegramBot|Slackbot|Discordbot|Pinterest|Applebot|Googlebot|bingbot|YandexBot|DuckDuckBot|Baiduspider) [NC]
+  # Liste: sosyal önizleme + arama motorları + yapay zekâ arama/eğitim tarayıcıları (GEO). Ayrıca robots.txt ve /llms.txt.
+  RewriteCond %{HTTP_USER_AGENT} (facebookexternalhit|Facebot|meta-externalagent|WhatsApp|Twitterbot|LinkedInBot|TelegramBot|Slackbot|Discordbot|Pinterest|Applebot|Googlebot|Google-Extended|GoogleOther|bingbot|YandexBot|DuckDuckBot|DuckAssistBot|Baiduspider|GPTBot|ChatGPT-User|OAI-SearchBot|ClaudeBot|Claude-Web|Claude-User|Claude-SearchBot|anthropic-ai|PerplexityBot|Perplexity-User|Amazonbot|CCBot|Bytespider|MistralAI-User|cohere-ai|YouBot|PetalBot) [NC]
   RewriteCond %{REQUEST_URI} !^/(api|assets|fonts|logos|uploads|\.well-known)/
   RewriteCond %{REQUEST_URI} !\.(js|css|png|jpe?g|webp|avif|svg|ico|woff2?|xml|txt|mp4|webm)$
   RewriteRule ^(.*)$ /api/seo/render?path=/$1 [PT,L]
@@ -72,7 +74,8 @@ ServerSignature Off
 </IfModule>
 
 <IfModule mod_deflate.c>
-  AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml
+  # Apache .js dosyalarını text/javascript ile sunar; listede yoktu → ana paket sıkıştırmasız gidiyordu (226 kB ham).
+  AddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript application/json application/xml text/xml text/plain image/svg+xml
 </IfModule>
 
 # BEGIN cPanel-generated php ini directives, do not edit

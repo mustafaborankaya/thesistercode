@@ -24,12 +24,13 @@ export function AccordionItem({ title, children, defaultOpen = false, open, onTo
   }
   return (
     <div className={[styles.item, className ?? ''].join(' ').trim()}>
-      <h3>
+      {/* h2: akordeonlar sayfa h1'inin altındaki ana bölümlerdir; h3 ile h1→h3 atlaması oluşuyordu (SEO denetimi). Stil etikete değil sınıfa bağlı. */}
+      <h2>
         <button type="button" className={styles.trigger} aria-expanded={isOpen} aria-controls={`${id}-panel`} id={`${id}-trigger`} onClick={toggle}>
           <span>{title}</span>
           <Icon name={isOpen ? 'minus' : 'plus'} size={16} className={styles.icon} />
         </button>
-      </h3>
+      </h2>
       <div id={`${id}-panel`} role="region" aria-labelledby={`${id}-trigger`} hidden={!isOpen} className={styles.panel}>
         {children}
       </div>
